@@ -1,0 +1,19 @@
+extern libc
+
+fn print(message: str) {
+  libc.fputs(libc.stderr, message)
+}
+
+fn echo(message: str) {
+  print("{message}\n")
+}
+
+fn exit(code: s32, message: str) {
+  echo(message)
+  libc.exit(s32)
+}
+
+fn die(message: str) {
+  echo(message)
+  libc.abort()
+}

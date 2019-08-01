@@ -1,0 +1,69 @@
+# To Do
+
+- Add builtin types to the builtin module.
+- Add an instance attribute on `Struct` for `interfaces`
+  - And at some point, an instance attribute on `Interface` for `structs`
+- Implement the objects:
+  - Boolean
+    - `bool`
+  - Rune
+    - `rune`
+  - String
+    - `str`
+  - Decimal
+    - `dec`
+    - Rounding
+  - Float
+    - `float`, `f16`, `f32`, `f64`, `f128`, `f256`
+    - Rounding
+  - Integer
+    - `integer`
+    - `int`, `s8`, `s16`, `s32`, `s64`, `s128`, `s256`
+    - `uint`, `u8`, `u16`, `u32`, `u64`, `u128`, `u256`
+    - Overflow
+  - Array
+    - `array`
+  - Struct
+    - `struct`
+  - Range
+    - `range`
+  - Enum
+    - `enum`
+- Finish types:
+  - Ranges
+  - Enums
+- Implement expressions
+- Implement statements:
+  - if/else
+  - switch/case/default
+  - for, loop, while
+    - break
+    - continue
+  - val/var
+  - return
+  - with
+  - iferr
+  - error
+- Default parameter values
+  - functions _and_ structs
+- String interpolation
+- Interfaces for all the numeric shit
+- Reflection
+  - `::size`
+  - ...basically any instance attribute in types
+- Anonymous functions
+- Everything has a name, but not everything _really_ has a name
+  - Anonymous functions
+  - Anonymous structs
+  - Anonymous arrays
+  - Maybe others?
+- Module description files
+
+## C FFI
+
+- Add 'alias' statement to Sylva
+- Add `cfntype` type to Sylva
+  - The safety semantics of these calls is... TBD
+- All builtin C types get an alias (machine-dependent, i.e. on 16-bit archs
+  `int` is `s16`)
+- All functions get a `cfntype`

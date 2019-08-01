@@ -1,0 +1,142 @@
+interface Expr(location: Location, parent: &Expr?)) {}
+
+interface OpExpr() {
+  fn get_child(self: &OpExpr): &Expr?
+
+  fn take_child(self: &OpExpr!): *Expr?
+
+  fn give_child(self: &OpExpr!, child: *Expr): void
+
+  fn fix_order(self: &OpExpr!): &OpExpr
+
+  fn is_out_of_order(self: &OpExpr): bool {
+    with (child: self.get_child()) {
+      return self.op > child.op
+    }
+    return false
+  }
+}
+
+struct BooleanExpr {
+  location: Location
+  parent: &Expr?
+  value: bool
+}
+
+implementation(Expr: BooleanExpr) {}
+
+struct RuneExpr {
+  location: Location
+  parent: &Expr?
+  value: rune
+}
+
+implementation(Expr: RuneExpr) {}
+
+struct StringExpr {
+  location: Location
+  parent: &Expr?
+  value: str
+}
+
+implementation(Expr: StringExpr) {}
+
+struct DecimalExpr {
+  location: Location
+  parent: &Expr?
+  value: dec
+}
+
+implementation(Expr: DecimalExpr) {}
+
+struct ArrayExpr {
+  location: Location
+  parent: &Expr?
+  value: array
+}
+
+implementation(Expr: ArrayExpr) {}
+
+struct LookupExpr {
+  location: Location
+  parent: &Expr?
+  value: str
+}
+
+implementation(Expr: LookupExpr) {}
+
+struct CallExpr {
+  location: Location
+  parent: &Expr?
+  function_expr: &FunctionExpr
+  argument_exprs: array(element_type: *Expr)
+}
+
+implementation(Expr: CallExpr) {}
+
+struct UnaryOpExpr {
+  location: Location
+  parent: &Expr?
+  operator: Operator
+  child: *Expr?
+}
+
+implementation(OpExpr: UnaryOpExpr) {
+  fn get_child(self: &OpExpr): &Expr? {
+    return self.child
+  }
+
+  fn take_child(self: &OpExpr!): *Expr? {
+    return *self.child
+  }
+
+  fn give_child(self: &OpExpr!, child: *Expr): void {
+    self.child = child
+  }
+}
+
+implementation(Expr: UnaryOpExpr) {
+  fn fix_order(self: &OpExpr!): &OpExpr {
+    var expr: self
+
+    while (expr.is_out_of_order()) {
+      expr = expr.swap_with_child()
+    }
+
+    return expr
+  }
+}
+
+struct BinaryOpExpr {
+  location: Location
+  parent: &Expr?
+  operator: Operator
+  lhs: *Expr?
+  rhs: *Expr?
+}
+
+implementation(OpExpr: BinaryOpExpr) {
+  fn get_child(self: &OpExpr): &Expr? {
+    return self.rhs
+  }
+
+  fn take_child(self: &OpExpr): *Expr? {
+    return *self.rhs
+  }
+
+  fn give_child(self: &OpExpr!, child: *Expr): void {
+    self.rhs = rhs
+  }
+}
+
+implementation(Expr: BinaryOpExpr) {
+  fn fix_order(self: &OpExpr!): &Expr {
+    var expr: self
+
+    while (expr.is_out_of_order()) {
+      expr = expr.rotate_left()
+    }
+
+    return expr
+  }
+}

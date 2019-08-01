@@ -1,0 +1,5 @@
+extern sys
+
+fn main() {
+  sys.echo("Hello, world!")
+}

@@ -1,0 +1,24 @@
+Pair                = ValueToken, ':', Expr;
+PairList            = Pair, [ { ',', Pair } ], [ ',' ];
+ExprList            = Expr, [ { ',', Expr } ] [ ',' ]
+LookupExpr          = ValueToken |
+                      ( ValueToken, [ { ( '.' | '::' ), LookupExpr } ] );
+ScalarLiteralExpr   = NumberToken | StringToken | RuneToken | BooleanToken;
+ArrayLiteralExpr    = '(', ( ( Expr, ',' ) | ( Expr, ',', ExprList ) ), ')';
+DynarrayLiteralExpr = '[', ExprList, ']';
+StructLiteralExpr   = '(', PairList, ')';
+MapLiteralExpr      = '[', PairList, ']';
+UnaryOpExpr         = UnaryOperatorToken, Expr;
+BinaryOpExpr        = Expr, BinaryOperatorToken, Expr;
+CallExpr            = Expr, StructExpr;
+ParenExpr           = '(', Expr, ')';
+Expr                = ( LookupExpr          |
+                        ScalarLiteralExpr   |
+                        ArrayLiteralExpr    |
+                        DynarrayLiteralExpr |
+                        StructLiteralExpr   |
+                        MapLiteralExpr      |
+                        UnaryOpExpr         |
+                        BinaryOpExpr        |
+                        CallExpr            |
+                        ParenExpr           | ), [ ';' ];

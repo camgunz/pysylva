@@ -1,0 +1,16 @@
+struct Dec {
+  minimum_exponent: s64,
+  maximum_exponent: s64,
+  maximum_precision: s64,
+  rounding_mode: DecimalRoundingMode(DECIMAL_ROUNDING_MODE_ABORT),
+}
+
+interface Adder {
+  fntype add(self: &Adder, other: &Adder): &Adder
+)
+
+implementation(Dec: Adder) {
+  fn add(self: &Adder, other: &Adder): &Adder {
+    return $DecimalAdd(self, other)
+  }
+}
