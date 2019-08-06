@@ -1,4 +1,4 @@
-from collections import namedtuple
+from collections import deque, namedtuple
 
 import functools
 
@@ -25,15 +25,15 @@ Scope = namedtuple(
 # pylint: disable=too-many-public-methods
 class Parser:
 
-    def __init__(self, program, data_source):
-        self.program = program
-        self.module = self.program.get_default_module()
+    def __init__(self, module, location):
+        self.module = module
         self.externs = []
-        self.scope = Scope(vars={})
-        self.lexer = Lexer(data_source)
+        self.aliases = {}
+        self.lexer = Lexer(location)
 
     # pylint: disable=redefined-outer-name
     def _expect(self, types=None, categories=None, token=None):
+        print(f'{self.module.name}: {self.lexer.location}')
         token = token or self.lexer.lex()
         if not token.matches(types, categories):
             if types and categories:
@@ -47,70 +47,57 @@ class Parser:
             )
         return token
 
-    def set_module(self, name):
-        self.module = self.program.get_module(name)
-
-    def parse(self):
-        token = self._expect(types=[
-            TokenType.Extern,
-            TokenType.Module,
-            TokenType.Fn,
-            TokenType.FnType,
-            TokenType.Struct,
-            TokenType.Array,
-            TokenType.Implementation,
-        ])
-        if token.token_type == TokenType.Extern:
-            return self.parse_extern(token)
-        if token.token_type == TokenType.Module:
-            return self.parse_module(token)
-        if token.token_type == TokenType.Fn:
-            return self.parse_function(token)
-        if token.token_type == TokenType.FnType:
-            return self.parse_function_type(token)
-        if token.token_type == TokenType.Struct:
-            return self.parse_struct_type(token)
-        if token.token_type == TokenType.Array:
-            return self.parse_array_type(token)
-        if token.token_type == TokenType.Implementation:
-            return self.parse_implementation(token)
-
     def _parse_flat_identifier(self, token=None):
         token = self._expect(types=[TokenType.Value], token=token)
+        location = token.location.copy()
         namespaces = [token.value]
         while True:
             dot = self.lexer.get_next_if_matches([TokenType.AttributeLookup])
             if not dot:
                 break
             namespaces.append(self._expect(types=[TokenType.Value]).value)
-        return '.'.join(namespaces)
-
-    def _lookup_value(self, name):
-        raise NotImplementedError()
+        return location, '.'.join(namespaces)
 
     def _resolve_identifier(self, token=None):
-        token = self._expect(types=[TokenType.Value], token=token)
-        location = token.location.copy()
-        ###
-        # So the algorithm here is:
-        # - Get a value (like plants.rubber_tree)
-        # - Get plants
-        # - See if plants exists in the current scope or its enclosures
-        # - See if plants exists in any of the (potentially aliased) externs
-        # - Freak out
-        value = self._lookup_value(token.value)
+        location, identifier = self._parse_flat_identifier(token)
+
+        extern = identifier.split('.')
+        name = extern.pop()
+        extern = '.'.join(extern)
+
+        if extern:
+            while extern in self.aliases:
+                extern = self.aliases[extern]
+
+            if extern not in self.externs:
+                raise errors.UndefinedSymbol(
+                    location,
+                    '.'.join([extern, name])
+                )
+
+            module = self.module.program.modules[extern]
+        else:
+            module = self.module
+
+        value = module.lookup(name)
         if not value:
-            raise errors.UndefinedVariable(token.location, token.value)
-        while True:
-            dot = self.lexer.get_next_if_matches([TokenType.AttributeLookup])
-            if not dot:
-                break
-            namespaces.append(self._expect(types=[TokenType.Value]).value)
-        return functools.reduce(
-            lambda enclosing, ns: AttributeLookup(location, ns, enclosing),
-            namespaces,
-            AttributeLookup(location, namespaces.pop(0))
-        )
+            raise errors.UndefinedSymbol(
+                location,
+                '.'.join([module.name, name])
+            )
+        return value
+
+    def _parse_code(self, token=None):
+        self.scopes.appendLeft({})
+        code = []
+        self._expect(types=[TokenType.OpenBrace])
+        token = self.lexer.get_next_if_not_matches([TokenType.CloseBrace])
+        while token:
+            code.append(self.parse_code_node(token))
+            token = self.lexer.get_next_if_not_matches([TokenType.CloseBrace])
+        self._expect(types=[TokenType.CloseBrace])
+        self.scopes.popLeft()
+        return code
 
     def _parse_function_signature(self, token=None):
         self._expect(types=[TokenType.OpenParen], token=token)
@@ -134,16 +121,63 @@ class Parser:
             self.lexer.set_state(state)
         return parameters, return_type
 
-    def parse_extern(self, token=None):
-        # [TODO] Aliases
-        self._expect(types=[TokenType.Extern], token=token)
-        self.externs.append(self._parse_flat_identifier())
+    def parse(self):
+        print(f'{self.module.name} Inside Parser.parse')
+        while True:
+            try:
+                token = self._expect(types=[
+                    TokenType.Extern,
+                    TokenType.Alias,
+                    TokenType.Module,
+                    TokenType.Fn,
+                    TokenType.FnType,
+                    TokenType.Struct,
+                    TokenType.Array,
+                    TokenType.Implementation,
+                ])
+            except errors.EOF:
+                print(f'{self.module.name}: EOF')
+                break
+            print(f'{self.module.name}: {token}')
+            if token.token_type == TokenType.Extern:
+                self.parse_extern(token)
+            elif token.token_type == TokenType.Alias:
+                self.parse_alias(token)
+            elif token.token_type == TokenType.Module:
+                self._parse_flat_identifier()
+                continue
+            elif token.token_type == TokenType.Fn:
+                self.parse_function(token)
+            elif token.token_type == TokenType.FnType:
+                self.parse_function_type(token)
+            elif token.token_type == TokenType.Struct:
+                self.parse_struct_type(token)
+            elif token.token_type == TokenType.Array:
+                self.parse_array_type(token)
+            elif token.token_type == TokenType.Implementation:
+                self.parse_implementation(token)
 
-    def parse_module(self, token=None):
+    def parse_extern(self, token=None):
         self._expect(types=[TokenType.Extern], token=token)
-        self.module = self.program.get_module(self._parse_flat_identifier())
+        location, extern = self._parse_flat_identifier()
+        if extern not in self.module.dependency_names:
+            raise RuntimeError('Extern not found in dependencies')
+        self.externs.append(extern)
+
+    def parse_alias(self, token=None):
+        self._expect(types=[TokenType.Alias], token=token)
+        location = token.location.copy()
+        name = self._expect(types=[TokenType.Value]).value
+        self._expect(types=[TokenType.Colon])
+        value = self._parse_flat_identifier()
+        if name == value:
+            raise errors.RedundantAlias(location, name)
+        if name in self.aliases:
+            raise errors.DuplicateAlias(location, name)
+        self.aliases[name] = value
 
     def parse_struct_type(self, token=None):
+        print('Parsing struct')
         token = self._expect(types=[TokenType.Struct], token=token)
         location = token.location.copy()
         name = self._expect(types=[TokenType.Value]).value
@@ -188,13 +222,7 @@ class Parser:
         location = token.location.copy()
         name = self._expect(types=[TokenType.Value]).value
         parameters, return_type = self._parse_function_signature()
-        code = []
-        self._expect(types=[TokenType.OpenBrace])
-        token = self.lexer.get_next_if_not_matches([TokenType.CloseBrace])
-        while token:
-            code.append(self.parse_code_node(token))
-            token = self.lexer.get_next_if_not_matches([TokenType.CloseBrace])
-        self._expect(types=[TokenType.CloseBrace])
+        code = self._parse_code()
         return types.Function(location, name, parameters, return_type, code)
 
     def parse_implementation(self, token=None):

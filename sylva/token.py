@@ -57,6 +57,11 @@ class TokenType:
         categories = {TokenCategory.Keyword}
         has_value = False
 
+    class Alias(metaclass=MetaTokenType):
+        name = 'Alias'
+        categories = {TokenCategory.Keyword}
+        has_value = False
+
     class Module(metaclass=MetaTokenType):
         name = 'Module'
         categories = {TokenCategory.Keyword}

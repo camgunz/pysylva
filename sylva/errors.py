@@ -32,7 +32,7 @@ class UnexpectedTokenType(LocationError):
 
     def __init__(self, token, expected_token_types):
         super().__init__(token.location, (
-            f'Unexpected token type {token.token_type}; '
+            f'Unexpected token type {token.token_type} ({token}); '
             f'expected: {strlist(expected_token_types)}'
         ))
 
@@ -50,10 +50,10 @@ class UnexpectedToken(LocationError):
 
     def __init__(self, token, expected_token_types, expected_token_categories):
         super().__init__(token.location, (
-        f'Unexpected token {token}; '
-        f'expected: {strlist(expected_token_types)} or '
-        f' {strlist(expected_token_categories)}'
-    ))
+            f'Unexpected token {token}; '
+            f'expected: {strlist(expected_token_types)} or '
+            f' {strlist(expected_token_categories)}'
+        ))
 
 class LiteralParseFailure(LocationError):
 
@@ -88,16 +88,45 @@ class MultipleOperatorsForToken(LocationError):
         )
 
 
-class UndefinedVariable(LocationError):
+class UndefinedSymbol(LocationError):
 
     def __init__(self, location, name):
-        super().__init__(location, f'Undefined variable {name}')
+        super().__init__(location, f'Undefined symbol {name}')
 
 
-class DuplicateDefinitionError(LocationError):
+class DuplicateDefinition(LocationError):
 
     def __init__(self, existing_location, location):
         super().__init__(
             location,
             f'Variable already defined: [{existing_location.shorthand}]'
         )
+
+
+class NoSuchModule(SylvaError):
+
+    def __init__(self, module_name):
+        super().__init__(f'No such module {module_name}')
+
+
+class MutatingBuiltins(SylvaError):
+
+    def __init__(self, builtin_module_statements):
+        super().__init__(
+            'Cannot modify builtins:\n' + '\n'.join([
+                f'\t{module_name}: {location.pformat()}'
+                for location, module_name in builtin_module_statements
+            ])
+        )
+
+
+class RedundantAlias(LocationError):
+
+    def __init__(self, location, name):
+        super().__init__(location, f'Alias for {name} is redundant')
+
+
+class DuplicateAlias(LocationError):
+
+    def __init__(self, location, name):
+        super().__init__(location, f'Alias {name} already defined')

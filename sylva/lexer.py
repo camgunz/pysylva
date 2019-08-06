@@ -126,6 +126,7 @@ TOKEN_MATCHERS = [
     TokenMatcher(re.compile(r"^(struct)\W"), TokenType.Struct, 1),
     TokenMatcher(re.compile(r"^(array)\W"), TokenType.Array, 1),
     TokenMatcher(re.compile(r"^(extern)\W"), TokenType.Extern, 1),
+    TokenMatcher(re.compile(r"^(alias)\W"), TokenType.Alias, 1),
     TokenMatcher(re.compile(r"^(module)\W"), TokenType.Module, 1),
     TokenMatcher(
         re.compile(r"^(implementation)\W"),
@@ -134,24 +135,23 @@ TOKEN_MATCHERS = [
         0
     ),
     TokenMatcher(re.compile(r"^(interface)\W"), TokenType.Interface, 1),
-    TokenMatcher(re.compile(r"^[\$]*\w+"), TokenType.Value)
+    TokenMatcher(re.compile(r"^[\@]*\w+"), TokenType.Value)
 ]
 
 
 class Lexer:
 
-    State = namedtuple('LexerState', ('index', 'line', 'column', 'funcs'))
+    State = namedtuple('State', ('index', 'line', 'column', 'funcs'))
 
-    def __init__(self, data_source):
-        self.data_source = data_source
-        self.location = Location(self.data_source, 1, 1)
+    def __init__(self, location):
+        self.location = location
+        self.data_source = location.data_source
         self.should_skip_funcs = [
             lambda token: token.categories.intersection({
                 TokenCategory.Blank,
                 TokenCategory.Comment
             })
         ]
-        self.data_source_index = 0
         self._states = []
 
     def __iter__(self):
@@ -167,7 +167,10 @@ class Lexer:
         return any([f(token) for f in self.should_skip_funcs])
 
     def _lex_token(self):
-        data = self.data_source.at(self.data_source_index)
+        try:
+            data = self.data_source.at(self.location)
+        except IndexError:
+            raise errors.EOF()
 
         for matcher in TOKEN_MATCHERS:
             match = matcher.regex.match(data)
@@ -180,7 +183,7 @@ class Lexer:
                 matcher.token_type.has_value and value or None
             )
             token_length = len(value) + matcher.extra_skip
-            self.data_source_index += token_length
+            self.location.index += token_length
             if token.token_type in (TokenType.LineBreak, TokenType.Comment):
                 self.location.line += 1
                 self.location.column = 1
@@ -189,21 +192,21 @@ class Lexer:
             break
         else:
             token = Token(self.location.copy(), TokenType.Unknown, data[0])
-            self.data_source_index += 1
+            self.location.index += 1
             self.location.column += 1
 
         return token
 
     def get_state(self):
         return Lexer.State(
-            self.data_source_index,
+            self.location.index,
             self.location.line,
             self.location.column,
             self.should_skip_funcs
         )
 
     def set_state(self, state):
-        self.data_source_index = state.index
+        self.location.index = state.index
         self.location.line = state.line
         self.location.column = state.column
         self.should_skip_funcs = [func for func in self.should_skip_funcs]

@@ -1,29 +1,42 @@
+from . import sylva
+from .location import Location
 from .module import Module
-from .parser import Parser
-
-
-_MAIN_MODULE_NAME = '@main'
-_BUILTIN_MODULE_NAME = '@builtin'
+from .module_loader import ModuleLoader
 
 
 class Program:
 
     def __init__(self, data_sources):
-        self.data_sources = data_sources
-        self.modules = {}
+        self.modules = {
+            module.name: module
+            for module in ModuleLoader.load_from_locations(
+                self,
+                [Location(data_source) for data_source in data_sources]
+            )
+        }
+        self._build_builtin_modules()
+        for module in self.modules.values():
+            module.resolve_dependencies([])
+
+    def _build_builtin_modules(self):
+        self.modules['sys'] = Module.BuiltIn(self, 'sys')
+
+    @property
+    def is_executable(self):
+        return sylva.MAIN_MODULE_NAME in self.modules
 
     def parse(self):
-        for data_source in self.data_sources:
-            Parser(self, data_source).parse()
+        for module in self.modules.values():
+            module.parse()
 
     def get_module(self, name):
-        return self.modules.setdefault(name, Module(name))
+        try:
+            return self.modules[name]
+        except KeyError:
+            return None
 
     def get_main_module(self):
-        return self.get_module(_MAIN_MODULE_NAME)
-
-    def get_builtin_module(self):
-        return self.get_module(_BUILTIN_MODULE_NAME)
+        return self.get_module(sylva.MAIN_MODULE_NAME)
 
     def get_default_module(self):
         return self.get_main_module()

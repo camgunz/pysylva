@@ -1,2 +1,2 @@
--i requirements.txt
+-r requirements.txt
 pylint>=2.3.1

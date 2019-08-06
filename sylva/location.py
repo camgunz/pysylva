@@ -1,12 +1,14 @@
-from collections import namedtuple
+from functools import total_ordering
 
 
+@total_ordering
 class Location:
 
-    __slots__ = ('data_source', 'line', 'column')
+    __slots__ = ('data_source', 'index', 'line', 'column')
 
-    def __init__(self, data_source, line=-1, column=-1):
+    def __init__(self, data_source, index=0, line=1, column=1):
         self.data_source = data_source
+        self.index = index
         self.line = line
         self.column = column
 
@@ -14,12 +16,29 @@ class Location:
     def Generate(cls):
         return cls(None)
 
+    def __eq__(self, other):
+        return (
+            self.data_source == other.data_source and
+            self.index == other.index
+        )
+
+    def __lt__(self, other):
+        if not isinstance(other, Location):
+            return NotImplemented
+        return (
+            self.data_source == other.data_source and self.index < other.index
+        )
+
     def __repr__(self):
         if self.is_generated:
             return 'Location(<generated>)'
-        return 'Location(%r, %d, %d)' % (
-            self.data_source, self.line, self.column
+        return 'Location(%r, %d, %d, %d)' % (
+            self.data_source, self.index, self.line, self.column
         )
+
+    @property
+    def is_beginning(self):
+        return self.is_generated or self.index == 0
 
     @property
     def is_generated(self):
@@ -40,7 +59,12 @@ class Location:
         )
 
     def copy(self):
-        return Location(self.data_source, self.line, self.column)
+        return Location(self.data_source, self.index, self.line, self.column)
+
+    def make_data_source(self):
+        ds = self.data_source.copy()
+        ds.set_begin(self)
+        return ds
 
     def pformat(self):
         line_indices = [
