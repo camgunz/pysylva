@@ -52,8 +52,8 @@ class TokenType:
         categories = {TokenCategory.Value}
         has_value = True
 
-    class Extern(metaclass=MetaTokenType):
-        name = 'Extern'
+    class Requirement(metaclass=MetaTokenType):
+        name = 'Requirement'
         categories = {TokenCategory.Keyword}
         has_value = False
 

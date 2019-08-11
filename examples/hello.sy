@@ -1,7 +1,7 @@
 module @main
 
-extern sys
-extern jungle.plants.trees
+requirement sys
+requirement jungle.plants.trees
 
 alias trees:       jungle.plants.trees
 alias rubber_tree: jungle.plants.trees.rubber_tree

@@ -11,6 +11,7 @@ class Location:
         self.index = index
         self.line = line
         self.column = column
+        self.seek_to_data_source_start()
 
     @classmethod
     def Generate(cls):
@@ -37,12 +38,16 @@ class Location:
         )
 
     @property
-    def is_beginning(self):
+    def is_generated(self):
+        return self.data_source is None
+
+    @property
+    def is_top(self):
         return self.is_generated or self.index == 0
 
     @property
-    def is_generated(self):
-        return self.data_source is None
+    def is_beginning(self):
+        return self.is_generated or self.index == self.data_source.begin
 
     @property
     def data_source_name(self):
@@ -61,10 +66,24 @@ class Location:
     def copy(self):
         return Location(self.data_source, self.index, self.line, self.column)
 
-    def make_data_source(self):
-        ds = self.data_source.copy()
-        ds.set_begin(self)
-        return ds
+    def seek_to_data_source_start(self):
+        self.index = 0
+
+        if self.is_generated:
+            return
+
+        while self.index < self.data_source.begin:
+            if self.data_source.data.startswith('\r\n'):
+                self.index += 2
+                self.line += 1
+                self.column = 1
+            elif self.data_source.at(self) in ('\r', '\n'):
+                self.index += 1
+                self.line += 1
+                self.column = 1
+            else:
+                self.index += 1
+
 
     def pformat(self):
         line_indices = [

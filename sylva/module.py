@@ -4,11 +4,11 @@ from .parser import Parser
 
 class Module:
 
-    def __init__(self, program, name, locations, dependency_names):
+    def __init__(self, program, name, data_sources, dependency_names):
         self.program = program
         self.name = name
         self.vars = {}
-        self.locations = locations
+        self.data_sources = data_sources
         self.dependency_names = dependency_names
         self.dependencies = set()
         self._parsed = False
@@ -23,7 +23,7 @@ class Module:
         return 'Module(%r, %r, %r, %r)' % (
             self.program,
             self.name,
-            self.locations,
+            self.data_sources,
             self.dependency_names
         )
 
@@ -59,8 +59,8 @@ class Module:
         for dependency in self.dependencies:
             print(f'{self.name}: Parsing dependency {dependency.name}')
             dependency.parse()
-        for location in self.locations:
-            Parser(self, location).parse()
+        for data_source in self.data_sources:
+            Parser(self, data_source).parse()
 
     def lookup(self, name):
         # [NOTE] Raise your own exceptions if this is bad for you

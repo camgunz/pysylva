@@ -44,6 +44,6 @@ class ModuleScanner(Scanner):
     token_type = TokenType.Module
 
 
-class ExternScanner(Scanner):
+class RequirementScanner(Scanner):
 
-    token_type = TokenType.Extern
+    token_type = TokenType.Requirement

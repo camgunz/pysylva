@@ -1,0 +1,5 @@
+*.swp
+.python-version
+build/*
+dist/*
+Sylva.egg-info/*

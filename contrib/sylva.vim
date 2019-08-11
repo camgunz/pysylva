@@ -35,7 +35,7 @@ syntax keyword SylvaRepeat for loop while
 
 syntax keyword SylvaStorageClass val var
 
-syntax keyword SylvaInclude module import importstatic from as
+syntax keyword SylvaInclude module requirement alias
 
 syntax keyword SylvaStructure implementation interface
 

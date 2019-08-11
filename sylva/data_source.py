@@ -5,11 +5,11 @@ class DataSource:
 
     __slots__ = ('name', 'data', 'begin', 'end')
 
-    def __init__(self, name, data):
+    def __init__(self, name, data, begin=0, end=None):
         self.name = name
         self.data = data
         self.begin = 0
-        self.end = len(self.data) - 1
+        self.end = end or len(self.data) - 1
 
     @classmethod
     def Raw(cls, data):

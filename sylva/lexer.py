@@ -125,7 +125,7 @@ TOKEN_MATCHERS = [
     TokenMatcher(re.compile(r"^(fntype)\W"), TokenType.FnType, 1),
     TokenMatcher(re.compile(r"^(struct)\W"), TokenType.Struct, 1),
     TokenMatcher(re.compile(r"^(array)\W"), TokenType.Array, 1),
-    TokenMatcher(re.compile(r"^(extern)\W"), TokenType.Extern, 1),
+    TokenMatcher(re.compile(r"^(requirement)\W"), TokenType.Requirement, 1),
     TokenMatcher(re.compile(r"^(alias)\W"), TokenType.Alias, 1),
     TokenMatcher(re.compile(r"^(module)\W"), TokenType.Module, 1),
     TokenMatcher(
@@ -143,9 +143,9 @@ class Lexer:
 
     State = namedtuple('State', ('index', 'line', 'column', 'funcs'))
 
-    def __init__(self, location):
-        self.location = location
-        self.data_source = location.data_source
+    def __init__(self, data_source):
+        self.data_source = data_source
+        self.location = Location(self.data_source)
         self.should_skip_funcs = [
             lambda token: token.categories.intersection({
                 TokenCategory.Blank,

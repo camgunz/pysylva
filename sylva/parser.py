@@ -25,11 +25,11 @@ Scope = namedtuple(
 # pylint: disable=too-many-public-methods
 class Parser:
 
-    def __init__(self, module, location):
+    def __init__(self, module, data_source):
         self.module = module
-        self.externs = []
+        self.requirements = []
         self.aliases = {}
-        self.lexer = Lexer(location)
+        self.lexer = Lexer(data_source)
 
     # pylint: disable=redefined-outer-name
     def _expect(self, types=None, categories=None, token=None):
@@ -61,21 +61,21 @@ class Parser:
     def _resolve_identifier(self, token=None):
         location, identifier = self._parse_flat_identifier(token)
 
-        extern = identifier.split('.')
-        name = extern.pop()
-        extern = '.'.join(extern)
+        requirement = identifier.split('.')
+        name = requirement.pop()
+        requirement = '.'.join(requirement)
 
-        if extern:
-            while extern in self.aliases:
-                extern = self.aliases[extern]
+        if requirement:
+            while requirement in self.aliases:
+                requirement = self.aliases[requirement]
 
-            if extern not in self.externs:
+            if requirement not in self.requirements:
                 raise errors.UndefinedSymbol(
                     location,
-                    '.'.join([extern, name])
+                    '.'.join([requirement, name])
                 )
 
-            module = self.module.program.modules[extern]
+            module = self.module.program.modules[requirement]
         else:
             module = self.module
 
@@ -126,7 +126,7 @@ class Parser:
         while True:
             try:
                 token = self._expect(types=[
-                    TokenType.Extern,
+                    TokenType.Requirement,
                     TokenType.Alias,
                     TokenType.Module,
                     TokenType.Fn,
@@ -139,8 +139,8 @@ class Parser:
                 print(f'{self.module.name}: EOF')
                 break
             print(f'{self.module.name}: {token}')
-            if token.token_type == TokenType.Extern:
-                self.parse_extern(token)
+            if token.token_type == TokenType.Requirement:
+                self.parse_requirement(token)
             elif token.token_type == TokenType.Alias:
                 self.parse_alias(token)
             elif token.token_type == TokenType.Module:
@@ -157,12 +157,12 @@ class Parser:
             elif token.token_type == TokenType.Implementation:
                 self.parse_implementation(token)
 
-    def parse_extern(self, token=None):
-        self._expect(types=[TokenType.Extern], token=token)
-        location, extern = self._parse_flat_identifier()
-        if extern not in self.module.dependency_names:
-            raise RuntimeError('Extern not found in dependencies')
-        self.externs.append(extern)
+    def parse_requirement(self, token=None):
+        self._expect(types=[TokenType.Requirement], token=token)
+        location, requirement = self._parse_flat_identifier()
+        if requirement not in self.module.dependency_names:
+            raise RuntimeError('Requirement not found in dependencies')
+        self.requirements.append(requirement)
 
     def parse_alias(self, token=None):
         self._expect(types=[TokenType.Alias], token=token)
