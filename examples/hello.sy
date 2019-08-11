@@ -4,7 +4,7 @@ requirement sys
 requirement jungle.plants.trees
 
 alias trees:       jungle.plants.trees
-alias rubber_tree: jungle.plants.trees.rubber_tree
+alias rubber_tree: trees.rubber_tree
 
 fn hey_pal(tree: jungle.plants.trees.rubber_tree) {
   sys.echo("hey pal")
