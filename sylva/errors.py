@@ -20,9 +20,7 @@ class LocationError(SylvaError):
     def pformat(self):
         return (
             '\n'
-            f'[Error: {self.location.shorthand}]'
-            '\n'
-            f'{self}'
+            f'[Error: {self.location.shorthand}] {self}'
             '\n'
             f'{self.location.pformat()}'
         )
