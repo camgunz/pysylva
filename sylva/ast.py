@@ -1,16 +1,28 @@
+from abc import ABC, abstractmethod
 import decimal
 
 from . import errors
 
 
-class ASTNode:
+class ASTNode(ABC):
 
     def __init__(self, location):
         self.location = location
 
+    @abstractmethod
+    def _parse(self, value):
+        ...
+
+    @abstractmethod
+    def emit(self, codegen):
+        ...
+
 
 class Expr(ASTNode):
-    pass
+
+    # pylint: disable=no-self-use
+    def _parse(self, value):
+        return value
 
 
 class LiteralExpr(Expr):
@@ -26,10 +38,6 @@ class LiteralExpr(Expr):
             self.value
         )
 
-    # pylint: disable=no-self-use
-    def _parse(self, value):
-        return value
-
 
 class BooleanExpr(LiteralExpr):
 
@@ -40,13 +48,20 @@ class BooleanExpr(LiteralExpr):
             return False
         raise errors.LiteralParseFailure(self)
 
+    def emit(self, codegen):
+        codegen.emit_boolean(self.value)
+
 
 class RuneExpr(LiteralExpr):
-    pass
+
+    def emit(self, codegen):
+        codegen.emit_rune(self.value)
 
 
 class StringExpr(LiteralExpr):
-    pass
+
+    def emit(self, codegen):
+        codegen.emit_string(self.value)
 
 
 class DecimalExpr(LiteralExpr):  # [TODO] Rounding modes
@@ -57,6 +72,9 @@ class DecimalExpr(LiteralExpr):  # [TODO] Rounding modes
         except Exception:
             raise errors.LiteralParseFailure(self)
 
+    def emit(self, codegen):
+        codegen.emit_decimal(self.value)
+
 
 class FloatExpr(LiteralExpr):  # [TODO] Rounding modes
 
@@ -65,6 +83,9 @@ class FloatExpr(LiteralExpr):  # [TODO] Rounding modes
             return float(value)
         except Exception:
             raise errors.LiteralParseFailure(self)
+
+    def emit(self, codegen):
+        codegen.emit_float(self.value)
 
 
 class IntegerExpr(LiteralExpr):  # [TODO] Overflow handlers
@@ -80,6 +101,9 @@ class IntegerExpr(LiteralExpr):  # [TODO] Overflow handlers
         except Exception:
             raise errors.LiteralParseFailure(self)
 
+    def emit(self, codegen):
+        codegen.emit_integer(self.value)
+
 
 class CallExpr(Expr):
 
@@ -90,6 +114,9 @@ class CallExpr(Expr):
 
     def __repr__(self):
         return 'Call(%r, %r)' % (self.function, self.arguments)
+
+    def emit(self, codegen):
+        codegen.emit_call_expr(self)
 
 
 class UnaryExpr(Expr):
@@ -102,6 +129,9 @@ class UnaryExpr(Expr):
     def __repr__(self):
         return 'Unary(%r, %r)' % (self.operator, self.expr)
 
+    def emit(self, codegen):
+        codegen.emit_unary_expr(self)
+
 
 class BinaryExpr(ASTNode):
 
@@ -113,3 +143,6 @@ class BinaryExpr(ASTNode):
 
     def __repr__(self):
         return 'Binary(%r, %r, %r)' % (self.operator, self.lhs, self.rhs)
+
+    def emit(self, codegen):
+        codegen.emit_binary_expr(self)

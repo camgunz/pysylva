@@ -49,26 +49,19 @@ class Module:
             dependency.resolve_dependencies(seen)
 
     def parse(self):
-        print(f'{self.name}: Parsing')
-        # if self.name == 'jungle.plants.trees':
-        #     import pdb
-        #     pdb.set_trace()
         if self._parsed:
             return
         self._parsed = True
         for dependency in self.dependencies:
-            print(f'{self.name}: Parsing dependency {dependency.name}')
             dependency.parse()
         for data_source in self.data_sources:
             Parser(self, data_source).parse()
 
     def lookup(self, name):
         # [NOTE] Raise your own exceptions if this is bad for you
-        print(f'{self.name}: Looking up {name}')
         return self.vars.get(name)
 
     def define(self, name, value):
-        print(f'{self.name}: Defining {name}: {value}')
         existing_value = self.lookup(name)
         if existing_value:
             raise errors.DuplicateDefinition(

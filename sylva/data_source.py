@@ -1,6 +1,3 @@
-from . import errors
-
-
 class DataSource:
 
     __slots__ = ('name', 'data', 'begin', 'end')
@@ -8,7 +5,7 @@ class DataSource:
     def __init__(self, name, data, begin=0, end=None):
         self.name = name
         self.data = data
-        self.begin = 0
+        self.begin = begin
         self.end = end or len(self.data) - 1
 
     @classmethod
@@ -19,6 +16,10 @@ class DataSource:
     def FromFile(cls, file_path):
         with open(file_path, 'r', encoding='UTF-8') as fobj:
             return cls(file_path, fobj.read())
+
+    @classmethod
+    def FromPath(cls, path):
+        return cls(path.name, path.read_text(encoding='utf-8'))
 
     def __len__(self):
         return len(self.data)
@@ -43,4 +44,3 @@ class DataSource:
         if location.index >= len(self.data):
             raise IndexError('Data index out of range')
         self.end = location.index
-

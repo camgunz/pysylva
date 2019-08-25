@@ -1,28 +1,5 @@
-module @main
-
 requirement sys
-requirement jungle.plants.trees
-
-alias trees:       jungle.plants.trees
-alias rubber_tree: trees.rubber_tree
-
-fn hey_pal(tree: jungle.plants.trees.rubber_tree) {
-  sys.echo("hey pal")
-}
-
-fn hi_friend(tree: trees.rubber_tree) {
-  sys.echo("hi friend")
-}
-
-fn happy_birthday(tree: rubber_tree) {
-  sys.echo("Yo get older")
-}
 
 fn main() {
   sys.echo("Hello, world!")
-}
-
-module jungle.plants.trees
-
-struct rubber_tree {
 }

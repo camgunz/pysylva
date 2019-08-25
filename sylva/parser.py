@@ -33,8 +33,8 @@ class Parser:
 
     # pylint: disable=redefined-outer-name
     def _expect(self, types=None, categories=None, token=None):
-        print(f'{self.module.name}: {self.lexer.location}')
         token = token or self.lexer.lex()
+        print(f'{self.module.name}: {self.lexer.location} :: {token}')
         if not token.matches(types, categories):
             if types and categories:
                 raise errors.UnexpectedToken(token, types, categories)
@@ -61,42 +61,37 @@ class Parser:
     def _resolve_identifier(self, token=None):
         location, identifier = self._parse_flat_identifier(token)
 
-        requirement = identifier.split('.')
-        name = requirement.pop()
-        requirement = '.'.join(requirement)
+        namespace = identifier.split('.')
+        name = namespace.pop()
+        namespace = '.'.join(namespace)
 
-        if requirement:
-            while requirement in self.aliases:
-                requirement = self.aliases[requirement]
+        if namespace:
+            while namespace in self.aliases:
+                namespace = self.aliases[namespace]
 
-            if requirement not in self.requirements:
-                raise errors.UndefinedSymbol(
-                    location,
-                    '.'.join([requirement, name])
-                )
+            if namespace not in self.requirements:
+                raise errors.UndefinedSymbol(location, identifier)
 
-            module = self.module.program.modules[requirement]
+            module = self.module.program.modules[namespace]
         else:
             module = self.module
 
         value = module.lookup(name)
         if not value:
-            raise errors.UndefinedSymbol(
-                location,
-                '.'.join([module.name, name])
-            )
+            raise errors.UndefinedSymbol(location, identifier)
         return value
 
     def _parse_code(self, token=None):
-        self.scopes.appendLeft({})
+        # self.scopes.appendLeft({})
         code = []
         self._expect(types=[TokenType.OpenBrace])
         token = self.lexer.get_next_if_not_matches([TokenType.CloseBrace])
         while token:
+            print(f'Got code token {token}')
             code.append(self.parse_code_node(token))
             token = self.lexer.get_next_if_not_matches([TokenType.CloseBrace])
         self._expect(types=[TokenType.CloseBrace])
-        self.scopes.popLeft()
+        # self.scopes.popLeft()
         return code
 
     def _parse_function_signature(self, token=None):
@@ -122,7 +117,6 @@ class Parser:
         return parameters, return_type
 
     def parse(self):
-        print(f'{self.module.name} Inside Parser.parse')
         while True:
             try:
                 token = self._expect(types=[
@@ -136,9 +130,7 @@ class Parser:
                     TokenType.Implementation,
                 ])
             except errors.EOF:
-                print(f'{self.module.name}: EOF')
                 break
-            print(f'{self.module.name}: {token}')
             if token.token_type == TokenType.Requirement:
                 self.parse_requirement(token)
             elif token.token_type == TokenType.Alias:
@@ -169,15 +161,14 @@ class Parser:
         location = token.location.copy()
         name = self._expect(types=[TokenType.Value]).value
         self._expect(types=[TokenType.Colon])
-        value = self._parse_flat_identifier()
-        if name == value:
+        alias_location, alias = self._parse_flat_identifier()
+        if name == alias:
             raise errors.RedundantAlias(location, name)
         if name in self.aliases:
             raise errors.DuplicateAlias(location, name)
-        self.aliases[name] = value
+        self.aliases[name] = alias
 
     def parse_struct_type(self, token=None):
-        print('Parsing struct')
         token = self._expect(types=[TokenType.Struct], token=token)
         location = token.location.copy()
         name = self._expect(types=[TokenType.Value]).value

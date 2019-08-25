@@ -2,6 +2,8 @@
 
 import os
 import sys
+import distutils
+import argparse
 
 from sylva import errors
 from sylva.data_source import DataSource
@@ -9,19 +11,11 @@ from sylva.lexer import Lexer
 from sylva.program import Program
 
 
-_DEBUG = True
-
-
-def print_usage(error_message=None):
-    exe_name = os.path.basename(sys.argv[0])
-    if error_message:
-        print('\nError: %s' % (error_message), file=sys.stderr)
-    print('\nUsage: %s [ action ] [ file ] [ file ] ...\n' % (exe_name))
-    print('Valid actions: lex, parse\n')
-    sys.exit(-1)
+_DEBUG = distutils.util.strtobool(os.environ.get('SYLVA_DEBUG', '0'))
 
 
 def print_bar(msg):
+    """Prints a message in bar form."""
     caption = msg.join((' ', ' '))
     right_bar_count = 11
     total_width = 79
@@ -37,6 +31,7 @@ def print_bar(msg):
 
 
 def lex(file_paths):
+    """Lexes files and prints output."""
     print_bar('Lexing')
     for file_path in file_paths:
         try:
@@ -49,10 +44,11 @@ def lex(file_paths):
             print(error.pformat())
 
 
-def parse(file_paths):
+def parse(file_paths, stdlib=None):
+    """Parses files and prints output."""
     print_bar('Parsing')
     data_sources = [DataSource.FromFile(file_path) for file_path in file_paths]
-    program = Program(data_sources)
+    program = Program(data_sources, stdlib)
     try:
         program.parse()
     except errors.SylvaError as error:
@@ -62,17 +58,50 @@ def parse(file_paths):
         print(error.pformat())
 
 
+# pylint: disable=redefined-builtin
+def compile(file_paths, stdlib=None):
+    """Compiles files."""
+    print_bar('Compiling')
+    data_sources = [DataSource.FromFile(file_path) for file_path in file_paths]
+    program = Program(data_sources, stdlib)
+    try:
+        program.compile()
+    except errors.SylvaError as error:
+        if _DEBUG:
+            import traceback
+            traceback.print_exc()
+        print(error.pformat())
+
+
 def main():
-    if len(sys.argv) < 3:
-        print_usage()
-    action = sys.argv[1]
-    file_paths = [x for x in sys.argv[2:]]
-    if action == 'lex':
-        lex(file_paths)
-    elif action == 'parse':
-        parse(file_paths)
-    else:
-        print_usage('Invalid action')
+    """Main function."""
+    parser = argparse.ArgumentParser(description='Sylva')
+    parser.add_argument(
+        '--only-lex', action='store_true',
+        help='Only perform lexing'
+    )
+    parser.add_argument(
+        '--only-parse', action='store_true',
+        help='Only perform parsing'
+    )
+    parser.add_argument('--stdlib', type=str, help='Path to standard library')
+    parser.add_argument('files', type=str, nargs='+', help='Files to compile')
+
+    args = parser.parse_args()
+
+    if all([args.only_lex, args.only_parse]):
+        parser.print_help()
+        sys.exit(2)
+
+    if args.only_lex:
+        lex(args['files'])
+        sys.exit(0)
+
+    if args.only_parse:
+        parse(args['files'], args.get('stdlib'))
+        sys.exit(0)
+
+    compile(args.files, args.stdlib)
 
 
 main()

@@ -234,7 +234,7 @@ class Lexer:
     def get_next_if_not_matches(self, token_types=None, token_categories=None):
         state = self.get_state()
         token = self.lex()
-        if not token.matches(token_types, token_categories):
+        if token.matches(token_types, token_categories):
             self.set_state(state)
             return None
         return token

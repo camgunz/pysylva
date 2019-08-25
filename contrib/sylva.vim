@@ -24,6 +24,7 @@ syntax keyword SylvaType struct
 syntax keyword SylvaType map
 syntax keyword SylvaType fn
 syntax keyword SylvaType fntype
+syntax keyword SylvaType cfntype
 syntax keyword SylvaType range
 syntax keyword SylvaType enum
 
