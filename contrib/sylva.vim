@@ -8,8 +8,6 @@ if exists("b:current_syntax")
     finish
 endif
 
-syntax keyword SylvaType any
-syntax keyword SylvaType void
 syntax keyword SylvaType bool
 syntax keyword SylvaType rune
 syntax keyword SylvaType num
@@ -24,7 +22,7 @@ syntax keyword SylvaType struct
 syntax keyword SylvaType map
 syntax keyword SylvaType fn
 syntax keyword SylvaType fntype
-syntax keyword SylvaType cfntype
+syntax keyword SylvaType carray cpointer cfn cfntype cstruct cvoid
 syntax keyword SylvaType range
 syntax keyword SylvaType enum
 

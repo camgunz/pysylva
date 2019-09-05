@@ -1,6 +1,7 @@
 # To Do
 
 - Add builtin types to the builtin module.
+- Add `const` for stuff like `math.PI`
 - Add an instance attribute on `Struct` for `interfaces`
   - And at some point, an instance attribute on `Interface` for `structs`
 - Implement the objects:

@@ -2,21 +2,21 @@
 
 ## Builtin types:
 
-- void
-- char
-- signed char
-- unsigned char
-- short
-- unsigned short
-- int
-- unsigned int
-- long
-- unsigned long
-- __int128
-- unsigned __int128
-- float
-- double
-- long double
+- `void`
+- `char`
+- `signed char`
+- `unsigned char`
+- `short`
+- `unsigned short`
+- `int`
+- `unsigned int`
+- `long`
+- `unsigned long`
+- `__int128`
+- `unsigned __int128`
+- `float`
+- `double`
+- `long double`
 
 ## `libc`
 

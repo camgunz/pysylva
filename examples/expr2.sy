@@ -1,0 +1,148 @@
+variant Expr(location: Location) {
+  variant Literal {
+    variant Boolean(value: bool) {
+      struct Root {}
+      struct Node {
+        parent: &Expr
+      }
+    }
+
+    struct Rune(value: rune) {
+      struct Root {}
+      struct Node {
+        parent: &Expr
+      }
+    }
+
+    struct String(value: str) {
+      struct Root {}
+      struct Node {
+        parent: &Expr
+      }
+    }
+
+    struct Decimal(value: dec) {
+      struct Root {}
+      struct Node {
+        parent: &Expr
+      }
+    }
+
+    struct Array(value: array) {
+      struct Root {}
+      struct Node {
+        parent: &Expr
+      }
+    }
+  }
+
+  variant Lookup(value: str) {
+    struct Root {}
+    struct Node {
+      parent: &Expr
+    }
+  }
+
+  variant Call(function_expr: &Expr.Function
+               argument_exprs: array(element_type: *Expr) {
+    struct Root {}
+    struct Node {
+      parent: &Expr
+    }
+  }
+
+  variant Op(operator: Operator) {
+    variant Unary(child: *Expr) {
+      struct Root {}
+      struct Node {
+        parent: *Expr.Op
+      }
+    }
+
+    variant Binary(lhs: *Expr, rhs: *Expr) {
+      struct Root {}
+      struct Node {
+        parent: *Expr.Op
+      }
+    }
+  }
+}
+
+fn get_parent(expr: &Expr): &Expr? {
+  match(expr) {
+    case(Expr.Literal.Boolean.Node,
+         Expr.Literal.Rune.Node,
+         Expr.Literal.String.Node,
+         Expr.Literal.Decimal.Node,
+         Expr.Literal.Array.Node,
+         Expr.Lookup.Node,
+         Expr.Call.Node,
+         Expr.Op.Unary.Node,
+         Expr.Op.Binary.Node) {
+      return(expr.parent)
+    }
+    case(Expr.Literal.Boolean.Root,
+         Expr.Literal.Rune.Root,
+         Expr.Literal.Decimal.Root,
+         Expr.Literal.Array.Root,
+         Expr.Lookup.Root,
+         Expr.Call.Root,
+         Expr.Op.Unary.Root,
+         Expr.Op.Binary.Root) {
+      return(void)
+    }
+  }
+}
+
+fn get_child(op_expr: &Expr.Op): &Expr? {
+  match(op_expr) {
+    case(Expr.Op.Unary) {
+      return(&op_expr.child)
+    }
+    case(Expr.Op.Binary) {
+      return(&op_expr.rhs)
+    }
+  }
+}
+
+fn give_child(op_expr: &Expr.Op!, child: *Expr!?) {
+  match(op_expr) {
+    case(Expr.Op.Unary) {
+      op_expr.child = child
+    }
+    case(Expr.Op.Binary) {
+      op_expr.rhs = child
+    }
+  }
+
+  with(child) {
+    child.parent = op_expr
+  }
+}
+
+fn is_out_of_order(op_expr: &Expr.Op): bool {
+  with(child: op_expr.get_child()) {
+    return(op_expr.op > child.op)
+  }
+  return(false)
+}
+
+fn fix_order(op_expr: &Expr.Op!): &Expr.Op {
+  var expr: op_expr
+
+  match(op_expr) {
+    case(Expr.Op.Unary) {
+      while(expr.is_out_of_order()) {
+        expr = expr.swap_with_child()
+      }
+    }
+    case(Expr.Op.Binary) {
+      while(expr.is_out_of_order()) {
+        expr = expr.rotate_left()
+      }
+    }
+  }
+
+  return(expr)
+}
+

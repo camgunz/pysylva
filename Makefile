@@ -1,4 +1,7 @@
-.PHONY: itest install utest
+.PHONY: libc test lextest parsetest utest install
+
+libc: install
+	sylva_libc
 
 test: install
 	sylva examples/hello.sy

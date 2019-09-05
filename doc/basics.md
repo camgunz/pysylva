@@ -1,5 +1,7 @@
 # Basics
 
+_accessible, readable, that compiles quickly, is stable and has a natural way to do async operations_
+
 Sylva should seem familiar to anyone experienced with mainstream programming
 languages:
 
@@ -12,50 +14,71 @@ fn main() {
 Something a little more engineered:
 
 ```sylva
-extern sys
+requirement sys
+requirement random
 
-interface Greeter(name: str) {
-  fntype greet(self: &Greeter, name: str)
+range PersonAge(0u8c, 250u8c) {
+  range ChildAge(0u8c, 17u8c)
+  range AdultAge(18u8c, 250u8c)
+}
 
-  fn get_greeter_name(self: &Greeter): str {
-    return self.name
+variant Person(name: str) {
+  struct Child {
+    age: ChildAge
+  }
+  struct Adult {
+    age: AdultAge
   }
 }
 
-struct Person {
-  name: str("")
+fn make_person(name: str, age: PersonAge): *Person {
+  match(age) {
+    case(ChildAge) {
+      return Person.Child{name: name, age: age}
+    }
+    case(PersonAge) {
+      return Person.Adult{name: name, age: age}
+    }
+  }
 }
 
-array People [Person * 2]
-
-array Responses [str * 2]
-
-implementation (Person: Greeter) {
-  fn greet(self: &Person, name: str) {
-    sys.echo("Hey {name}, I'm {self.name}.  Pleased to meet you!")
+fn greet(person: &Person, name: str): str {
+  match(person) {
+    case(Person.Child) {
+      return("Yo {name}, I'm {person.name}.")
+    }
+    case(Person.Adult) {
+      return("Good day {name}, I'm {person.name}.")
+    }
   }
+}
+
+fn perform_greeting(person: &Person, greetee_name: str): str {
+  sys.echo(person.greet(greetee_name))
+  return("{person.name} successfully greeted {greetee_name}")
 }
 
 fn print_usage() {
-  echo("Usage: greet [ greeter_name ] [ greetee_name ]")
-}
-
-fn perform_greeting(greeter: &Greeter, greetee_name: str): str {
-  greeter.greet(greetee_name)
-  return "Greeter {greeter.get_name()} greeted successfully"
+  sys.echo("Usage: greet [ greeter_name1 ] [ greeter_name2 ] [ greetee_name ]")
 }
 
 fn main() {
-  with (greeter_name1: sys.argv[1],
-        greeter_name2: sys.argv[2],
-        greetee_name: sys.argv[3]) {
-    val greeters: People[Person{greeter_name1}, Person{greeter_name2}]
-    val responses: Responses[
-        greeters[0].greet(greetee_name),
-        greeters[1].greet(greetee_name)
+  with(greeter_name1: sys.argv[1],
+       greeter_name2: sys.argv[2],
+       greetee_name:  sys.argv[3]) {
+    val greeters: [
+      make_person(greeter_name1, random.random_range(PersonAge))
+      make_person(greeter_name2, random.random_range(PersonAge))
     ]
-    echo("Response1: {responses[0]}")
-    echo("Response2: {responses[1]}")
+    val results: [
+      greeters -> fn(greeter: &person) {
+        return(person.perform_greeting(greetee_name))
+      }
+    ]
+
+    for(n, result: results) {
+      sys.echo("Result {n}: {result}")
+    }
   }
   else {
     print_usage()

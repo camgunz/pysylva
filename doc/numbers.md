@@ -93,16 +93,20 @@ number.set_max_exponent(2)
 Note that either of those operations may perform rounding on the value; and if
 the rounding mode is "error" (again: the default), this may yield an error.
 
+The chief downside to `decimal` is speed, they use more memory and require
+some extra instructions to perform calculations on them.  Usage can also lead
+to memory allocation.
+
 ### Floats
 
 `float` literals use `f` followed by a bit width, e.g. `19f32`.  This is
-**required** for `float`s, otherwise the compiler cannot know these aren't
+**required** for `float`s, otherwise the compiler won't know these aren't
 `decimal`s.  `float`s support all the overflow and imprecision handlers
 `decimal`s do:
 
-`floats` handle overflow and imprecision according to their rounding mode.
+`float`s handle overflow and imprecision according to their rounding mode.
 Notably: they do not wrap, and clamping is a function of the rounding mode
-listed below.  `floats` are imprecise by their nature: they have fixed exponent
+listed below.  `float`s are imprecise by their nature: they have fixed exponent
 and precision sizes, and rounding modes.  As a result, imprecision in `float`
 operations does not trigger an error.
 
@@ -117,7 +121,7 @@ operations does not trigger an error.
 
 `integer` literals use either `s` or `u` for signed and unsigned respectively.
 These must be followed by a bit width, e.g. `35s64`.  This is **required** for
-`integer`s, otherwise the compiler cannot know these aren't `decimal`s.
+`integer`s, otherwise the compiler won't know these aren't `decimal`s.
 
 `integer`s are imprecise by their nature: they always drop the fractional
 component of any operation.  Furthermore they cannot represent infinity,
@@ -131,7 +135,40 @@ handlers, and the only overflow handler options are `wrap` or `clamp`.
 
 ## Error handling
 
-TODO
+Numeric operations that could result in errors must be handled inside a `with`
+or `iferr` block:
+
+```sylva
+requirement sys
+
+fn main() {
+  val number: 200u
+  val another_number: 1u
+  val counts: u8[22, 33]
+
+  with(bigger_number: number + 1) {
+    sys.echo("Successfully incremented a number ({bigger_number})!")
+  }
+
+  with(smaller_number: number - 1) {
+    sys.echo("Successfully decremented a number ({smaller_number})!")
+  }
+
+  with(fraction: number / 3) {
+    sys.echo("Successfully decremented a number ({smaller_number})!")
+  }
+  else(err) {
+    sys.echoerr("Failed to divide a {number} / {3}: {err}")
+  }
+
+  with(second_count: counts[another_number]) {
+    sys.echo("Got the 2nd count: {second_count}")
+  }
+  else(err) {
+    sys.echoerr("Couldn't find the 2nd count: {err}")
+  }
+}
+```
 
 ## Bit widths
 
@@ -154,18 +191,3 @@ cannot control the world beyond our application, therefore we need a mechanism
 to add coherency to these raw values.
 
 ...`parse_be_32` etc, or something.
-
-## Ranges
-
-The core numeric type in Sylva is the `range`.  Ranges are far preferable to
-raw numbers for a number of reasons:
-- they can be thought of as numbers with **units**
-- finite ranges make dealing with arrays much easier: if an array is defined
-  in terms of a finite range, bounds checks are unnecessary when indexing using
-  a value from that range
-
-Ranges inherit the properties from their boundaries.
-
-```sylva
-defrange damage_range: (0crn, 100crn]
-```

@@ -1,7 +1,7 @@
 # Memory
 
 Sylva uses a handful of concepts to manage memory; chief among these are:
-bindings, mutability, exclusivity, and memspace.
+bindings, mutability, exclusivity, and memscope.
 
 ## Bindings and mutability
 
