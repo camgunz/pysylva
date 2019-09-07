@@ -1,0 +1,363 @@
+requirement random
+
+range Score(1u8, 10u8)
+
+range Value(1u8, 14u8)
+
+range DeckSize(0u8, 52u8)
+
+enum Suit(u8) {
+  Spade:   0u8,
+  Club:    1u8,
+  Diamond: 2u8,
+  Heart:   3u8,
+}
+
+variant Rank(name: str) {
+  struct Single {
+    score: Score,
+    value: Value,
+  }
+
+  struct Double {
+    score1: Score,
+    score2: Score,
+    value1: Value,
+    value2: Value,
+  }
+}
+
+struct Card {
+  suit: Suit,
+  rank: &Rank
+}
+
+enum Ranks(Rank) {
+  Ace:   Rank.Double("Ace",   Score(1), Score(10), Value(1), Value(14)),
+  Two:   Rank.Single("Two",   Score(2),            Value(2)),
+  Three: Rank.Single("Three", Score(3),            Value(3)),
+  Four:  Rank.Single("Four",  Score(4),            Value(4)),
+  Five:  Rank.Single("Five",  Score(5),            Value(5)),
+  Six:   Rank.Single("Six",   Score(6),            Value(6)),
+  Seven: Rank.Single("Seven", Score(7),            Value(7)),
+  Eight: Rank.Single("Eight", Score(8),            Value(8)),
+  Nine:  Rank.Single("Nine",  Score(9),            Value(9)),
+  Ten:   Rank.Single("Ten",   Score(10),           Value(10)),
+  Jack:  Rank.Single("Jack",  Score(10),           Value(11)),
+  Queen: Rank.Single("Queen", Score(10),           Value(12)),
+  King:  Rank.Single("King",  Score(10),           Value(13)),
+)
+
+enum Cards(Card) {
+  AceOfSpades:     Card(suit: Suit.Spade,   rank: Rank.Ace),
+  TwofSpades:      Card(suit: Suit.Spade,   rank: Rank.Two),
+  ThreeOfSpades:   Card(suit: Suit.Spade,   rank: Rank.Three),
+  FourOfSpades:    Card(suit: Suit.Spade,   rank: Rank.Four),
+  FiveOfSpades:    Card(suit: Suit.Spade,   rank: Rank.Five),
+  SixOfSpades:     Card(suit: Suit.Spade,   rank: Rank.Six),
+  SevenOfSpades:   Card(suit: Suit.Spade,   rank: Rank.Seven),
+  EightOfSpades:   Card(suit: Suit.Spade,   rank: Rank.Eight),
+  NineOfSpades:    Card(suit: Suit.Spade,   rank: Rank.Nine),
+  TenOfSpades:     Card(suit: Suit.Spade,   rank: Rank.Ten),
+  JackOfSpades:    Card(suit: Suit.Spade,   rank: Rank.Jack),
+  QueenOfSpades:   Card(suit: Suit.Spade,   rank: Rank.Queen),
+  KingOfSpades:    Card(suit: Suit.Spade,   rank: Rank.King),
+  AceOfClubs:      Card(suit: Suit.Club,    rank: Rank.Ace),
+  TwoOfClubs:      Card(suit: Suit.Club,    rank: Rank.Two),
+  ThreeOfClubs:    Card(suit: Suit.Club,    rank: Rank.Three),
+  FourOfClubs:     Card(suit: Suit.Club,    rank: Rank.Four),
+  FiveOfClubs:     Card(suit: Suit.Club,    rank: Rank.Five),
+  SixOfClubs:      Card(suit: Suit.Club,    rank: Rank.Six),
+  SevenOfClubs:    Card(suit: Suit.Club,    rank: Rank.Seven),
+  EightOfClubs:    Card(suit: Suit.Club,    rank: Rank.Eight),
+  NineOfClubs:     Card(suit: Suit.Club,    rank: Rank.Nine),
+  TenOfClubs:      Card(suit: Suit.Club,    rank: Rank.Ten),
+  JackOfClubs:     Card(suit: Suit.Club,    rank: Rank.Jack),
+  QueenOfClubs:    Card(suit: Suit.Club,    rank: Rank.Queen),
+  KingOfClubs:     Card(suit: Suit.Club,    rank: Rank.King),
+  AceOfHearts:     Card(suit: Suit.Heart,   rank: Rank.Ace),
+  TwoOfHearts:     Card(suit: Suit.Heart,   rank: Rank.Two),
+  ThreeOfHearts:   Card(suit: Suit.Heart,   rank: Rank.Three),
+  FourOfHearts:    Card(suit: Suit.Heart,   rank: Rank.Four),
+  FiveOfHearts:    Card(suit: Suit.Heart,   rank: Rank.Five),
+  SixOfHearts:     Card(suit: Suit.Heart,   rank: Rank.Six),
+  SevenOfHearts:   Card(suit: Suit.Heart,   rank: Rank.Seven),
+  EightOfHearts:   Card(suit: Suit.Heart,   rank: Rank.Eight),
+  NineOfHearts:    Card(suit: Suit.Heart,   rank: Rank.Nine),
+  TenOfHearts:     Card(suit: Suit.Heart,   rank: Rank.Ten),
+  JackOfHearts:    Card(suit: Suit.Heart,   rank: Rank.Jack),
+  QueenOfHearts:   Card(suit: Suit.Heart,   rank: Rank.Queen),
+  KingOfHearts:    Card(suit: Suit.Heart,   rank: Rank.King),
+  AceOfDiamonds:   Card(suit: Suit.Diamond, rank: Rank.Ace),
+  TwoOfDiamonds:   Card(suit: Suit.Diamond, rank: Rank.Two),
+  ThreeOfDiamonds: Card(suit: Suit.Diamond, rank: Rank.Three),
+  FourOfDiamonds:  Card(suit: Suit.Diamond, rank: Rank.Four),
+  FiveOfDiamonds:  Card(suit: Suit.Diamond, rank: Rank.Five),
+  SixOfDiamonds:   Card(suit: Suit.Diamond, rank: Rank.Six),
+  SevenOfDiamonds: Card(suit: Suit.Diamond, rank: Rank.Seven),
+  EightOfDiamonds: Card(suit: Suit.Diamond, rank: Rank.Eight),
+  NineOfDiamonds:  Card(suit: Suit.Diamond, rank: Rank.Nine),
+  TenOfDiamonds:   Card(suit: Suit.Diamond, rank: Rank.Ten),
+  JackOfDiamonds:  Card(suit: Suit.Diamond, rank: Rank.Jack),
+  QueenOfDiamonds: Card(suit: Suit.Diamond, rank: Rank.Queen),
+  KingOfDiamonds:  Card(suit: Suit.Diamond, rank: Rank.King),
+}
+
+struct Deck {
+  cards: array[&Card * DeckSize::max]
+  size: DeckSize(DeckSize::max)
+}
+
+array Hand[&Card]
+
+fntype rank_value_comparer(value1: Value, value2: RankValue): bool
+
+fn rank_value_less_than(value1: Value, value2: RankValue): bool {
+  return value1 < value2
+}
+
+fn rank_value_greater_than(value1: Value, value2: RankValue): bool {
+  return value1 > value2
+}
+
+fn rank_value_equal(value1: Value, value2: RankValue): bool {
+  return value1 == value2
+}
+
+fn rank_value_precedes(value1: Value, value2: RankValue): bool {
+  return value1 == value2 - 1
+}
+
+fn rank_value_succeeds(value1: Value, value2: RankValue): bool {
+  return value1 == value2 + 1
+}
+
+fn compare_ranks(cmp: rank_value_comparer, r1: &Rank, r2: &rank): bool {
+  match r1 {
+    case Rank.Single {
+      match r2 {
+        case Rank.Single {
+          return cmp(r1.value, r2.value)
+        }
+        case Rank.Double {
+          return cmp(r1.value, r2.value1) || cmp(r1.value, r2.value2)
+        }
+      }
+    }
+    case Rank.Double {
+      match other {
+        case Rank.Single {
+          return cmp(r1.value1, r2.value) || cmp(r1.value2, r2.value)
+        }
+        case Rank.Double {
+          return (
+            cmp(r1.value1, r2.value1) || cmp(r1.value1, r2.value2) ||
+            cmp(r1.value2, r2.value1) || cmp(r1.value2, r2.value2)
+          )
+        }
+      }
+    }
+  }
+}
+
+fn rank_less_than(rank: &rank, other: &rank): bool {
+  return compare_ranks(rank_value_less_than, rank, other)
+}
+
+fn rank_greater_than(rank: &rank, other: &rank): bool {
+  return compare_ranks(rank_value_greater_than, rank, other)
+}
+
+fn rank_equals(rank: &rank, other: &rank): bool {
+  return compare_ranks(rank_value_equals, rank, other)
+}
+
+fn rank_precedes(rank: &rank, other: &rank): bool {
+  return compare_ranks(rank_value_precedes, rank, other)
+}
+
+fn rank_succeeds(rank: &rank, other: &rank): bool {
+  return compare_ranks(rank_value_succeeds, rank, other)
+}
+
+fn card_less_than(card: &Card, other: &Card): bool {
+  return (
+    card.suit < other.suit ||
+    (card.suit == other.suit && card.rank < other.rank)
+  )
+}
+
+fn card_greater_than(card: &Card, other: &Card): bool {
+  return (
+    card.suit > other.suit ||
+    (card.suit == other.suit && card.rank > other.rank)
+  )
+}
+
+fn card_equals(card: &Card, other: &Card): bool {
+  return card.suit == other.suit && card.rank == other.rank
+}
+
+fn shuffle_deck(deck: &Deck!) {
+  random.shuffle(&deck.cards!)
+}
+
+fn deal_from_deck(deck: &Deck!): &Card {
+  if deck.size == DeckSize(0) {
+    error(msg: "No more cards")
+  }
+
+  deck.size--
+
+  return(deck.cards[deck.size])
+}
+
+
+fn build_hand(hand: &Hand!, deck: &Deck!, count: DeckSize) {
+  array_populate(&hand.cards!, deal_from_deck, count)
+  array_sort(&hand.cards!)
+}
+
+fn hand_remove_card_at_index(hand: &Hand!, index: uint) {
+  array_delete(&hand.cards!, index)
+}
+
+fn hand_get_card_at_index(hand: &Hand!, index: uint): &Card {
+  with card: hand.cards[index] {
+    return card
+  }
+}
+
+fn hand_is_pair(hand: &Hand): bool {
+  return (
+    cards
+    |> sort
+    |> map(fn(card: &Card): &Rank { return card.rank })
+    |> partition(2, 1)
+    |> map(==)
+    |> reduce(||, false)
+  )
+}
+
+fn hand_is_two_pair(hand: &Hand): bool {
+  return [
+    cards -> fn(card: &Card):
+  ]
+}
+
+fn hand_is_two_pair(hand: &Hand): bool {
+  var value_counts = [uint(0) * Value::max]
+  var pair_count: uint(0)
+
+  for card: hand.cards {
+    match card.rank {
+      case Rank.Single {
+        value_counts[card.rank.value]++
+        if value_counts[card.rank.value] >= 2 {
+          return true
+        }
+
+      }
+      case Rank.Double {
+      }
+    }
+    value_counts[card.rank.value]
+  for (&card: self.cards) {
+    for (value: card.rank.values) {
+      counts[value]++
+    }
+  }
+
+  for (count: counts) {
+    if (count >= 2) {
+      pair_count++
+    }
+  }
+
+  return pair_count == 2
+}
+
+fn hand_is_three_of_a_kind(hand: &Hand): bool {
+  var counts = array(element_type: u8, element_count: Value.__max)
+
+  for (&card: self.cards) {
+    for (value: card.rank.values) {
+      counts[value]++
+      if (counts[value] == 3) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
+fn hand_is_four_of_a_kind(hand: &Hand): bool {
+  var counts = array(element_type: u8, element_count: Value.__count)
+
+  for (&card: self.cards) {
+    for (value: card.rank.values) {
+      counts[value]++
+      if (counts[value] == 4) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
+fn hand_is_flush(hand: &Hand): bool {
+  var initialized: false
+  var last_card: &Cards.AceOfSpaces
+
+  for (&card: self.cards) {
+    if (!initialized) {
+      initialized = true
+    }
+    else if (card.suit != last_card.suit) {
+      return false
+    }
+
+    last_card = card
+  }
+
+  return true
+}
+
+fn hand_is_straight(hand: &Hand): bool {
+  var initialized: false
+  var last_card: &Cards.AceOfSpaces
+
+  for (&card: self.cards) {
+    if (!initialized) {
+      initialized = true
+    }
+    else if (!card.succeeds(last_card)) {
+      return false
+    }
+
+    last_card = &card
+  }
+
+  return true
+}
+
+fn hand_is_straight_flush(hand: &Hand): bool {
+  return hand_is_straight(hand) || hand_is_flush(hand)
+}
+
+fn hand_is_royal_flush(hand: &Hand): bool {
+  if (!self.is_straight_flush()) {
+    return false
+  }
+
+  for (&card: self.cards) {
+    # Can't use '<' here because of the Ace, which can be 1
+    if (!(card.rank >= Rank.Ten)) {
+      return false
+    }
+  }
+
+  return true
+}

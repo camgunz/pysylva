@@ -1,5 +1,12 @@
 # Notes
 
+## Pattern matching vs. polymorphism (or Interfaces vs. Variants)
+
+I'm starting to think interfaces work better than variants in pipelines.  With
+all the data munging you have to do, you essentially need some form of
+generics.  Pattern matching instead of generics here means you have to (for
+example) write a `sort` function for every type; and that just isn't great.
+
 ## Interfaces and UFCS
 
 Keeping interfaces around when we have variants and pattern matching feels
@@ -22,14 +29,6 @@ like there should be... a different construct for that?
 
 Like, because this is all typed, the compiler can monomorphize... but that is
 exponential.
-
-## Optional commas
-
-This would be really nice for types/components/etc, and I think the only issue
-is arithmetic expressions.
-
-I think the option is comma or newline, and that means if you want multi-line
-expressions you gotta use parens.
 
 ## Iteration
 
