@@ -1,13 +1,13 @@
 module sys
 
-requirement libc
+requirement os
 
 fn print(message: str) {
-  libc.fputs(libc.stdout, message)
+  os.write(os.STDOUT, cptr(void(message)), message.byte_length)
 }
 
 fn printerr(message: str) {
-  libc.fputs(libc.stderr, message)
+  os.write(os.STDERR, cptr(void(message)), message.byte_length)
 }
 
 fn echo(message: str) {
@@ -20,10 +20,10 @@ fn echoerr(message: str) {
 
 fn exit(code: s32, message: str) {
   echoerr(message)
-  libc.exit(s32)
+  os.exit(code)
 }
 
 fn die(message: str) {
   echoerr(message)
-  libc.abort()
+  os.abort()
 }

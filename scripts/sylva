@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
+import argparse
+import distutils
 import os
 import sys
-import distutils
-import argparse
+import traceback
 
 from sylva import errors
 from sylva.data_source import DataSource
@@ -11,7 +12,7 @@ from sylva.lexer import Lexer
 from sylva.program import Program
 
 
-_DEBUG = distutils.util.strtobool(os.environ.get('SYLVA_DEBUG', '0'))
+_DEBUG = distutils.util.strtobool(os.environ.get('SYLVA_DEBUG', 'no'))
 
 
 def print_bar(msg):
@@ -39,36 +40,42 @@ def lex(file_paths):
                 print(token)
         except errors.SylvaError as error:
             if _DEBUG:
-                import traceback
                 traceback.print_exc()
             print(error.pformat())
 
 
-def parse(file_paths, stdlib=None):
+def parse(file_paths, stdlib=None, target_triple=None):
     """Parses files and prints output."""
     print_bar('Parsing')
     data_sources = [DataSource.FromFile(file_path) for file_path in file_paths]
-    program = Program(data_sources, stdlib)
+    program = Program(
+        data_sources,
+        stdlib_path=stdlib,
+        target_triple=target_triple
+    )
     try:
         program.parse()
     except errors.SylvaError as error:
+        raise
         if _DEBUG:
-            import traceback
             traceback.print_exc()
         print(error.pformat())
 
 
 # pylint: disable=redefined-builtin
-def compile(file_paths, stdlib=None):
+def compile(file_paths, stdlib=None, target_triple=None):
     """Compiles files."""
     print_bar('Compiling')
     data_sources = [DataSource.FromFile(file_path) for file_path in file_paths]
-    program = Program(data_sources, stdlib)
+    program = Program(
+        data_sources,
+        stdlib_path=stdlib,
+        target_triple=target_triple
+    )
     try:
         program.compile()
     except errors.SylvaError as error:
         if _DEBUG:
-            import traceback
             traceback.print_exc()
         print(error.pformat())
 
@@ -85,6 +92,7 @@ def main():
         help='Only perform parsing'
     )
     parser.add_argument('--stdlib', type=str, help='Path to standard library')
+    parser.add_argument('--target', type=str, help='Compilation target')
     parser.add_argument('files', type=str, nargs='+', help='Files to compile')
 
     args = parser.parse_args()
@@ -94,14 +102,11 @@ def main():
         sys.exit(2)
 
     if args.only_lex:
-        lex(args['files'])
-        sys.exit(0)
-
-    if args.only_parse:
-        parse(args['files'], args.get('stdlib'))
-        sys.exit(0)
-
-    compile(args.files, args.stdlib)
+        lex(args.files)
+    elif args.only_parse:
+        parse(args.files, args.stdlib, args.target)
+    else:
+        compile(args.files, args.stdlib, args.target)
 
 
 main()

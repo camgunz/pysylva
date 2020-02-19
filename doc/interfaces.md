@@ -29,7 +29,7 @@ interface Shape {
   fn print(self: &Shape)
 }
 
-implementation(Circle): Shape {
+implementation Circle: Shape {
   fn make_random(): *Circle {
     return(*Shape.Circle(radius: random.random_num()))
   }
@@ -47,7 +47,7 @@ implementation(Circle): Shape {
   }
 }
 
-implementation(Square): Shape {
+implementation Square: Shape {
   fn make_random(): *Square {
     return(*Shape.Square(side_length: random.random_num()))
   }
@@ -65,7 +65,7 @@ implementation(Square): Shape {
   }
 }
 
-implementation(Rectangle): Shape {
+implementation Rectangle: Shape {
   fn make_random(): *Rectangle {
     return(*Shape.Rectangle(
       length: random.random_num(),

@@ -1,1 +1,2 @@
-../cdump
+../sylva_libc
+llvmlite>=0.31.0,<0.32.0

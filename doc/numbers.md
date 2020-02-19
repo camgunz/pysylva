@@ -119,8 +119,8 @@ operations does not trigger an error.
 
 ### Integers
 
-`integer` literals use either `s` or `u` for signed and unsigned respectively.
-These must be followed by a bit width, e.g. `35s64`.  This is **required** for
+`integer` literals use either `i` or `u` for signed and unsigned respectively.
+These must be followed by a bit width, e.g. `35i64`.  This is **required** for
 `integer`s, otherwise the compiler won't know these aren't `decimal`s.
 
 `integer`s are imprecise by their nature: they always drop the fractional
@@ -131,7 +131,7 @@ handlers, and the only overflow handler options are `wrap` or `clamp`.
 **Overflow Handlers**:
 - Abort: `35u8` (default)
 - Wrap:  `35u8w`
-- Clamp: `35s8c`
+- Clamp: `35i8c`
 
 ## Error handling
 
@@ -146,25 +146,25 @@ fn main() {
   val another_number: 1u
   val counts: u8[22, 33]
 
-  with(bigger_number: number + 1) {
+  with bigger_number: number + 1 {
     sys.echo("Successfully incremented a number ({bigger_number})!")
   }
 
-  with(smaller_number: number - 1) {
+  with smaller_number: number - 1 {
     sys.echo("Successfully decremented a number ({smaller_number})!")
   }
 
-  with(fraction: number / 3) {
+  with fraction: number / 3 {
     sys.echo("Successfully decremented a number ({smaller_number})!")
   }
-  else(err) {
+  else err {
     sys.echoerr("Failed to divide a {number} / {3}: {err}")
   }
 
-  with(second_count: counts[another_number]) {
+  with second_count: counts[another_number] {
     sys.echo("Got the 2nd count: {second_count}")
   }
-  else(err) {
+  else err {
     sys.echoerr("Couldn't find the 2nd count: {err}")
   }
 }

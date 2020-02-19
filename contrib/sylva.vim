@@ -8,51 +8,55 @@ if exists("b:current_syntax")
     finish
 endif
 
+syntax keyword SylvaType void
 syntax keyword SylvaType bool
 syntax keyword SylvaType rune
 syntax keyword SylvaType num
 syntax keyword SylvaType integer
-syntax keyword SylvaType int s8 s16 s32 s64 s128 s256
+syntax keyword SylvaType int i8 i16 i32 i64 i128 i256
 syntax keyword SylvaType uint u8 u16 u32 u64 u128 u256
 syntax keyword SylvaType float f16 f32 f64 f128 f256
+syntax keyword SylvaType complex c16 c32 c64 c128 c256
 syntax keyword SylvaType dec
 syntax keyword SylvaType str
 syntax keyword SylvaType array
 syntax keyword SylvaType struct
-syntax keyword SylvaType map
+syntax keyword SylvaType variant
 syntax keyword SylvaType fn
 syntax keyword SylvaType fntype
-syntax keyword SylvaType carray cpointer cfn cfntype cstruct cvoid
 syntax keyword SylvaType range
 syntax keyword SylvaType enum
+syntax keyword SylvaType cfn cfntype cptr cstr cstruct cunion
 
 syntax keyword SylvaBoolean true false
 
-syntax keyword SylvaConditional if else switch case default
+syntax keyword SylvaConditional if else match switch case default
 
 syntax keyword SylvaRepeat for loop while
 
-syntax keyword SylvaStorageClass val var
+syntax keyword SylvaStorageClass const var
 
-syntax keyword SylvaInclude module requirement alias
+syntax keyword SylvaInclude module requirement
 
-syntax keyword SylvaStructure implementation interface
+syntax keyword SylvaStructure alias implementation interface
 
-syntax keyword SylvaKeyword break continue error return self with iferr
+syntax keyword SylvaKeyword break continue error iferr return self with
 
 "syntax match SylvaIdentifier "\v\@[a-zA-Z_]+[a-zA-Z0-9_]*"
 "syntax match SylvaIdentifier "\v\@[a-zA-Z_]+[a-zA-Z0-9_]*"
 
 syntax match SylvaIdentifier "\v\[a-zA-Z_]+[a-zA-Z0-9_]*"
 
-syntax keyword SylvaFunction print echo exit die
+syntax keyword SylvaFunction die echo exit print
 
-syntax match SylvaNumber "\v<\d+(s|s8|s16|s32|s64|s128|s256|u|u8|u16|u32|u64|u128|u256)?>"
+syntax match SylvaNumber "\v<\d+(i|i8|i16|i32|i64|i128|i256|u|u8|u16|u32|u64|u128|u256)?>"
 syntax match SylvaNumber "\v<\d+\.\d+(f16|f32|f64|f128|f256)?>"
 syntax match SylvaNumber "\v<\d*\.?\d+([Ee]-?)?\d+(f16|f32|f64|f128|f256)?>"
-syntax match SylvaNumber "\v<0[xX]\x+(s|s8|s16|s32|s64|s128|s256|u|u8|u16|u32|u64|u128|u256)?>"
-syntax match SylvaNumber "\v<0b[01]+(s|s8|s16|s32|s64|s128|s256|u|u8|u16|u32|u64|u128|u256)?>"
-syntax match SylvaNumber "\v<0o\o+(s|s8|s16|s32|s64|s128|s256|u|u8|u16|u32|u64|u128|u256)?>"
+syntax match SylvaNumber "\v<\d+\.\d+(c16|c32|c64|c128|c256)?>"
+syntax match SylvaNumber "\v<\d*\.?\d+([Ee]-?)?\d+(c16|c32|c64|c128|c256)?>"
+syntax match SylvaNumber "\v<0[xX]\x+(i|i8|i16|i32|i64|i128|i256|u|u8|u16|u32|u64|u128|u256)?>"
+syntax match SylvaNumber "\v<0b[01]+(i|i8|i16|i32|i64|i128|i256|u|u8|u16|u32|u64|u128|u256)?>"
+syntax match SylvaNumber "\v<0o\o+(i|i8|i16|i32|i64|i128|i256|u|u8|u16|u32|u64|u128|u256)?>"
 
 syntax keyword SylvaTodo TODO FIXME NOTE
 

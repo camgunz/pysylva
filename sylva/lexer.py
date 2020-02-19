@@ -1,18 +1,23 @@
 import re
 
-from collections import namedtuple
-
 from . import errors
 from .location import Location
 from .token import Token, TokenCategory, TokenType
 
 
-TokenMatcher = namedtuple(
-    'TokenMatcher',
-    ('regex', 'token_type', 'group_index', 'extra_skip'),
-    defaults=(0, 0)
-)
+class TokenMatcher:
 
+    __slots__ = ('regex', 'token_type', 'group_index', 'extra_skip')
+
+    def __init__(self, regex, token_type, group_index=0, extra_skip=0):
+        self.regex = regex
+        self.token_type = token_type
+        self.group_index = group_index
+        self.extra_skip = extra_skip
+
+fp_int_re = r"^\d[\d_]*"
+fp_frac_re = r"\.\d[\d_]*"
+fp_exp_re = r"[Ee][+-]*\d[\d_]*"),
 
 TOKEN_MATCHERS = [
     TokenMatcher(re.compile(r"^#(.*)(\r\n|\r|\n)"), TokenType.Comment),
@@ -34,21 +39,21 @@ TOKEN_MATCHERS = [
     TokenMatcher(re.compile(r"^Infinity"), TokenType.Decimal),
     TokenMatcher(re.compile(r"^NaN"), TokenType.Decimal),
     TokenMatcher(
-        re.compile(r"^(0[Bb][01]+)s"), TokenType.SignedBinInteger, 1, 1
+        re.compile(r"^(0[Bb][01]+)i\d*"), TokenType.SignedBinInteger, 1, 1
     ),
     TokenMatcher(
-        re.compile(r"^(0[Bb][01]+)u"), TokenType.UnsignedBinInteger, 1, 1
+        re.compile(r"^(0[Bb][01]+)u\d*"), TokenType.UnsignedBinInteger, 1, 1
     ),
     TokenMatcher(re.compile(r"^0[Bb][01]+"), TokenType.Decimal),
     TokenMatcher(
-        re.compile(r"^(0[Oo][01234567]+)s"), TokenType.SignedOctInteger, 1, 1
+        re.compile(r"^(0[Oo][01234567]+)i"), TokenType.SignedOctInteger, 1, 1
     ),
     TokenMatcher(
         re.compile(r"^(0[Oo][01234567]+)u"), TokenType.UnsignedOctInteger, 1, 1
     ),
     TokenMatcher(re.compile(r"^0[Oo][01234567]+"), TokenType.Decimal),
     TokenMatcher(
-        re.compile(r"^(0[Xx][0123456789aAbBcCdDeEfF]+)s"),
+        re.compile(r"^(0[Xx][0123456789aAbBcCdDeEfF]+)i"),
         TokenType.SignedHexInteger,
         1,
         1
@@ -62,7 +67,7 @@ TOKEN_MATCHERS = [
     TokenMatcher(
         re.compile(r"^0[Xx][0123456789aAbBcCdDeEfF]+"), TokenType.Decimal
     ),
-    TokenMatcher(re.compile(r"^(\d+)s"), TokenType.SignedDecInteger, 1, 1),
+    TokenMatcher(re.compile(r"^(\d+)i"), TokenType.SignedDecInteger, 1, 1),
     TokenMatcher(re.compile(r"^(\d+)u"), TokenType.UnsignedDecInteger, 1, 1),
     TokenMatcher(re.compile(r"^\d+"), TokenType.Decimal),
     TokenMatcher(re.compile(r'"(.*?)"'), TokenType.String, 1, 2),
@@ -77,6 +82,8 @@ TOKEN_MATCHERS = [
     TokenMatcher(re.compile(r"^}"), TokenType.CloseBrace),
     TokenMatcher(re.compile(r"^,"), TokenType.Comma),
     TokenMatcher(re.compile(r"^`"), TokenType.Tilde),
+    TokenMatcher(re.compile(r"^--->"), TokenType.Errow),
+    TokenMatcher(re.compile(r"^->"), TokenType.Arrow),
     TokenMatcher(re.compile(r"^\|\|"), TokenType.BooleanOr),
     TokenMatcher(re.compile(r"^\|="), TokenType.BinaryOrAssign),
     TokenMatcher(re.compile(r"^\|"), TokenType.BinaryOr),
@@ -121,13 +128,23 @@ TOKEN_MATCHERS = [
     TokenMatcher(re.compile(r"^\."), TokenType.AttributeLookup),
     TokenMatcher(re.compile(r"^::"), TokenType.ReflectionLookup),
     TokenMatcher(re.compile(r"^:"), TokenType.Colon),
+
+    TokenMatcher(re.compile(r"^(module)\W"), TokenType.Module, 1),
+    TokenMatcher(re.compile(r"^(requirement)\W"), TokenType.Requirement, 1),
     TokenMatcher(re.compile(r"^(fn)\W"), TokenType.Fn, 1),
     TokenMatcher(re.compile(r"^(fntype)\W"), TokenType.FnType, 1),
-    TokenMatcher(re.compile(r"^(struct)\W"), TokenType.Struct, 1),
     TokenMatcher(re.compile(r"^(array)\W"), TokenType.Array, 1),
-    TokenMatcher(re.compile(r"^(requirement)\W"), TokenType.Requirement, 1),
+    TokenMatcher(re.compile(r"^(struct)\W"), TokenType.Struct, 1),
+    TokenMatcher(re.compile(r"^(variant)\W"), TokenType.Variant, 1),
+    TokenMatcher(re.compile(r"^(enum)\W"), TokenType.Enum, 1),
+    TokenMatcher(re.compile(r"^(range)\W"), TokenType.Range, 1),
+
+    TokenMatcher(re.compile(r"^(cfn)\W"), TokenType.CFn, 1),
+    TokenMatcher(re.compile(r"^(cfntype)\W"), TokenType.CFnType, 1),
+    TokenMatcher(re.compile(r"^(cstruct)\W"), TokenType.CStruct, 1),
+    TokenMatcher(re.compile(r"^(cunion)\W"), TokenType.CUnion, 1),
+
     TokenMatcher(re.compile(r"^(alias)\W"), TokenType.Alias, 1),
-    TokenMatcher(re.compile(r"^(module)\W"), TokenType.Module, 1),
     TokenMatcher(
         re.compile(r"^(implementation)\W"),
         TokenType.Implementation,
@@ -135,13 +152,40 @@ TOKEN_MATCHERS = [
         0
     ),
     TokenMatcher(re.compile(r"^(interface)\W"), TokenType.Interface, 1),
+
+    TokenMatcher(re.compile(r"^(const)\W"), TokenType.Const, 1),
+    TokenMatcher(re.compile(r"^(var)\W"), TokenType.Var, 1),
+    TokenMatcher(re.compile(r"^(if)\W"), TokenType.If, 1),
+    TokenMatcher(re.compile(r"^(else)\W"), TokenType.Else, 1),
+    TokenMatcher(re.compile(r"^(match)\W"), TokenType.Match, 1),
+    TokenMatcher(re.compile(r"^(switch)\W"), TokenType.Switch, 1),
+    TokenMatcher(re.compile(r"^(case)\W"), TokenType.Case, 1),
+    TokenMatcher(re.compile(r"^(default)\W"), TokenType.Default, 1),
+    TokenMatcher(re.compile(r"^(for)\W"), TokenType.For, 1),
+    TokenMatcher(re.compile(r"^(loop)\W"), TokenType.Loop, 1),
+    TokenMatcher(re.compile(r"^(while)\W"), TokenType.While, 1),
+    TokenMatcher(re.compile(r"^(break)\W"), TokenType.Break, 1),
+    TokenMatcher(re.compile(r"^(continue)\W"), TokenType.Continue, 1),
+    TokenMatcher(re.compile(r"^(error)\W"), TokenType.Error, 1),
+    TokenMatcher(re.compile(r"^(fallthrough)\W"), TokenType.Fallthrough, 1),
+    TokenMatcher(re.compile(r"^(return)\W"), TokenType.Return, 1),
+    TokenMatcher(re.compile(r"^(with)\W"), TokenType.With, 1),
+
     TokenMatcher(re.compile(r"^[\@]*\w+"), TokenType.Value)
 ]
 
 
 class Lexer:
 
-    State = namedtuple('State', ('index', 'line', 'column', 'funcs'))
+    class State:
+
+        __slots__ = ('index', 'line', 'column', 'should_skip_funcs')
+
+        def __init__(self, index, line, column, should_skip_funcs):
+            self.index = index
+            self.line = line
+            self.column = column
+            self.should_skip_funcs = should_skip_funcs
 
     def __init__(self, data_source):
         self.data_source = data_source
@@ -170,7 +214,7 @@ class Lexer:
         try:
             data = self.data_source.at(self.location)
         except IndexError:
-            raise errors.EOF()
+            raise errors.EOF() from None
 
         for matcher in TOKEN_MATCHERS:
             match = matcher.regex.match(data)
@@ -209,7 +253,8 @@ class Lexer:
         self.location.index = state.index
         self.location.line = state.line
         self.location.column = state.column
-        self.should_skip_funcs = [func for func in self.should_skip_funcs]
+        # pylint: disable=unnecessary-comprehension
+        self.should_skip_funcs = [func for func in state.should_skip_funcs]
 
     def lex(self):
         token = self._lex_token()

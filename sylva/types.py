@@ -5,6 +5,7 @@ class Scalar:
 
 
 class Boolean(Scalar):
+    # Booleans are the native integer type
     pass
 
 
@@ -18,6 +19,8 @@ class String(Scalar):
 
 class Decimal(Scalar):
 
+    __slots__ = ('value', 'rounding_mode')
+
     def __init__(self, value, rounding_mode):
         super().__init__(value)
         self.rounding_mode = rounding_mode
@@ -25,17 +28,25 @@ class Decimal(Scalar):
 
 class Float(Scalar):
 
-    def __init__(self, value, rounding_mode):
+    __slots__ = ('value', 'bits', 'rounding_mode')
+
+    def __init__(self, value, bits, rounding_mode):
         super().__init__(value)
+        self.bits = bits
         self.rounding_mode = rounding_mode
 
 
 class Integer(Scalar):
 
-    def __init__(self, value, overflow_handler, signed, base):
+    __slots__ = (
+        'value', 'signed', 'bits', 'overflow_handler', 'rounding_mode', 'base'
+    )
+
+    def __init__(self, value, signed, bits, overflow_handler, base):
         super().__init__(value)
-        self.overflow_handler = overflow_handler
         self.signed = signed
+        self.bits = bits
+        self.overflow_handler = overflow_handler
         self.base = base
 
 

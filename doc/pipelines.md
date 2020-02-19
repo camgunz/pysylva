@@ -23,49 +23,49 @@ variant Shape {
 }
 
 fn make_random_shape(): *Shape {
-  if(random.odds(1, 1000)) {
+  if random.odds(1, 1000) {
     error("Sometimes I just don't feel like making a shape")
   }
 
-  switch(random.choices(3)) {
-    case(1) {
-      return(*Shape.Circle(radius: random.random_num()))
+  switch random.choices(3) {
+    case 1 {
+      return *Shape.Circle(radius: random.random_num())
     }
-    case(2) {
-      return(*Shape.Square(side_length: random.random_num()))
+    case 2 {
+      return *Shape.Square(side_length: random.random_num())
     }
-    case(3) {
-      return(*Shape.Rectangle(
+    case 3 {
+      return *Shape.Rectangle(
         length: random.random_num(),
         height: random.random_num()
-      ))
+      )
     }
   }
 }
 
 fn get_shape_area(shape: &Shape): num {
-  match(shape) {
-    case(Shape.Circle) {
-      return(math.PI * (shape.radius ** 2))
+  match shape {
+    case Shape.Circle {
+      return math.PI * (shape.radius ** 2)
     }
-    case(Shape.Square) {
-      return(shape.side_length ** 2)
+    case Shape.Square {
+      return shape.side_length ** 2
     }
-    case(Shape.Rectangle) {
-      return(shape.length * shape.height)
+    case Shape.Rectangle {
+      return shape.length * shape.height
     }
   }
 }
 
 fn increase_shape_area(shape: &Shape!) {
-  match(shape) {
-    case(Shape.Circle) {
+  match shape {
+    case Shape.Circle {
       shape.radius += random.random_num()
     }
-    case(Shape.Square) {
+    case Shape.Square {
       shape.side_length += random.random_num()
     }
-    case(Shape.Rectangle) {
+    case Shape.Rectangle {
       shape.length += random.random_num()
       shape.height += random.random_num()
     }
@@ -73,14 +73,14 @@ fn increase_shape_area(shape: &Shape!) {
 }
 
 fn print_shape(shape: &Shape) {
-  match(shape) {
-    case(Circle) {
+  match shape {
+    case Circle {
       sys.echo("Circle({get_shape_area(shape)})")
     }
-    case(Square) {
+    case Square {
       sys.echo("Square({get_shape_area(shape)})")
     }
-    case(Rectangle) {
+    case Rectangle {
       sys.echo("Rectangle({get_shape_area(shape)})")
     }
   }
@@ -88,11 +88,11 @@ fn print_shape(shape: &Shape) {
 
 fn main() {
   generate(make_random_shape)
-    |> take(1000000)
-    \> fn(err: &error) {
-         echoerr("Error making a random shape: {err}")
-       }
-    |> increase_shape_area
-    |> print_shape
+    -> take(1000000)
+    ---> fn(err: &error) {
+           echoerr("Error making a random shape: {err}")
+         }
+    -> increase_shape_area
+    -> print_shape
 }
 ```

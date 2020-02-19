@@ -1,12 +1,13 @@
 from . import sylva
 # from .module import Module
+from .compiler import Compiler
 from .module_loader import ModuleLoader
 from .stdlib import Stdlib
 
 
 class Program:
 
-    def __init__(self, data_sources, stdlib_path=None):
+    def __init__(self, data_sources, stdlib_path=None, target_triple=None):
         self.stdlib = Stdlib.FromPath(stdlib_path or 'stdlib')
         self.stdlib_modules = {
             module.name: module
@@ -28,6 +29,8 @@ class Program:
         # self._build_builtin_modules()
         for module in self.modules.values():
             module.resolve_dependencies([])
+
+        self.compiler = Compiler(target_triple)
 
     # def _build_builtin_modules(self):
     #     self.modules['sys'] = Module.BuiltIn(self, 'sys')

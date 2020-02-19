@@ -5,7 +5,7 @@ from .data_source import DataSource
 
 # [NOTE} We assume one module per file here, and that each file is named for
 #        the module it contains.
-_STDLIB_MODULE_NAMES = ['sys']
+_STDLIB_MODULE_NAMES = ['os', 'sys']
 
 
 class Stdlib:

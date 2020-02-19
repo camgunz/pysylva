@@ -1,6 +1,7 @@
 # Basics
 
-_accessible, readable, that compiles quickly, is stable and has a natural way to do async operations_
+_accessible, readable, that compiles quickly, is stable and has a natural way
+to do async operations_
 
 Sylva should seem familiar to anyone experienced with mainstream programming
 languages:

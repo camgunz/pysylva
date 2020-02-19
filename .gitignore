@@ -3,3 +3,4 @@
 build/*
 dist/*
 Sylva.egg-info/*
+__pycache__

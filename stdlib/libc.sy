@@ -1,5 +1,5 @@
 struct _IO_FILE {
-  _flags: s32
+  _flags: i32
   _IO_read_ptr: cstr
   _IO_read_end: cstr
   _IO_read_base: cstr
@@ -13,11 +13,11 @@ struct _IO_FILE {
   _IO_save_end: cstr
   _markers: cptr(pointer_type=_IO_marker)
   _chain: cptr(pointer_type=_IO_FILE)
-  _fileno: s32
-  _flags2: s32
+  _fileno: i32
+  _flags2: i32
   _old_offset: int
   _cur_column: u16
-  _vtable_offset: s8
+  _vtable_offset: i8
   _shortbuf: carray(element_type=u8)
   _lock: cptr(pointer_type=_IO_lock_t)
   _offset: int
@@ -26,8 +26,8 @@ struct _IO_FILE {
   _freeres_list: cptr(pointer_type=_IO_FILE)
   _freeres_buf: cptr(pointer_type=cvoid)
   __pad5: uint
-  _mode: s32
+  _mode: i32
   _unused2: carray(element_type=u8, element_count=19)
 }
 
-cfntype fputs(s: str, stream: &_IO_FILE): s32
+cfntype fputs(s: str, stream: &_IO_FILE): i32

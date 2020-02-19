@@ -52,18 +52,13 @@ class TokenType:
         categories = {TokenCategory.Value}
         has_value = True
 
-    class Requirement(metaclass=MetaTokenType):
-        name = 'Requirement'
-        categories = {TokenCategory.Keyword}
-        has_value = False
-
-    class Alias(metaclass=MetaTokenType):
-        name = 'Alias'
-        categories = {TokenCategory.Keyword}
-        has_value = False
-
     class Module(metaclass=MetaTokenType):
         name = 'Module'
+        categories = {TokenCategory.Keyword}
+        has_value = False
+
+    class Requirement(metaclass=MetaTokenType):
+        name = 'Requirement'
         categories = {TokenCategory.Keyword}
         has_value = False
 
@@ -77,13 +72,53 @@ class TokenType:
         categories = {TokenCategory.Keyword}
         has_value = False
 
+    class Array(metaclass=MetaTokenType):
+        name = 'Array'
+        categories = {TokenCategory.Keyword}
+        has_value = False
+
     class Struct(metaclass=MetaTokenType):
         name = 'Struct'
         categories = {TokenCategory.Keyword}
         has_value = False
 
-    class Array(metaclass=MetaTokenType):
-        name = 'Array'
+    class Variant(metaclass=MetaTokenType):
+        name = 'Variant'
+        categories = {TokenCategory.Keyword}
+        has_value = False
+
+    class CFn(metaclass=MetaTokenType):
+        name = 'CFn'
+        categories = {TokenCategory.Keyword}
+        has_value = False
+
+    class CFnType(metaclass=MetaTokenType):
+        name = 'CFnType'
+        categories = {TokenCategory.Keyword}
+        has_value = False
+
+    class CStruct(metaclass=MetaTokenType):
+        name = 'CStruct'
+        categories = {TokenCategory.Keyword}
+        has_value = False
+
+    class CUnion(metaclass=MetaTokenType):
+        name = 'CUnion'
+        categories = {TokenCategory.Keyword}
+        has_value = False
+
+    class Enum(metaclass=MetaTokenType):
+        name = 'Enum'
+        categories = {TokenCategory.Keyword}
+        has_value = False
+
+    class Range(metaclass=MetaTokenType):
+        name = 'Range'
+        categories = {TokenCategory.Keyword}
+        has_value = False
+
+    class Alias(metaclass=MetaTokenType):
+        name = 'Alias'
         categories = {TokenCategory.Keyword}
         has_value = False
 
@@ -97,8 +132,8 @@ class TokenType:
         categories = {TokenCategory.Keyword}
         has_value = False
 
-    class Val(metaclass=MetaTokenType):
-        name = 'Val'
+    class Const(metaclass=MetaTokenType):
+        name = 'Const'
         categories = {TokenCategory.Keyword}
         has_value = False
 
@@ -117,6 +152,11 @@ class TokenType:
         categories = {TokenCategory.Keyword}
         has_value = False
 
+    class Match(metaclass=MetaTokenType):
+        name = 'Match'
+        categories = {TokenCategory.Keyword}
+        has_value = False
+
     class Switch(metaclass=MetaTokenType):
         name = 'Switch'
         categories = {TokenCategory.Keyword}
@@ -129,11 +169,6 @@ class TokenType:
 
     class Default(metaclass=MetaTokenType):
         name = 'Default'
-        categories = {TokenCategory.Keyword}
-        has_value = False
-
-    class Do(metaclass=MetaTokenType):
-        name = 'Do'
         categories = {TokenCategory.Keyword}
         has_value = False
 
@@ -312,6 +347,20 @@ class TokenType:
         name = 'Colon'
         categories = {TokenCategory.Symbol}
         has_value = False
+
+    class Arrow(metaclass=MetaTokenType):
+        name = 'Arrow'
+        categories = {TokenCategory.Symbol, TokenCategory.Operator}
+        has_value = False
+        unary = False
+        binary = True
+
+    class Errow(metaclass=MetaTokenType):
+        name = 'Errow'
+        categories = {TokenCategory.Symbol, TokenCategory.Operator}
+        has_value = False
+        unary = False
+        binary = True
 
     class Plus(metaclass=MetaTokenType):
         name = 'Plus'
@@ -629,11 +678,14 @@ class TokenType:
         binary = True
 
 
-class Token(namedtuple('Token',
-                       ('location', 'token_type', 'value'),
-                       defaults=(None,))):
+class Token:
 
-    __slots__ = ()
+    __slots__ = ('location', 'token_type', 'value')
+
+    def __init__(self, location, token_type, value=None):
+        self.location = location
+        self.token_type = token_type
+        self.value = value
 
     @property
     def categories(self):
