@@ -1,7 +1,7 @@
-.PHONY: install test lextest parsetest utest
+.PHONY: install test lextest parsetest utest docs
 
 help:
-	@echo "Commands: install | test | lextest | parsetest | utest"
+	@echo "Commands: install | test | lextest | parsetest | utest | docs"
 
 venv:
 ifeq ($(VIRTUAL_ENV), )
@@ -25,3 +25,6 @@ parsetest: install
 
 utest: install
 	@echo "No testing framework set up yet"
+
+docs:
+	@dox doc
