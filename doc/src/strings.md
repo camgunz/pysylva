@@ -1,6 +1,9 @@
 # Strings
 
-Sylva offers two string types: `str` and `string`.
+[TODO] Figure out how to reconcile format strings being super useful, but also
+       requiring allocation and therefore being `String`s.
+
+Sylva offers two string types: `str` and `String`.
 
 `str` is similar to scalars in that it can be passed around easily (without
 sigils) and indeed cannot be owned.  However, it also cannot be mutated.

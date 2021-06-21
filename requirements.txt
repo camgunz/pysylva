@@ -1,2 +1,2 @@
 ../sylva_libc
-llvmlite>=0.31.0,<0.32.0
+llvmlite>=0.31.0

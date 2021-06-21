@@ -133,7 +133,7 @@ class UnaryExpr(Expr):
         codegen.emit_unary_expr(self)
 
 
-class BinaryExpr(ASTNode):
+class BinaryExpr(Expr):
 
     def __init__(self, location, operator, lhs, rhs):
         super().__init__(location)

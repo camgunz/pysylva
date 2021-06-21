@@ -3,27 +3,37 @@ module sys
 requirement os
 
 fn print(message: str) {
-  os.write(os.STDOUT, cptr(void(message)), message.byte_length)
+  os.write(os.STDOUT, cptr(cvoid(message)), message::size)
 }
 
 fn printerr(message: str) {
-  os.write(os.STDERR, cptr(void(message)), message.byte_length)
+  os.write(os.STDERR, cptr(cvoid(message)), message::size)
+}
+
+fn exit(code: i32) {
+  os.exit(code)
+}
+
+fn abort() {
+  os.abort()
 }
 
 fn echo(message: str) {
-  print("{message}\n")
+  print(message)
+  print("\n")
 }
 
 fn echoerr(message: str) {
-  printerr("{message}\n")
+  printerr(message)
+  printerr("\n")
 }
 
-fn exit(code: s32, message: str) {
+fn echoexit(code: i32, message: str) {
   echoerr(message)
-  os.exit(code)
+  exit(code)
 }
 
 fn die(message: str) {
   echoerr(message)
-  os.abort()
+  exit(-1i32)
 }

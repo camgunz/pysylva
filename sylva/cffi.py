@@ -11,7 +11,7 @@ class CAtomicType:
         self.alignment = alignment
 
 class CAtomicTypes(Enum):
-    Integer = CAtomicType(
+    Integer = CAtomicType()
     # Int
     # Float/Double
     # Void

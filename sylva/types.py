@@ -116,3 +116,28 @@ class FunctionType:
                 f'<FunctionType {self.name}({parameters}): {self.return_type}>'
             )
         return f'<FunctionType {self.name}({parameters})>'
+
+
+class Function:
+
+    def __init__(self, location, name, parameters, return_type, code):
+        self.location = location
+        self.name = name
+        self.parameters = parameters
+        self.return_type = return_type
+        self.code = code
+
+    def __repr__(self):
+        return 'Function(%r, %r, %r)' % (
+            self.name,
+            self.parameters,
+            self.return_type
+        )
+
+    def __str__(self):
+        parameters = ', '.join([f'{n}: {t}' for n, t in self.parameters])
+        if self.return_type:
+            return (
+                f'<Function {self.name}({parameters}): {self.return_type}>'
+            )
+        return f'<Function {self.name}({parameters})>'

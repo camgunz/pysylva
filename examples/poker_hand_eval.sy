@@ -6,20 +6,22 @@ range Value(1u8, 14u8)
 
 range DeckSize(0u8, 52u8)
 
-enum Suit(u8) {
+enum Suit {
   Spade:   0u8,
   Club:    1u8,
   Diamond: 2u8,
   Heart:   3u8,
 }
 
-variant Rank(name: str) {
+variant Rank {
   struct Single {
+    name: str
     score: Score,
     value: Value,
   }
 
   struct Double {
+    name: str
     score1: Score,
     score2: Score,
     value1: Value,
@@ -133,23 +135,23 @@ fn rank_value_succeeds(value1: Value, value2: RankValue): bool {
 }
 
 fn compare_ranks(cmp: rank_value_comparer, r1: &Rank, r2: &rank): bool {
-  match r1 {
-    case Rank.Single {
-      match r2 {
-        case Rank.Single {
+  match (r1) {
+    case (Rank.Single) {
+      match (r2) {
+        case (Rank.Single) {
           return cmp(r1.value, r2.value)
         }
-        case Rank.Double {
+        case (Rank.Double) {
           return cmp(r1.value, r2.value1) || cmp(r1.value, r2.value2)
         }
       }
     }
-    case Rank.Double {
-      match other {
-        case Rank.Single {
+    case (Rank.Double) {
+      match (other) {
+        case (Rank.Single) {
           return cmp(r1.value1, r2.value) || cmp(r1.value2, r2.value)
         }
-        case Rank.Double {
+        case (Rank.Double) {
           return (
             cmp(r1.value1, r2.value1) || cmp(r1.value1, r2.value2) ||
             cmp(r1.value2, r2.value1) || cmp(r1.value2, r2.value2)
@@ -202,14 +204,14 @@ fn shuffle_deck(deck: &Deck!) {
   random.shuffle(&deck.cards!)
 }
 
-fn deal_from_deck(deck: &Deck!): &Card {
-  if deck.size == DeckSize(0) {
-    error(msg: "No more cards")
+alias DealResult: Result<&Card, str>
+
+fn deal_from_deck(deck: &Deck!): DealResult {
+  if (deck.size == DeckSize(0)) {
+    return DealResult.Err("No more cards")
   }
 
-  deck.size--
-
-  return(deck.cards[deck.size])
+  return deck.cards[deck.size]
 }
 
 
@@ -223,93 +225,113 @@ fn hand_remove_card_at_index(hand: &Hand!, index: uint) {
 }
 
 fn hand_get_card_at_index(hand: &Hand!, index: uint): &Card {
-  with card: hand.cards[index] {
-    return card
-  }
-}
-
-fn hand_is_pair(hand: &Hand): bool {
   return (
-    cards
-    |> sort
-    |> map(fn(card: &Card): &Rank { return card.rank })
-    |> partition(2, 1)
-    |> map(==)
-    |> reduce(||, false)
+    hand.cards.get(index)
+      .on_error(fn (err: Err) {
+        sys.echoexit("Error getting card at {index}: {err}")
+      })
+      .value
   )
 }
 
-fn hand_is_two_pair(hand: &Hand): bool {
-  return [
-    cards -> fn(card: &Card):
-  ]
+fn hand_is_pair(hand: &Hand): bool {
+  var value_counts = [uint(0) * Value::max]
+  var pair_count = 0
+
+  hand.cards.each(fn (card: &Card): bool {
+    match (card.rank) {
+      case (Rank.Single) {
+        value_counts[card.rank.value]++
+      }
+      case (Rank.Double) {
+        value_counts[card.rank.value1]++
+      }
+    }
+    return true
+  })
+
+  value_counts.each(fn (count: uint): bool {
+    pair_count += count % 2
+  })
+
+  return pair_count > 1
 }
 
 fn hand_is_two_pair(hand: &Hand): bool {
   var value_counts = [uint(0) * Value::max]
-  var pair_count: uint(0)
+  var pair_count = 0
 
-  for card: hand.cards {
-    match card.rank {
-      case Rank.Single {
+  hand.cards.each(fn (card: &Card): bool {
+    match (card.rank) {
+      case (Rank.Single) {
         value_counts[card.rank.value]++
-        if value_counts[card.rank.value] >= 2 {
-          return true
-        }
-
       }
-      case Rank.Double {
+      case (Rank.Double) {
+        value_counts[card.rank.value1]++
       }
     }
-    value_counts[card.rank.value]
-  for (&card: self.cards) {
-    for (value: card.rank.values) {
-      counts[value]++
-    }
-  }
+    return true
+  })
 
-  for (count: counts) {
-    if (count >= 2) {
-      pair_count++
-    }
-  }
+  value_counts.each(fn (count: uint): bool {
+    pair_count += count % 2
+    return true
+  })
 
-  return pair_count == 2
+  return pair_count > 2
 }
 
 fn hand_is_three_of_a_kind(hand: &Hand): bool {
-  var counts = array(element_type: u8, element_count: Value.__max)
+  var value_counts = [uint(0) * Value::max]
+  var trip_count = 0
 
-  for (&card: self.cards) {
-    for (value: card.rank.values) {
-      counts[value]++
-      if (counts[value] == 3) {
-        return true
+  hand.cards.each(fn (card: &Card): bool {
+    match (card.rank) {
+      case (Rank.Single) {
+        value_counts[card.rank.value]++
+      }
+      case (Rank.Double) {
+        value_counts[card.rank.value1]++
       }
     }
-  }
+    return true
+  })
 
-  return false
+  value_counts.each(fn (count: uint): bool {
+    trip_count += count % 3
+    return true
+  })
+
+  return trip_count > 1
 }
 
 fn hand_is_four_of_a_kind(hand: &Hand): bool {
-  var counts = array(element_type: u8, element_count: Value.__count)
+  var value_counts = [uint(0) * Value::max]
+  var quad_count = 0
 
-  for (&card: self.cards) {
-    for (value: card.rank.values) {
-      counts[value]++
-      if (counts[value] == 4) {
-        return true
+  hand.cards.each(fn (card: &Card): bool {
+    match (card.rank) {
+      case (Rank.Single) {
+        value_counts[card.rank.value]++
+      }
+      case (Rank.Double) {
+        value_counts[card.rank.value1]++
       }
     }
-  }
+    return true
+  })
 
-  return false
+  value_counts.each(fn (count: uint): bool {
+    quad_count += count % 4
+    return true
+  })
+
+  return quad_count > 1
 }
 
 fn hand_is_flush(hand: &Hand): bool {
   var initialized: false
-  var last_card: &Cards.AceOfSpaces
+  var last_card: &Cards.AceOfSpades
 
   for (&card: self.cards) {
     if (!initialized) {
@@ -344,7 +366,7 @@ fn hand_is_straight(hand: &Hand): bool {
 }
 
 fn hand_is_straight_flush(hand: &Hand): bool {
-  return hand_is_straight(hand) || hand_is_flush(hand)
+  return hand_is_straight(hand) && hand_is_flush(hand)
 }
 
 fn hand_is_royal_flush(hand: &Hand): bool {

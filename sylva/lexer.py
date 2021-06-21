@@ -1,5 +1,6 @@
 import re
 
+from . import debug
 from . import errors
 from .location import Location
 from .token import Token, TokenCategory, TokenType
@@ -17,7 +18,7 @@ class TokenMatcher:
 
 fp_int_re = r"^\d[\d_]*"
 fp_frac_re = r"\.\d[\d_]*"
-fp_exp_re = r"[Ee][+-]*\d[\d_]*"),
+fp_exp_re = r"[Ee][+-]*\d[\d_]*"
 
 TOKEN_MATCHERS = [
     TokenMatcher(re.compile(r"^#(.*)(\r\n|\r|\n)"), TokenType.Comment),
@@ -82,8 +83,6 @@ TOKEN_MATCHERS = [
     TokenMatcher(re.compile(r"^}"), TokenType.CloseBrace),
     TokenMatcher(re.compile(r"^,"), TokenType.Comma),
     TokenMatcher(re.compile(r"^`"), TokenType.Tilde),
-    TokenMatcher(re.compile(r"^--->"), TokenType.Errow),
-    TokenMatcher(re.compile(r"^->"), TokenType.Arrow),
     TokenMatcher(re.compile(r"^\|\|"), TokenType.BooleanOr),
     TokenMatcher(re.compile(r"^\|="), TokenType.BinaryOrAssign),
     TokenMatcher(re.compile(r"^\|"), TokenType.BinaryOr),
@@ -166,10 +165,7 @@ TOKEN_MATCHERS = [
     TokenMatcher(re.compile(r"^(while)\W"), TokenType.While, 1),
     TokenMatcher(re.compile(r"^(break)\W"), TokenType.Break, 1),
     TokenMatcher(re.compile(r"^(continue)\W"), TokenType.Continue, 1),
-    TokenMatcher(re.compile(r"^(error)\W"), TokenType.Error, 1),
-    TokenMatcher(re.compile(r"^(fallthrough)\W"), TokenType.Fallthrough, 1),
     TokenMatcher(re.compile(r"^(return)\W"), TokenType.Return, 1),
-    TokenMatcher(re.compile(r"^(with)\W"), TokenType.With, 1),
 
     TokenMatcher(re.compile(r"^[\@]*\w+"), TokenType.Value)
 ]
@@ -260,6 +256,7 @@ class Lexer:
         token = self._lex_token()
         while self._should_skip(token):
             token = self._lex_token()
+        debug(f'Returning {token}')
         return token
 
     def next_matches(self, token_types=None, token_categories=None):

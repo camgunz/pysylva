@@ -1,5 +1,18 @@
 # C FFI
 
+Sylva includes a C foreign function interface. Bindings to C programs can be
+generated using:
+
+* `cfn`
+* `cfntype`
+* `cptr`
+* `cstr`
+* `cstruct`
+* `cunion`
+* `cvoid`
+
+Note well that the C FFI offers none of Sylva's guarantees.
+
 ## Builtin types:
 
 - `void`

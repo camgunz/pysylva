@@ -1,7 +1,5 @@
 import enum
 
-from collections import namedtuple
-
 
 @enum.unique
 class TokenCategory(enum.Enum):
@@ -197,23 +195,8 @@ class TokenType:
         categories = {TokenCategory.Keyword}
         has_value = False
 
-    class Error(metaclass=MetaTokenType):
-        name = 'Error'
-        categories = {TokenCategory.Keyword}
-        has_value = False
-
-    class Fallthrough(metaclass=MetaTokenType):
-        name = 'Fallthrough'
-        categories = {TokenCategory.Keyword}
-        has_value = False
-
     class Return(metaclass=MetaTokenType):
         name = 'Return'
-        categories = {TokenCategory.Keyword}
-        has_value = False
-
-    class With(metaclass=MetaTokenType):
-        name = 'With'
         categories = {TokenCategory.Keyword}
         has_value = False
 
@@ -347,20 +330,6 @@ class TokenType:
         name = 'Colon'
         categories = {TokenCategory.Symbol}
         has_value = False
-
-    class Arrow(metaclass=MetaTokenType):
-        name = 'Arrow'
-        categories = {TokenCategory.Symbol, TokenCategory.Operator}
-        has_value = False
-        unary = False
-        binary = True
-
-    class Errow(metaclass=MetaTokenType):
-        name = 'Errow'
-        categories = {TokenCategory.Symbol, TokenCategory.Operator}
-        has_value = False
-        unary = False
-        binary = True
 
     class Plus(metaclass=MetaTokenType):
         name = 'Plus'

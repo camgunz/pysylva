@@ -1,8 +1,8 @@
-from collections import deque, namedtuple
 
-import functools
+from collections import namedtuple
 
 from . import ast
+from . import debug
 from . import errors
 from . import operator
 from . import types
@@ -33,8 +33,9 @@ class Parser:
 
     # pylint: disable=redefined-outer-name
     def _expect(self, types=None, categories=None, token=None):
+        debug(f'_expect({types}, {categories}, {token})')
         token = token or self.lexer.lex()
-        print(f'{self.module.name}: {self.lexer.location} :: {token}')
+        debug(f'{self.module.name}: {self.lexer.location} :: {token}')
         if not token.matches(types, categories):
             if types and categories:
                 raise errors.UnexpectedToken(token, types, categories)
@@ -52,10 +53,14 @@ class Parser:
         location = token.location.copy()
         namespaces = [token.value]
         while True:
+            debug('Looking for dot')
             dot = self.lexer.get_next_if_matches([TokenType.AttributeLookup])
             if not dot:
+                debug('No dot')
                 break
+            debug('Found dot')
             namespaces.append(self._expect(types=[TokenType.Value]).value)
+        debug('Done looking for dot')
         return location, '.'.join(namespaces)
 
     def _resolve_identifier(self, token=None):
@@ -87,7 +92,7 @@ class Parser:
         self._expect(types=[TokenType.OpenBrace])
         token = self.lexer.get_next_if_not_matches([TokenType.CloseBrace])
         while token:
-            print(f'Got code token {token}')
+            debug(f'Got code token {token}')
             code.append(self.parse_code_node(token))
             token = self.lexer.get_next_if_not_matches([TokenType.CloseBrace])
         self._expect(types=[TokenType.CloseBrace])
@@ -116,42 +121,9 @@ class Parser:
             self.lexer.set_state(state)
         return parameters, return_type
 
-    def parse(self):
-        while True:
-            try:
-                token = self._expect(types=[
-                    TokenType.Requirement,
-                    TokenType.Alias,
-                    TokenType.Module,
-                    TokenType.Fn,
-                    TokenType.FnType,
-                    TokenType.Struct,
-                    TokenType.Array,
-                    TokenType.Implementation,
-                ])
-            except errors.EOF:
-                break
-            if token.token_type == TokenType.Requirement:
-                self.parse_requirement(token)
-            elif token.token_type == TokenType.Alias:
-                self.parse_alias(token)
-            elif token.token_type == TokenType.Module:
-                self._parse_flat_identifier()
-                continue
-            elif token.token_type == TokenType.Fn:
-                self.parse_function(token)
-            elif token.token_type == TokenType.FnType:
-                self.parse_function_type(token)
-            elif token.token_type == TokenType.Struct:
-                self.parse_struct_type(token)
-            elif token.token_type == TokenType.Array:
-                self.parse_array_type(token)
-            elif token.token_type == TokenType.Implementation:
-                self.parse_implementation(token)
-
     def parse_requirement(self, token=None):
         self._expect(types=[TokenType.Requirement], token=token)
-        location, requirement = self._parse_flat_identifier()
+        _, requirement = self._parse_flat_identifier()
         if requirement not in self.module.dependency_names:
             raise RuntimeError('Requirement not found in dependencies')
         self.requirements.append(requirement)
@@ -161,7 +133,7 @@ class Parser:
         location = token.location.copy()
         name = self._expect(types=[TokenType.Value]).value
         self._expect(types=[TokenType.Colon])
-        alias_location, alias = self._parse_flat_identifier()
+        _, alias = self._parse_flat_identifier()
         if name == alias:
             raise errors.RedundantAlias(location, name)
         if name in self.aliases:
@@ -219,9 +191,6 @@ class Parser:
     def parse_implementation(self, token=None):
         raise NotImplementedError()
 
-    def parse_val(self, token=None):
-        raise NotImplementedError()
-
     def parse_var(self, token=None):
         raise NotImplementedError()
 
@@ -238,9 +207,6 @@ class Parser:
         raise NotImplementedError()
 
     def parse_default(self, token=None):
-        raise NotImplementedError()
-
-    def parse_do(self, token=None):
         raise NotImplementedError()
 
     def parse_for(self, token=None):
@@ -261,13 +227,7 @@ class Parser:
     def parse_error(self, token=None):
         raise NotImplementedError()
 
-    def parse_fallthrough(self, token=None):
-        raise NotImplementedError()
-
     def parse_return(self, token=None):
-        raise NotImplementedError()
-
-    def parse_with(self, token=None):
         raise NotImplementedError()
 
     def parse_call_expression(self, token=None):
@@ -353,8 +313,6 @@ class Parser:
 
     def parse_code_node(self, token=None):
         token = token or self.lexer.lex()
-        if token.token_type == TokenType.Val:
-            return self.parse_val(token)
         if token.token_type == TokenType.Var:
             return self.parse_var(token)
         if token.token_type == TokenType.If:
@@ -367,8 +325,6 @@ class Parser:
             return self.parse_case(token)
         if token.token_type == TokenType.Default:
             return self.parse_default(token)
-        if token.token_type == TokenType.Do:
-            return self.parse_do(token)
         if token.token_type == TokenType.For:
             return self.parse_for(token)
         if token.token_type == TokenType.Loop:
@@ -379,12 +335,38 @@ class Parser:
             return self.parse_break(token)
         if token.token_type == TokenType.Continue:
             return self.parse_continue(token)
-        if token.token_type == TokenType.Error:
-            return self.parse_error(token)
-        if token.token_type == TokenType.Fallthrough:
-            return self.parse_fallthrough(token)
         if token.token_type == TokenType.Return:
             return self.parse_return(token)
-        if token.token_type == TokenType.With:
-            return self.parse_with(token)
         return self.parse_expression(token)
+
+    def parse(self):
+        while True:
+            try:
+                token = self._expect(types=[
+                    TokenType.Requirement,
+                    TokenType.Alias,
+                    TokenType.Module,
+                    TokenType.Fn,
+                    TokenType.FnType,
+                    TokenType.Struct,
+                    TokenType.Array,
+                    TokenType.Implementation,
+                ])
+            except errors.EOF:
+                break
+            if token.token_type == TokenType.Requirement:
+                self.parse_requirement(token)
+            elif token.token_type == TokenType.Alias:
+                self.parse_alias(token)
+            elif token.token_type == TokenType.Module:
+                self._parse_flat_identifier()
+            elif token.token_type == TokenType.Fn:
+                self.parse_function(token)
+            elif token.token_type == TokenType.FnType:
+                self.parse_function_type(token)
+            elif token.token_type == TokenType.Struct:
+                self.parse_struct_type(token)
+            elif token.token_type == TokenType.Array:
+                self.parse_array_type(token)
+            elif token.token_type == TokenType.Implementation:
+                self.parse_implementation(token)

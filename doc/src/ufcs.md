@@ -14,7 +14,7 @@ fn say_hey(person: &Person) {
 }
 
 fn main() {
-  val person: Person{name: "Charlie"}
+  var person: Person{name: "Charlie"}
   say_hey(&person)
   person.say_hey()
 }
