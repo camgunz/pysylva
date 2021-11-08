@@ -109,7 +109,7 @@ handlers, and the only overflow handler options are `wrap` or `clamp`.
 ## Handling failures
 
 Numeric operations that could result in errors return
-[`Result`s](failure_results.html):
+[`Result`s](failures.html):
 
 ```sylva
 requirement sys

@@ -15,12 +15,12 @@ struct Person {
   age: Age(0u8c)
 }
 
-fn print_usage() {
+fn print_usage(f: Failure) {
   sys.echoexit("Usage: hello [name] [age]")
 }
 
 fn have_birthday(person: &Person!) {
-  person.age = (person.age + Age(1)).on_failure(fn () {
+  person.age = (person.age + Age(1)).on_failure(fn (f: Failure) {
     sys.echoexit("Person {person.name} is already the max age {person.age}")
   })
 }
@@ -34,8 +34,8 @@ fn main() {
     name: sys.args.get(1).on_failure(print_usage)
     age: Age.parse_from_string(
       sys.args.get(1).on_failure(print_usage)
-    ).on_failure(fn () {
-      sys.echoexit("Invalid age")
+    ).on_failure(fn (f: Failure) {
+      sys.echoexit("Invalid age: {f}")
     })
   }
 
@@ -48,8 +48,8 @@ Sylva is [memory and data race safe](memory.html).  You cannot write a program
 in Sylva\* that will result in bugs like use after free, torn reads/writes,
 out-of-bounds memory accesses, [unexpected integer wraparounds](numbers.html),
 etc. It is designed to encourage the programmer to do the [robust
-thing](failure_results.html), and to structure applications such that the
-robust thing is also the easy thing.
+thing](failure.html), and to structure applications such that the robust thing
+is also the easy thing.
 
 Sylva is fast.  It is statically typed, compiled to native code ahead of time,
 does not use garbage collection, and requires no runtime.

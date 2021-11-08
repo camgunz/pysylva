@@ -207,11 +207,14 @@ fn shuffle_deck(deck: &Deck!) {
 alias DealResult: Result<&Card, str>
 
 fn deal_from_deck(deck: &Deck!): DealResult {
-  if (deck.size == DeckSize(0)) {
-    return DealResult.Err("No more cards")
-  }
-
-  return deck.cards[deck.size]
+  switch (deck.size) {
+	  case (DeckSize(0)) {
+		  return DealResult.Err("No more cards")
+	  }
+		default {
+		  return DealResult.OK(deck.cards[deck.size])
+	  }
+	}
 }
 
 
@@ -227,8 +230,8 @@ fn hand_remove_card_at_index(hand: &Hand!, index: uint) {
 fn hand_get_card_at_index(hand: &Hand!, index: uint): &Card {
   return (
     hand.cards.get(index)
-      .on_error(fn (err: Err) {
-        sys.echoexit("Error getting card at {index}: {err}")
+      .on_failure(fn (f: Failure) {
+        sys.echoexit("Error getting card at {index}: {f}")
       })
       .value
   )

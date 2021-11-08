@@ -1,9 +1,9 @@
-# Failure Results
+# Failures
 
 Sometimes things don't go your way. While we can't anticipate everything (gamma
-rays, children), it is within our power to anticipate a great number of failure
-results. Sylva does this using variants, specifically a `Result` `struct`, very
-similar to Rust:
+rays, children), it is within our power to anticipate a great number of
+failures. Sylva does this using variants, specifically a `Result` `struct`,
+very similar to Rust:
 
 ```sylva
 struct Result (ok_type, failed_type) {
@@ -17,7 +17,7 @@ far as to not call them "errors"--which are *mistakes*--but rather "failures",
 which are a *lack of success*. Sylva knows what is and isn't valid Sylva and is
 thus qualified to judge errors there (say at lex or parse time), but is too
 polite to say what is or isn't a mistake in an application's behavior. To that
-end, it provides facilities to group results into successes of failures:
+end, it provides facilities to group results into successes or failures:
 
 ```sylva
 requirement sys
@@ -62,8 +62,8 @@ requirement sys
 range Age (0u8, 250u8)
 
 fn increment(age: Age): Age {
-  return (age + Age(1)).on_failure(fn() {
-    sys.die("Age {age} is already the max age"
+  return (age + Age(1)).on_failure(fn (f: Failure) {
+    sys.die("Age {age} is already the max age")
   }).value
 }
 

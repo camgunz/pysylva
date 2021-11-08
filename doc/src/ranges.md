@@ -134,7 +134,7 @@ fn get_key_status(keyboard: &Keyboard, key: PianoKey): str {
 }
 
 fn print_status(keyboard &Keyboard) {
-  PianoKey::each(fn(key: PianoKey) {
+  PianoKey::each(fn (key: PianoKey) {
     sys.echo("Key {key}: {keyboard.get_key_status(key)}")
     return true
   })
