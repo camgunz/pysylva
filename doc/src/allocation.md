@@ -19,7 +19,7 @@ fn long_way() {
       mem.init(Person)(Person{name: "Barack", age: 57})
     })
     .on_failure(fn (f: Failure) {
-      sys.die("Allocating memory failed: {f.message}")
+      sys.echoexit("Allocating memory failed: {f.message}")
     })
     .value
 
@@ -31,7 +31,7 @@ fn long_way() {
       ])
     })
     .on_failure(fn (f: Failure) {
-      sys.die("Allocating memory failed: {f.message}")
+      sys.echoexit("Allocating memory failed: {f.message}")
     })
     .value
 }

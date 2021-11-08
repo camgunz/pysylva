@@ -209,7 +209,7 @@ alias DealResult: Result<&Card, str>
 fn deal_from_deck(deck: &Deck!): DealResult {
   switch (deck.size) {
 	  case (DeckSize(0)) {
-		  return DealResult.Err("No more cards")
+		  return DealResult.Failed("No more cards")
 	  }
 		default {
 		  return DealResult.OK(deck.cards[deck.size])

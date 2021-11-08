@@ -63,7 +63,7 @@ range Age (0u8, 250u8)
 
 fn increment(age: Age): Age {
   return (age + Age(1)).on_failure(fn (f: Failure) {
-    sys.die("Age {age} is already the max age")
+    sys.echoexit("Age {age} is already the max age")
   }).value
 }
 
@@ -73,8 +73,8 @@ fn main() {
 }
 ```
 
-You may be thinking "`sys.die` doesn't return an `Age`, that should also be an
-error". Good catch! Sylva is smart enough to not worry about cases that
+You may be thinking "`sys.echoexit` doesn't return an `Age`, that should also
+be an error". Good catch! Sylva is smart enough to not worry about cases that
 definitely exit\*.
 
 \* _Keep in mind, however, that branching or flow control of any kind will foil
@@ -131,7 +131,7 @@ requirement sys
 requirement checked
 
 fn quit_because_math_too_hard(f: MathFailure) {
-  sys.die(f.message)
+  sys.echoexit(f.message)
 }
 
 # `op(x, y)` == `sqrt(ln(x / y))`
