@@ -1,3 +1,5 @@
+import itertools
+
 from collections import defaultdict
 
 from . import sylva
@@ -30,13 +32,14 @@ class ModuleLoader:
         return module_statements
 
     @staticmethod
-    def gather_dependencies_from_data_sources(data_sources):
-        dependencies = set()
-        for data_sources in data_sources:
-            requirement_statements = RequirementScanner.scan(data_sources)
-            requirement_names = [es.name for es in requirement_statements]
-            dependencies.update(requirement_names)
-        return dependencies
+    def gather_requirements_from_data_sources(data_sources):
+        dep_lists = [RequirementScanner.scan(ds) for ds in data_sources]
+        seen = set()
+        return [
+            dep for dep in itertools.chain(*dep_lists)
+            if not dep.name in seen
+            and not seen.add(dep.name)
+        ]
 
     @staticmethod
     def load_from_data_sources(program, input_data_sources):
@@ -62,5 +65,5 @@ class ModuleLoader:
             program,
             name,
             data_sources,
-            ModuleLoader.gather_dependencies_from_data_sources(data_sources)
+            ModuleLoader.gather_requirements_from_data_sources(data_sources)
         ) for name, data_sources in names_to_data_sources.items()]

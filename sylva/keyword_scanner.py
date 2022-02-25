@@ -8,7 +8,7 @@ from .token import TokenType
 ScannedItem = namedtuple('ScannedItem', ('location', 'name'))
 
 
-class Scanner:
+class KeywordScanner:
 
     token_type = None
 
@@ -34,16 +34,16 @@ class Scanner:
                 continue
             scanned_items.append(ScannedItem(
                 token.location.copy(),
-                Scanner.lex_identifier(lexer)
+                KeywordScanner.lex_identifier(lexer)
             ))
         return scanned_items
 
 
-class ModuleScanner(Scanner):
+class ModuleScanner(KeywordScanner):
 
     token_type = TokenType.Module
 
 
-class RequirementScanner(Scanner):
+class RequirementScanner(KeywordScanner):
 
     token_type = TokenType.Requirement

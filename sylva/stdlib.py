@@ -3,9 +3,9 @@ from pathlib import Path
 from .data_source import DataSource
 
 
-# [NOTE} We assume one module per file here, and that each file is named for
+# [NOTE] We assume one module per file here, and that each file is named for
 #        the module it contains.
-_STDLIB_MODULE_NAMES = ['os', 'sys']
+_STDLIB_MODULE_NAMES = ['libc', 'sys']
 
 
 class Stdlib:
@@ -23,7 +23,7 @@ class Stdlib:
             module_path = stdlib_path / f'{module_name}.sy'
             if not module_path.is_file():
                 raise ValueError(
-                    f'Expected file for {module_name} at {module_path}'
+                    f'Expected {module_name} at {module_path} to be a file'
                 )
             data_sources.append(DataSource.FromPath(module_path))
         return cls(data_sources)

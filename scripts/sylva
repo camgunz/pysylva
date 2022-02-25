@@ -69,12 +69,12 @@ def compile(file_paths, stdlib=None, target_triple=None):
     """Compiles files."""
     print_bar('Compiling')
     data_sources = [DataSource.FromFile(file_path) for file_path in file_paths]
-    program = Program(
-        data_sources,
-        stdlib_path=stdlib,
-        target_triple=target_triple
-    )
     try:
+        program = Program(
+            data_sources,
+            stdlib_path=stdlib,
+            target_triple=target_triple
+        )
         program.compile()
     except errors.SylvaError as error:
         if _DEBUG:

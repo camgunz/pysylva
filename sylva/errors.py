@@ -19,10 +19,11 @@ class LocationError(SylvaError):
 
     def pformat(self):
         return (
+            f'{self.location.pformat()}'
+            '\n'
             '\n'
             f'[Error: {self.location.shorthand}] {self}'
             '\n'
-            f'{self.location.pformat()}'
         )
 
 
@@ -101,10 +102,10 @@ class DuplicateDefinition(LocationError):
         )
 
 
-class NoSuchModule(SylvaError):
+class NoSuchModule(LocationError):
 
-    def __init__(self, module_name):
-        super().__init__(f'No such module {module_name}')
+    def __init__(self, location, module_name):
+        super().__init__(location, f'No such module {module_name}')
 
 
 class MutatingBuiltins(SylvaError):

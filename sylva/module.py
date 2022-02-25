@@ -4,13 +4,13 @@ from .parser import Parser
 
 class Module:
 
-    def __init__(self, program, name, data_sources, dependency_names):
+    def __init__(self, program, name, data_sources, requirement_statements):
         self.program = program
         self.name = name
         self.vars = {}
         self.data_sources = data_sources
-        self.dependency_names = dependency_names
-        self.dependencies = set()
+        self.requirement_statements = requirement_statements
+        self.requirements = set()
         self._parsed = False
 
     @classmethod
@@ -24,36 +24,37 @@ class Module:
             self.program,
             self.name,
             self.data_sources,
-            self.dependency_names
+            self.requirement_statements
         )
 
     def __str__(self):
         return f'<Module {self.name}>'
 
-    def resolve_dependencies(self, seen=None):
-        if len(self.dependencies) == len(self.dependency_names):
+    def resolve_requirements(self, seen=None):
+        if len(self.requirements) == len(self.requirement_statements):
             return
         seen = seen or []
         if self in seen:
             raise errors.CircularDependency(self, seen)
         seen.append(self)
-        self.dependencies = set()
-        for dependency_name in self.dependency_names:
-            module = self.program.get_module(dependency_name)
+        self.requirements = set()
+        for requirement_statement in self.requirement_statements:
+            module = self.program.get_module(requirement_statement.name)
             if not module:
-                # [TODO] Use a LocationError here, which requires storing
-                #        locations as well as names
-                raise errors.NoSuchModule(dependency_name)
-            self.dependencies.add(module)
-        for dependency in self.dependencies:
-            dependency.resolve_dependencies(seen)
+                raise errors.NoSuchModule(
+                    requirement_statement.location,
+                    requirement_statement.name
+                )
+            self.requirements.add(module)
+        for requirement in self.requirements:
+            requirement.resolve_requirements(seen)
 
     def parse(self):
         if self._parsed:
             return
         self._parsed = True
-        for dependency in self.dependencies:
-            dependency.parse()
+        for requirement in self.requirements:
+            requirement.parse()
         for data_source in self.data_sources:
             Parser(self, data_source).parse()
 
