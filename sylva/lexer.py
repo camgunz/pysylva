@@ -10,164 +10,194 @@ class TokenMatcher:
 
     __slots__ = ('regex', 'token_type', 'group_index', 'extra_skip')
 
-    def __init__(self, regex, token_type, group_index=0, extra_skip=0):
-        self.regex = regex
+    def __init__(self, rstr, token_type, group_index=0, extra_skip=0, flags=0):
+        self.regex = re.compile(rstr, flags=flags)
         self.token_type = token_type
         self.group_index = group_index
         self.extra_skip = extra_skip
 
-fp_int_re = r"^\d[\d_]*"
-fp_frac_re = r"\.\d[\d_]*"
-fp_exp_re = r"[Ee][+-]*\d[\d_]*"
-
 TOKEN_MATCHERS = [
-    TokenMatcher(re.compile(r"^#(.*)(\r\n|\r|\n)"), TokenType.Comment),
-    TokenMatcher(re.compile(r"^( |\t)+"), TokenType.Space),
-    TokenMatcher(re.compile(r"^(\r\n|\r|\n)"), TokenType.LineBreak),
+    TokenMatcher(r"^#(.*)(\r\n|\r|\n)", TokenType.Comment),
+    TokenMatcher(r"^( |\t)+", TokenType.Space),
+    TokenMatcher(r"^(\r\n|\r|\n)", TokenType.LineBreak),
+
     TokenMatcher(
-        re.compile(r"^\d[\d_]*\.\d[\d_]*[Ee][+-]*\d[\d_]*"),
-        TokenType.Decimal
+        r'^[+-]??\d+i(8|16|32|64|128)?(w|c)*',
+        TokenType.SignedDecInteger
     ),
     TokenMatcher(
-        re.compile(r"^\.\d[\d_]*[Ee][+-]*\d[\d_]*"), TokenType.Decimal
+        r'^[+-]??\d+u(8|16|32|64|128)?(w|c)*',
+        TokenType.UnsignedDecInteger
+    ),
+
+    TokenMatcher(
+        r'^[+-]??\d+\.\d+([Ee][+-]??\d+)?f(16|32|64|128)(ru|rd|rz|ra)*',
+        TokenType.Float
     ),
     TokenMatcher(
-        re.compile(r"^\d[\d_]*[Ee][+-]*\d[\d_]*"),
-        TokenType.Decimal
-    ),
-    TokenMatcher(re.compile(r"^\d[\d_]*\.\d[\d_]*"), TokenType.Decimal),
-    TokenMatcher(re.compile(r"^\.\d[\d_]*"), TokenType.Decimal),
-    TokenMatcher(re.compile(r"^Infinity"), TokenType.Decimal),
-    TokenMatcher(re.compile(r"^NaN"), TokenType.Decimal),
-    TokenMatcher(
-        re.compile(r"^(0[Bb][01]+)i\d*"), TokenType.SignedBinInteger, 1, 1
+        r'^[+-]??\d+\.([Ee][+-]??\d+)?f(16|32|64|128)(ru|rd|rz|ra)*',
+        TokenType.Float
     ),
     TokenMatcher(
-        re.compile(r"^(0[Bb][01]+)u\d*"), TokenType.UnsignedBinInteger, 1, 1
-    ),
-    TokenMatcher(re.compile(r"^0[Bb][01]+"), TokenType.Decimal),
-    TokenMatcher(
-        re.compile(r"^(0[Oo][01234567]+)i"), TokenType.SignedOctInteger, 1, 1
+        r'^[+-]??\d+([Ee][+-]??\d+)?f(16|32|64|128)(ru|rd|rz|ra)*',
+        TokenType.Float
     ),
     TokenMatcher(
-        re.compile(r"^(0[Oo][01234567]+)u"), TokenType.UnsignedOctInteger, 1, 1
+        r'^[+-]??\.\d+([Ee][+-]??\d+)?f(16|32|64|128)(ru|rd|rz|ra)*',
+        TokenType.Float
     ),
-    TokenMatcher(re.compile(r"^0[Oo][01234567]+"), TokenType.Decimal),
+
     TokenMatcher(
-        re.compile(r"^(0[Xx][0123456789aAbBcCdDeEfF]+)i"),
+        r'^inff(16|32|64|128)(ru|rd|rz|ra)*',
+        TokenType.Float,
+        flags=re.I,
+    ),
+
+    TokenMatcher(
+        r'^nanf(16|32|64|128)(ru|rd|rz|ra)*',
+        TokenType.Float,
+        flags=re.I,
+    ),
+
+    TokenMatcher(
+        r'^inf(ru|rd|rz|ra)*',
+        TokenType.Decimal,
+        flags=re.I,
+    ),
+
+    TokenMatcher(
+        r'^nan(ru|rd|rz|ra)*',
+        TokenType.Decimal,
+        flags=re.I,
+    ),
+
+    TokenMatcher(
+        r"^(0[Bb][01]+)i\d*", TokenType.SignedBinInteger, 1, 1
+    ),
+    TokenMatcher(
+        r"^(0[Bb][01]+)u\d*", TokenType.UnsignedBinInteger, 1, 1
+    ),
+    TokenMatcher(r"^0[Bb][01]+", TokenType.Decimal),
+    TokenMatcher(
+        r"^(0[Oo][01234567]+)i", TokenType.SignedOctInteger, 1, 1
+    ),
+    TokenMatcher(
+        r"^(0[Oo][01234567]+)u", TokenType.UnsignedOctInteger, 1, 1
+    ),
+    TokenMatcher(r"^0[Oo][01234567]+", TokenType.Decimal),
+    TokenMatcher(
+        r"^(0[Xx][0123456789aAbBcCdDeEfF]+)i",
         TokenType.SignedHexInteger,
         1,
         1
     ),
     TokenMatcher(
-        re.compile(r"^(0[Xx][0123456789aAbBcCdDeEfF]+)u"),
+        r"^(0[Xx][0123456789aAbBcCdDeEfF]+)u",
         TokenType.UnsignedHexInteger,
         1,
         1
     ),
     TokenMatcher(
-        re.compile(r"^0[Xx][0123456789aAbBcCdDeEfF]+"), TokenType.Decimal
+        r"^0[Xx][0123456789aAbBcCdDeEfF]+", TokenType.Decimal
     ),
-    TokenMatcher(re.compile(r"^(\d+)i"), TokenType.SignedDecInteger, 1, 1),
-    TokenMatcher(re.compile(r"^(\d+)u"), TokenType.UnsignedDecInteger, 1, 1),
-    TokenMatcher(re.compile(r"^\d+"), TokenType.Decimal),
-    TokenMatcher(re.compile(r'"(.*?)"'), TokenType.String, 1, 2),
-    TokenMatcher(re.compile(r"^'(.*?)'"), TokenType.Rune, 1, 2),
-    TokenMatcher(re.compile(r"^(true)\W"), TokenType.Boolean, 1),
-    TokenMatcher(re.compile(r"^(false)\W"), TokenType.Boolean, 1),
-    TokenMatcher(re.compile(r"^\("), TokenType.OpenParen),
-    TokenMatcher(re.compile(r"^\)"), TokenType.CloseParen),
-    TokenMatcher(re.compile(r"^\["), TokenType.OpenBracket),
-    TokenMatcher(re.compile(r"^]"), TokenType.CloseBracket),
-    TokenMatcher(re.compile(r"^{"), TokenType.OpenBrace),
-    TokenMatcher(re.compile(r"^}"), TokenType.CloseBrace),
-    TokenMatcher(re.compile(r"^,"), TokenType.Comma),
-    TokenMatcher(re.compile(r"^`"), TokenType.Tilde),
-    TokenMatcher(re.compile(r"^\|\|"), TokenType.BooleanOr),
-    TokenMatcher(re.compile(r"^\|="), TokenType.BinaryOrAssign),
-    TokenMatcher(re.compile(r"^\|"), TokenType.BinaryOr),
-    TokenMatcher(re.compile(r"^&&"), TokenType.BooleanAnd),
-    TokenMatcher(re.compile(r"^&="), TokenType.BinaryAndAssign),
-    TokenMatcher(re.compile(r"^&"), TokenType.BinaryAnd),
-    TokenMatcher(re.compile(r"^==="), TokenType.IdentityEqual),
-    TokenMatcher(re.compile(r"^=="), TokenType.Equal),
-    TokenMatcher(re.compile(r"^="), TokenType.Assign),
-    TokenMatcher(re.compile(r"^!=="), TokenType.IdentityNotEqual),
-    TokenMatcher(re.compile(r"^!="), TokenType.NotEqual),
-    TokenMatcher(re.compile(r"^!"), TokenType.BooleanNot),
-    TokenMatcher(re.compile(r"^\^="), TokenType.BinaryXorAssign),
-    TokenMatcher(re.compile(r"^\^"), TokenType.BinaryXor),
-    TokenMatcher(re.compile(r"^>>>="), TokenType.UnsignedRightShiftAssign),
-    TokenMatcher(re.compile(r"^>>>"), TokenType.UnsignedRightShift),
-    TokenMatcher(re.compile(r"^>>="), TokenType.RightShiftAssign),
-    TokenMatcher(re.compile(r"^>>"), TokenType.RightShift),
-    TokenMatcher(re.compile(r"^>="), TokenType.GreaterThanOrEqual),
-    TokenMatcher(re.compile(r"^>"), TokenType.GreaterThan),
-    TokenMatcher(re.compile(r"^<<="), TokenType.LeftShiftAssign),
-    TokenMatcher(re.compile(r"^<<"), TokenType.LeftShift),
-    TokenMatcher(re.compile(r"^<="), TokenType.LessThanOrEqual),
-    TokenMatcher(re.compile(r"^<"), TokenType.LessThan),
-    TokenMatcher(re.compile(r"^\+\+"), TokenType.Increment),
-    TokenMatcher(re.compile(r"^\+="), TokenType.PlusAssign),
-    TokenMatcher(re.compile(r"^\+"), TokenType.Plus),
-    TokenMatcher(re.compile(r"^--"), TokenType.Decrement),
-    TokenMatcher(re.compile(r"^-="), TokenType.MinusAssign),
-    TokenMatcher(re.compile(r"^-"), TokenType.Minus),
-    TokenMatcher(re.compile(r"^\*\*="), TokenType.ExponentAssign),
-    TokenMatcher(re.compile(r"^\*\*"), TokenType.Exponent),
-    TokenMatcher(re.compile(r"^\*="), TokenType.MultiplyAssign),
-    TokenMatcher(re.compile(r"^\*"), TokenType.Multiply),
-    TokenMatcher(re.compile(r"^//="), TokenType.IntegerDivideAssign),
-    TokenMatcher(re.compile(r"^//"), TokenType.IntegerDivide),
-    TokenMatcher(re.compile(r"^/="), TokenType.DivideAssign),
-    TokenMatcher(re.compile(r"^/"), TokenType.Divide),
-    TokenMatcher(re.compile(r"^%="), TokenType.RemainderAssign),
-    TokenMatcher(re.compile(r"^%"), TokenType.Remainder),
-    TokenMatcher(re.compile(r"^~"), TokenType.BinaryNot),
-    TokenMatcher(re.compile(r"^\."), TokenType.AttributeLookup),
-    TokenMatcher(re.compile(r"^::"), TokenType.ReflectionLookup),
-    TokenMatcher(re.compile(r"^:"), TokenType.Colon),
 
-    TokenMatcher(re.compile(r"^(module)\W"), TokenType.Module, 1),
-    TokenMatcher(re.compile(r"^(requirement)\W"), TokenType.Requirement, 1),
-    TokenMatcher(re.compile(r"^(fn)\W"), TokenType.Fn, 1),
-    TokenMatcher(re.compile(r"^(fntype)\W"), TokenType.FnType, 1),
-    TokenMatcher(re.compile(r"^(array)\W"), TokenType.Array, 1),
-    TokenMatcher(re.compile(r"^(struct)\W"), TokenType.Struct, 1),
-    TokenMatcher(re.compile(r"^(variant)\W"), TokenType.Variant, 1),
-    TokenMatcher(re.compile(r"^(enum)\W"), TokenType.Enum, 1),
-    TokenMatcher(re.compile(r"^(range)\W"), TokenType.Range, 1),
+    TokenMatcher(r'"(.*?)"', TokenType.String, 1, 2),
+    TokenMatcher(r"^'(.*?)'", TokenType.Rune, 1, 2),
+    TokenMatcher(r"^(true)\W", TokenType.Boolean, 1),
+    TokenMatcher(r"^(false)\W", TokenType.Boolean, 1),
+    TokenMatcher(r"^\(", TokenType.OpenParen),
+    TokenMatcher(r"^\)", TokenType.CloseParen),
+    TokenMatcher(r"^\[", TokenType.OpenBracket),
+    TokenMatcher(r"^]", TokenType.CloseBracket),
+    TokenMatcher(r"^{", TokenType.OpenBrace),
+    TokenMatcher(r"^}", TokenType.CloseBrace),
+    TokenMatcher(r"^,", TokenType.Comma),
+    TokenMatcher(r"^`", TokenType.Tilde),
+    TokenMatcher(r"^\|\|", TokenType.BooleanOr),
+    TokenMatcher(r"^\|=", TokenType.BinaryOrAssign),
+    TokenMatcher(r"^\|", TokenType.BinaryOr),
+    TokenMatcher(r"^&&", TokenType.BooleanAnd),
+    TokenMatcher(r"^&=", TokenType.BinaryAndAssign),
+    TokenMatcher(r"^&", TokenType.BinaryAnd),
+    TokenMatcher(r"^===", TokenType.IdentityEqual),
+    TokenMatcher(r"^==", TokenType.Equal),
+    TokenMatcher(r"^=", TokenType.Assign),
+    TokenMatcher(r"^!==", TokenType.IdentityNotEqual),
+    TokenMatcher(r"^!=", TokenType.NotEqual),
+    TokenMatcher(r"^!", TokenType.BooleanNot),
+    TokenMatcher(r"^\^=", TokenType.BinaryXorAssign),
+    TokenMatcher(r"^\^", TokenType.BinaryXor),
+    TokenMatcher(r"^>>>=", TokenType.UnsignedRightShiftAssign),
+    TokenMatcher(r"^>>>", TokenType.UnsignedRightShift),
+    TokenMatcher(r"^>>=", TokenType.RightShiftAssign),
+    TokenMatcher(r"^>>", TokenType.RightShift),
+    TokenMatcher(r"^>=", TokenType.GreaterThanOrEqual),
+    TokenMatcher(r"^>", TokenType.GreaterThan),
+    TokenMatcher(r"^<<=", TokenType.LeftShiftAssign),
+    TokenMatcher(r"^<<", TokenType.LeftShift),
+    TokenMatcher(r"^<=", TokenType.LessThanOrEqual),
+    TokenMatcher(r"^<", TokenType.LessThan),
+    TokenMatcher(r"^\+\+", TokenType.Increment),
+    TokenMatcher(r"^\+=", TokenType.PlusAssign),
+    TokenMatcher(r"^\+", TokenType.Plus),
+    TokenMatcher(r"^--", TokenType.Decrement),
+    TokenMatcher(r"^-=", TokenType.MinusAssign),
+    TokenMatcher(r"^-", TokenType.Minus),
+    TokenMatcher(r"^\*\*=", TokenType.ExponentAssign),
+    TokenMatcher(r"^\*\*", TokenType.Exponent),
+    TokenMatcher(r"^\*=", TokenType.MultiplyAssign),
+    TokenMatcher(r"^\*", TokenType.Multiply),
+    TokenMatcher(r"^//=", TokenType.IntegerDivideAssign),
+    TokenMatcher(r"^//", TokenType.IntegerDivide),
+    TokenMatcher(r"^/=", TokenType.DivideAssign),
+    TokenMatcher(r"^/", TokenType.Divide),
+    TokenMatcher(r"^%=", TokenType.RemainderAssign),
+    TokenMatcher(r"^%", TokenType.Remainder),
+    TokenMatcher(r"^~", TokenType.BinaryNot),
+    TokenMatcher(r"^\.", TokenType.AttributeLookup),
+    TokenMatcher(r"^::", TokenType.ReflectionLookup),
+    TokenMatcher(r"^:", TokenType.Colon),
 
-    TokenMatcher(re.compile(r"^(cfn)\W"), TokenType.CFn, 1),
-    TokenMatcher(re.compile(r"^(cfntype)\W"), TokenType.CFnType, 1),
-    TokenMatcher(re.compile(r"^(cstruct)\W"), TokenType.CStruct, 1),
-    TokenMatcher(re.compile(r"^(cunion)\W"), TokenType.CUnion, 1),
+    TokenMatcher(r"^(module)\W", TokenType.Module, 1),
+    TokenMatcher(r"^(requirement)\W", TokenType.Requirement, 1),
+    TokenMatcher(r"^(fn)\W", TokenType.Fn, 1),
+    TokenMatcher(r"^(fntype)\W", TokenType.FnType, 1),
+    TokenMatcher(r"^(array)\W", TokenType.Array, 1),
+    TokenMatcher(r"^(struct)\W", TokenType.Struct, 1),
+    TokenMatcher(r"^(variant)\W", TokenType.Variant, 1),
+    TokenMatcher(r"^(enum)\W", TokenType.Enum, 1),
+    TokenMatcher(r"^(range)\W", TokenType.Range, 1),
 
-    TokenMatcher(re.compile(r"^(alias)\W"), TokenType.Alias, 1),
+    TokenMatcher(r"^(cfn)\W", TokenType.CFn, 1),
+    TokenMatcher(r"^(cfntype)\W", TokenType.CFnType, 1),
+    TokenMatcher(r"^(cstruct)\W", TokenType.CStruct, 1),
+    TokenMatcher(r"^(cunion)\W", TokenType.CUnion, 1),
+
+    TokenMatcher(r"^(alias)\W", TokenType.Alias, 1),
     TokenMatcher(
-        re.compile(r"^(implementation)\W"),
+        r"^(implementation)\W",
         TokenType.Implementation,
         1,
         0
     ),
-    TokenMatcher(re.compile(r"^(interface)\W"), TokenType.Interface, 1),
+    TokenMatcher(r"^(interface)\W", TokenType.Interface, 1),
 
-    TokenMatcher(re.compile(r"^(const)\W"), TokenType.Const, 1),
-    TokenMatcher(re.compile(r"^(var)\W"), TokenType.Var, 1),
-    TokenMatcher(re.compile(r"^(if)\W"), TokenType.If, 1),
-    TokenMatcher(re.compile(r"^(else)\W"), TokenType.Else, 1),
-    TokenMatcher(re.compile(r"^(match)\W"), TokenType.Match, 1),
-    TokenMatcher(re.compile(r"^(switch)\W"), TokenType.Switch, 1),
-    TokenMatcher(re.compile(r"^(case)\W"), TokenType.Case, 1),
-    TokenMatcher(re.compile(r"^(default)\W"), TokenType.Default, 1),
-    TokenMatcher(re.compile(r"^(for)\W"), TokenType.For, 1),
-    TokenMatcher(re.compile(r"^(loop)\W"), TokenType.Loop, 1),
-    TokenMatcher(re.compile(r"^(while)\W"), TokenType.While, 1),
-    TokenMatcher(re.compile(r"^(break)\W"), TokenType.Break, 1),
-    TokenMatcher(re.compile(r"^(continue)\W"), TokenType.Continue, 1),
-    TokenMatcher(re.compile(r"^(return)\W"), TokenType.Return, 1),
+    TokenMatcher(r"^(const)\W", TokenType.Const, 1),
+    TokenMatcher(r"^(var)\W", TokenType.Var, 1),
+    TokenMatcher(r"^(if)\W", TokenType.If, 1),
+    TokenMatcher(r"^(else)\W", TokenType.Else, 1),
+    TokenMatcher(r"^(match)\W", TokenType.Match, 1),
+    TokenMatcher(r"^(switch)\W", TokenType.Switch, 1),
+    TokenMatcher(r"^(case)\W", TokenType.Case, 1),
+    TokenMatcher(r"^(default)\W", TokenType.Default, 1),
+    TokenMatcher(r"^(for)\W", TokenType.For, 1),
+    TokenMatcher(r"^(loop)\W", TokenType.Loop, 1),
+    TokenMatcher(r"^(while)\W", TokenType.While, 1),
+    TokenMatcher(r"^(break)\W", TokenType.Break, 1),
+    TokenMatcher(r"^(continue)\W", TokenType.Continue, 1),
+    TokenMatcher(r"^(return)\W", TokenType.Return, 1),
 
-    TokenMatcher(re.compile(r"^[\@]*\w+"), TokenType.Value)
+    TokenMatcher(r"^[\@]*\w+", TokenType.Value)
 ]
 
 
