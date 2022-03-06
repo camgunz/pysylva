@@ -13,7 +13,7 @@ fn hello(name: str): str {
 Functions can be parameterized with a type:
 
 ```sylva
-requirement sys
+req sys
 
 fn (name_type) hello(name: name_type) {
   sys.echo("Hello, {name}")

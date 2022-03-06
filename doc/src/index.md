@@ -6,7 +6,7 @@ applications like IRC servers or login daemons.
 ## Hello
 
 ```sylva
-requirement sys
+req sys
 
 range Age(0u8c, 250u8c)
 

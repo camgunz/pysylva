@@ -13,6 +13,8 @@ distinguished from normal property access by the use of `::` instead of `.`.
 
 * `::first`: returns the first value of the enum
 * `::last`: returns the last value of the enum
+* `::count`: returns the number of values in the enum
+* `::each`: a method accepting a function that iterates over the enum's values
 
 ## Interfaces
 

@@ -1,31 +1,29 @@
 # Interfaces
 
-Interfaces are an alternative to variants, intended to allow the programmer to
-signal that some set of functionality is available on a specific shape of data.
-Variants and their functions must be modified to extend them in this way, which
-is not always possible or practical.
+Interfaces allow the programmer to indicate that a set of functionality is
+available on a specific shape of data.
 
 ```sylva
-interface Sortable {
-  fn sort(self: Sortable!)
-}
-
-interface Orderable {
-  fn get_rank(self: Orderable): num
+iface Orderable {
+  fntype get_rank(self: Orderable): num
   fn comes_before(self: Orderable, other: Orderable): bool {
     return(self.get_rank() < other.get_rank())
   }
 }
 
-implementation Orderable: int {
-  fn get_rank(self: int): num {
-    return self
+iface Sortable {
+  fntype sort(self: Sortable!)
+}
+
+impl Sortable: &[Orderable] {
+  fn sort(self: &[Orderable]!) {
+    ...
   }
 }
 
-implementation Sortable: array[Orderable] {
-  fn sort(self: array[Orderable]!) {
-    ...
+impl Orderable: int {
+  fn get_rank(self: int): num {
+    return self
   }
 }
 ```
@@ -33,9 +31,9 @@ implementation Sortable: array[Orderable] {
 Interfaces can have concrete methods:
 
 ```sylva
-requirement sys
+req sys
 
-interface Animal {
+iface Greeter {
   fn get_greeting(animal: &Animal): str
 }
 
@@ -45,34 +43,36 @@ fn greet(animal: &Animal) {
 
 struct Cat {}
 
-implementation Animal: Cat {
+impl Greeter: Cat {
   fn get_greeting(self: &Cat): str { return "Meow" }
 }
 
 struct Dog {}
 
-implementation Animal: Dog {
+impl Greeter: Dog {
   fn get_greeting(self: &Dog): str { return "Woof" }
 }
 ```
 
 ## Interfaces vs. variants
 
-While sometimes convenient, interfaces have a number of drawbacks compared with
-variants:
-- slightly slower (dereferencing, function call overhead)
-- slightly more verbose
-- difficult to handle failure cases
+Interfaces and variants are similar in that they allow the programmer to extend
+types, but dissimilar in the kind of extension they enable. Variants allow
+extension of the _shape_ of a type (i.e. its fields), whereas interfaces allow
+extension of the _abilities_ of a type (i.e. its functions). When deciding
+whether to use interfaces or variants, consider whether you'll likely be adding
+new shapes or new abilities.
 
-The last point bears some exposition. If, for example, failures were an
-interface, then opening a file would have to look something like:
+In particular, avoid using interfaces _instead of_ variants. In most cases,
+they are orthogonal. For example, if Sylva's failures were an interface opening
+a file would have to look something like:
 
 ```sylva
-interface OpenFileResult {
-  fn succeeded(): bool
-  fn get_file(): *File
-  fn get_failure_code(): uint
-  fn get_failure_message(): str
+iface OpenFileResult {
+  fntype succeeded(): bool
+  fntype get_file(): *File
+  fntype get_failure_code(): uint
+  fntype get_failure_message(): str
 }
 
 fn main() {
@@ -89,9 +89,9 @@ fn main() {
 }
 ```
 
-In this way, the result of `sys.open` evades type checking. If we want to
-implement `res.get_file()` when `res.succeeed()` would return `false`, we have
-a couple of bad options:
+Here, the result of `sys.open` evades type checking. If we want to implement
+`res.get_file()` when `res.succeeed()` would return `false`, we have a couple
+of non-ideal options:
 - Return some kind of "null"
 - Return an ersatz "File" that has a bunch of "this isn't a real file" results,
   like `.read_all()` returns `""`, and so on.
@@ -113,3 +113,10 @@ fn main() {
   }
 }
 ```
+
+<!-- [NOTE] A good example in favor of interfaces are streams -->
+
+Finally, bear in mind that Sylva's implementation of interfaces requires
+dereferencing, and that the very concept of interfaces necessitates function
+call overhead--after all interfaces are simply additional functions, so you
+must call those functions in order to take advantage of the interface.

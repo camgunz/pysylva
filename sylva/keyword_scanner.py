@@ -1,8 +1,9 @@
 from collections import namedtuple
 
 from . import errors
+from . import token_type as TokenType
+
 from .lexer import Lexer
-from .token import TokenType
 
 
 ScannedItem = namedtuple('ScannedItem', ('location', 'name'))
@@ -20,7 +21,7 @@ class KeywordScanner:
             if not token.matches([TokenType.Value]):
                 raise errors.UnexpectedTokenType(token, [TokenType.Value])
             namespaces.append(token.value)
-            dot = lexer.get_next_if_matches([TokenType.AttributeLookup])
+            dot = lexer.get_next_if_matches([TokenType.Dot])
             if not dot:
                 break
         return '.'.join(namespaces)

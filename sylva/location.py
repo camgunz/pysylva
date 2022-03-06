@@ -18,6 +18,8 @@ class Location:
         return cls(None)
 
     def __eq__(self, other):
+        if not isinstance(other, Location):
+            return NotImplemented
         return (
             self.data_source == other.data_source and
             self.index == other.index

@@ -3,7 +3,7 @@
 Sylva supports uniform function call syntax (UFCS):
 
 ```sylva
-requirement sys
+req sys
 
 struct Person {
   name: str

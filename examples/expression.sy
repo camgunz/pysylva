@@ -1,6 +1,6 @@
-interface Expr(location: Location, parent: &Expr?) {}
+iface Expr(location: Location, parent: &Expr?) {}
 
-interface OpExpr() {
+iface OpExpr() {
   fn get_child(self: &OpExpr): &Expr?
 
   fn take_child(self: &OpExpr!): *Expr!?
@@ -75,21 +75,21 @@ struct BinaryOpExpr {
   rhs: *Expr?
 }
 
-implementation(BooleanExpr): Expr {}
+impl(BooleanExpr): Expr {}
 
-implementation(RuneExpr): Expr {}
+impl(RuneExpr): Expr {}
 
-implementation(StringExpr): Expr {}
+impl(StringExpr): Expr {}
 
-implementation(DecimalExpr): Expr {}
+impl(DecimalExpr): Expr {}
 
-implementation(ArrayExpr): Expr {}
+impl(ArrayExpr): Expr {}
 
-implementation(LookupExpr): Expr {}
+impl(LookupExpr): Expr {}
 
-implementation(CallExpr): Expr {}
+impl(CallExpr): Expr {}
 
-implementation(UnaryOpExpr): Expr {
+impl(UnaryOpExpr): Expr {
   fn get_child(self: &OpExpr): &Expr? {
     return self.child
   }
@@ -117,7 +117,7 @@ implementation(UnaryOpExpr): Expr {
   }
 }
 
-implementation(OpExpr: BinaryOpExpr) {
+impl(OpExpr: BinaryOpExpr) {
   fn get_child(self: &OpExpr): &Expr? {
     return(self.rhs)
   }
@@ -135,7 +135,7 @@ implementation(OpExpr: BinaryOpExpr) {
   }
 }
 
-implementation(Expr: BinaryOpExpr) {
+impl(Expr: BinaryOpExpr) {
   fn fix_order(self: &OpExpr!): &Expr {
     var expr: self
 

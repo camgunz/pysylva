@@ -56,16 +56,40 @@ class UnexpectedToken(LocationError):
 
 class LiteralParseFailure(LocationError):
 
-    def __init__(self, literal):
-        super().__init__(literal.location, (
-            f'Unable to parse {literal.raw_value} as {type(literal).__name__}'
-        ))
+    def __init__(self, literal_type, token, message=None):
+        name = literal_type.__name__
+        message = f': {message}' if message else ''
+        super().__init__(
+            token.location,
+            f'Unable to parse {token.value} as {name}{message}'
+        )
+
+
+class InvalidOperatorExpansion(LocationError):
+
+    def __init__(self, location, message):
+        super().__init__(location, f'Invalid operator expansion: {message}')
 
 
 class InvalidExpression(LocationError):
 
     def __init__(self, location):
         super().__init__(location, 'Invalid expression')
+
+
+class EmptyExpression(LocationError):
+
+    def __init__(self, location):
+        super().__init__(location, 'Empty expression')
+
+
+class InvalidOperatorArity(LocationError):
+
+    def __init__(self, location, expected_arity):
+        super().__init__(
+            location,
+            f'Expected {expected_arity.name.lower()} operator'
+        )
 
 
 class NoOperatorForToken(LocationError):

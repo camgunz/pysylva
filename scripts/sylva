@@ -6,16 +6,11 @@ import os
 import sys
 import traceback
 
-from sylva import errors
+from sylva import errors, debug
 from sylva.data_source import DataSource
 from sylva.lexer import Lexer
 from sylva.program import Program
 
-
-_DEBUG = distutils.util.strtobool(os.environ.get('SYLVA_DEBUG', 'no'))
-
-if _DEBUG:
-    print("DEBUGGING!")
 
 def print_bar(msg):
     """Prints a message in bar form."""
@@ -41,8 +36,7 @@ def lex(file_paths):
             for token in Lexer(DataSource.FromFile(file_path)):
                 print(token)
         except errors.SylvaError as error:
-            if _DEBUG:
-                traceback.print_exc()
+            debug(traceback.format_exc())
             print(error.pformat())
 
 
@@ -58,9 +52,7 @@ def parse(file_paths, stdlib=None, target_triple=None):
     try:
         program.parse()
     except errors.SylvaError as error:
-        raise
-        if _DEBUG:
-            traceback.print_exc()
+        debug(traceback.format_exc())
         print(error.pformat())
 
 
@@ -77,8 +69,7 @@ def compile(file_paths, stdlib=None, target_triple=None):
         )
         program.compile()
     except errors.SylvaError as error:
-        if _DEBUG:
-            traceback.print_exc()
+        debug(traceback.format_exc())
         print(error.pformat())
 
 

@@ -7,7 +7,7 @@ Sylva provides typical flow control and looping constructs.
 Some old friends here:
 
 ```sylva
-requirement random
+req random
 
 fn get_random_name(): str {
   var index: random.random(int)(0, 3)
@@ -68,8 +68,8 @@ A very basic version of pattern matching on [variants](variants.html) exists in
 Sylva:
 
 ```sylva
-requirement sys
-requirement math
+req sys
+req math
 
 variant Shape {
   struct Circle {

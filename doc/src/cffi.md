@@ -5,6 +5,7 @@ generated using:
 
 * `cfn`
 * `cfntype`
+* `cblockfntype`
 * `cptr`
 * `cstr`
 * `cstruct`

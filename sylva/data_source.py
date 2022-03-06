@@ -1,3 +1,6 @@
+from sylva import debug
+
+
 class DataSource:
 
     __slots__ = ('name', 'data', 'begin', 'end')
@@ -7,6 +10,7 @@ class DataSource:
         self.data = data
         self.begin = begin
         self.end = end or len(self.data) - 1
+        debug([self.name, self.begin, self.end])
 
     @classmethod
     def Raw(cls, data):
@@ -36,11 +40,13 @@ class DataSource:
         return self.data[location.index:]
 
     def set_begin(self, location):
+        debug(f'set_begin: {self.name} {location}')
         if location.index >= len(self.data):
             raise IndexError('Data index out of range')
         self.begin = location.index
 
     def set_end(self, location):
+        debug(f'set_end: {self.name} {location}')
         if location.index >= len(self.data):
             raise IndexError('Data index out of range')
         self.end = location.index

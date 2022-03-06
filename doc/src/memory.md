@@ -31,7 +31,7 @@ But if we allocate a more complex type, Sylva will impose more restrictions
 on us.
 
 ```sylva
-requirement sys
+req sys
 
 struct Person {
   name: str
@@ -58,7 +58,7 @@ References can descend into lower memscopes, and they return once those scopes
 close:
 
 ```sylva
-requirement sys
+req sys
 
 struct Person {
   name: str
@@ -80,7 +80,7 @@ However, they cannot ascend into higher memscopes. Consider (with credit to
 Rust):
 
 ```sylva
-requirement sys
+req sys
 
 struct Person {
   name: &str
@@ -139,7 +139,7 @@ References can only descend into lower memscopes, but we can explicitly
 **move** memory into higher memscopes using `*`.
 
 ```sylva
-requirement sys
+req sys
 
 struct Person {
   name: *str
@@ -163,7 +163,7 @@ Using `*`, we can freely move memory through any memscope we like.  However,
 once it's moved, it's gone:
 
 ```sylva
-requirement sys
+req sys
 
 struct Person {
   name: *str

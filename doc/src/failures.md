@@ -20,7 +20,7 @@ polite to say what is or isn't a mistake in an application's behavior. To that
 end, it provides facilities to group results into successes or failures:
 
 ```sylva
-requirement sys
+req sys
 
 range Age (0u8, 250u8)
 
@@ -39,7 +39,7 @@ its range, and as a result, the operation returns a `Result` instead of an
 `Age`. Simply changing the function's return type fixes this error:
 
 ```sylva
-requirement sys
+req sys
 
 range Age (0u8, 250u8)
 
@@ -57,13 +57,13 @@ However, this isn't very useful. It would be better if we handled the failure
 case at the site:
 
 ```sylva
-requirement sys
+req sys
 
 range Age (0u8, 250u8)
 
 fn increment(age: Age): Age {
   return (age + Age(1)).on_failure(fn (f: Failure) {
-    sys.echoexit("Age {age} is already the max age")
+    sys.die("Age {age} is already the max age")
   }).value
 }
 
@@ -73,8 +73,8 @@ fn main() {
 }
 ```
 
-You may be thinking "`sys.echoexit` doesn't return an `Age`, that should also
-be an error". Good catch! Sylva is smart enough to not worry about cases that
+You may be thinking "`sys.die` doesn't return an `Age`, that should also be an
+error". Good catch! Sylva is smart enough to not worry about cases that
 definitely exit\*.
 
 \* _Keep in mind, however, that branching or flow control of any kind will foil
@@ -127,11 +127,11 @@ fn ln(x: f64): FloatResult {
 
 module main
 
-requirement sys
-requirement checked
+req sys
+req checked
 
 fn quit_because_math_too_hard(f: MathFailure) {
-  sys.echoexit(f.message)
+  sys.die(f.message)
 }
 
 # `op(x, y)` == `sqrt(ln(x / y))`

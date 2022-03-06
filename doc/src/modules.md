@@ -5,7 +5,7 @@ generate module description files.  If you are shipping a library, these are
 necessary.
 
 ```sylva
-module pets
+mod pets
 
 struct Pet {
   variant Cat {
@@ -16,14 +16,14 @@ struct Pet {
   }
 }
 
-module vehicles
+mod vehicles
 
 struct Car {
   make: str
   model: str
 }
 
-module vehicles.badass
+mod vehicles.badass
 
 struct Motorcycle {
   make: str
@@ -41,7 +41,7 @@ Modules can contain constants:
 
 ```sylva
 
-const NAME = "Charlie"
+const NAME: "Charlie"
 
 fn main() {
   echo("Hey {NAME}")
@@ -54,13 +54,13 @@ It's possible to do something like:
 
 ```sylva
 
-module objects.fruits.apple
+mod objects.fruits.apple
 
 struct Seed {
   poisonous: bool
 }
 
-module objects.fruits.apple.Seed
+mod objects.fruits.apple.Seed
 
 ```
 

@@ -3,7 +3,7 @@
 Variants allow you to define a datatype that has varying shapes.
 
 ```sylva
-requirement sys
+req sys
 
 range Age(0u8c, 250u8c) {
   range Child(0u8c, 17u8c)

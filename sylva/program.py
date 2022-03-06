@@ -26,14 +26,10 @@ class Program:
         }
         # [TODO] Do some kind of searching
         self.stdlib_path = stdlib_path
-        # self._build_builtin_modules()
         for module in self.modules.values():
             module.resolve_requirements([])
 
         self.compiler = Compiler(target_triple)
-
-    # def _build_builtin_modules(self):
-    #     self.modules['sys'] = Module.BuiltIn(self, 'sys')
 
     @property
     def is_executable(self):

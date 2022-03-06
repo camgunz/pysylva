@@ -65,7 +65,7 @@ Passing constants this way is no problem, but passing something else is not
 allowed:
 
 ```sylva
-requirement sys
+req sys
 
 struct Person {
   name: str
@@ -132,7 +132,7 @@ fn main() {
 In order to make a mutable reference, there can be no other references:
 
 ```sylva
-requirement sys
+req sys
 
 struct Person {
   name: str
@@ -151,7 +151,7 @@ fn main() {
 Moving also requires there are no other references.
 
 ```sylva
-requirement sys
+req sys
 
 struct Person {
   name: str

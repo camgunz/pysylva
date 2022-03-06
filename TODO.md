@@ -1,5 +1,7 @@
 # To Do
 
+- `on_failure` feels like just part of how `Failure` is defined... so how can
+  it be avoided by using constant expressions?
 - Add builtin types to the builtin module.
 - Add `const` for stuff like `math.PI`
 - Add an instance attribute on `Struct` for `interfaces`

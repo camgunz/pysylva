@@ -12,6 +12,6 @@ sigils) and indeed cannot be owned.  However, it also cannot be mutated.
 can be configured at compile time.  `String` must be passed with sigils, can be
 owned, and can be mutated.
 
-Notably, format strings (`"Hello {name}"`) result in `String`.
+Notably, format strings (``Hello {name}``) result in `String`.
 
 Most of the time you can get away with `str`s.

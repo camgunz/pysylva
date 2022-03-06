@@ -1,7 +1,7 @@
-module @main
+mod @main
 
-requirement sys
-requirement jungle.plants.trees
+req sys
+req jungle.plants.trees
 
 alias trees:       jungle.plants.trees
 alias rubber_tree: trees.rubber_tree
@@ -22,7 +22,7 @@ fn main() {
   sys.echo("Hello, world!")
 }
 
-module jungle.plants.trees
+mod jungle.plants.trees
 
 struct rubber_tree {
 }

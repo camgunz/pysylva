@@ -1,75 +1,61 @@
-from enum import Enum
-
-from . import errors
+import enum
 
 
-class Associativity(Enum):
-    Null = 0
-    Left = 1
-    Right = 2
+@enum.unique
+class Operator(enum.Enum):
 
+    AttributeLookup = ('.', 130)
+    ReflectionLookup = ('::', 130)
 
-class Arity(Enum):
-    Unary = 1
-    Binary = 2
+    Exponent = ('**', 120)
 
+    BinaryNot = ('~', 110)
 
-class Operator(Enum):
+    Multiply = ('*', 100)
+    Divide = ('/', 100)
+    Remainder = ('%', 100)
 
-    AttributeLookup = ('.', 14, Associativity.Left, Arity.Binary)
-    ReflectionLookup = ('::', 14, Associativity.Left, Arity.Binary)
-    AbsoluteValue = ('+', 13, Associativity.Right, Arity.Unary)
-    FlipSign = ('-', 13, Associativity.Right, Arity.Unary)
-    Not = ('!', 13, Associativity.Left, Arity.Unary)
-    Exponent = ('**', 12, Associativity.Right, Arity.Binary)
-    Multiply = ('*', 11, Associativity.Left, Arity.Binary)
-    Divide = ('/', 11, Associativity.Left, Arity.Binary)
-    IntegerDivide = ('//', 11, Associativity.Left, Arity.Binary)
-    Remainder = ('%', 11, Associativity.Left, Arity.Binary)
-    Add = ('+', 10, Associativity.Left, Arity.Binary)
-    Subtract = ('-', 10, Associativity.Left, Arity.Binary)
-    LeftShift = ('<<', 9, Associativity.Left, Arity.Binary)
-    RightShiftSign = ('>>', 9, Associativity.Left, Arity.Binary)
-    RightShiftZero = ('>>>', 9, Associativity.Left, Arity.Binary)
-    BinaryAnd = ('&', 8, Associativity.Left, Arity.Binary)
-    BinaryXOr = ('^', 7, Associativity.Left, Arity.Binary)
-    BinaryOr = ('|', 6, Associativity.Left, Arity.Binary)
-    BinaryNot = ('~', 5, Associativity.Right, Arity.Unary)
-    LessThan = ('<', 4, Associativity.Left, Arity.Binary)
-    LessThanOrEqual = ('<=', 4, Associativity.Left, Arity.Binary)
-    GreaterThan = ('>', 4, Associativity.Left, Arity.Binary)
-    GreaterThanOrEqual = ('>=', 4, Associativity.Left, Arity.Binary)
-    Equal = ('==', 3, Associativity.Left, Arity.Binary)
-    NotEqual = ('!=', 3, Associativity.Left, Arity.Binary)
-    And = ('&&', 2, Associativity.Left, Arity.Binary)
-    Or = ('||', 1, Associativity.Left, Arity.Binary)
+    Plus = ('+', 90, 110)
+    Minus = ('-', 90, 110)
 
-    def __init__(self, symbol, precedence, associativity, arity):
+    LeftShift = ('<<', 80)
+    RightShiftSign = ('>>', 80)
+    RightShiftZero = ('>>>', 80)
+
+    BinaryAnd = ('&', 70)
+
+    BinaryXOr = ('^', 60)
+
+    BinaryOr = ('|', 50)
+
+    LessThan = ('<', 40)
+    LessThanOrEqual = ('<=', 40)
+    GreaterThan = ('>', 40)
+    GreaterThanOrEqual = ('>=', 40)
+    Equal = ('==', 40)
+    NotEqual = ('!=', 40)
+
+    Not = ('!', 30)
+
+    And = ('&&', 20)
+
+    Or = ('||', 10)
+
+    def __init__(self, symbol, precedence, unary_precedence=None):
         self.symbol = symbol
         self.precedence = precedence
-        self.associativity = associativity
-        self.arity = arity
+        self.unary_precedence = unary_precedence
 
     def __repr__(self):
-        return 'Operator(%r, %r, %r, %r)' % (
+        return 'Operator(%r, %r, %r)' % (
             self.symbol,
             self.precedence,
-            self.associativity,
-            self.arity
+            self.unary_precedence,
         )
 
     def __str__(self):
         return f'<{self.name}Operator>'
 
     @classmethod
-    def FromToken(cls, token, arity):
-        ops = [
-            op for op in cls.__members__
-            if op.symbol == token.value
-            and op.arity == arity
-        ]
-        if not ops:
-            raise errors.NoOperatorForToken(token)
-        if len(ops) > 1:
-            raise errors.MultipleOperatorsForToken(token, ops)
-        return ops[0]
+    def max_precedence(cls):
+        return max(*(o.precedence for o in cls.__members__.values()))

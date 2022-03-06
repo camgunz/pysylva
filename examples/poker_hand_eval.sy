@@ -1,4 +1,4 @@
-requirement random
+req random
 
 range Score(1u8, 10u8)
 

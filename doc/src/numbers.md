@@ -112,7 +112,7 @@ Numeric operations that could result in errors return
 [`Result`s](failures.html):
 
 ```sylva
-requirement sys
+req sys
 
 fn main() {
   var number: 200u

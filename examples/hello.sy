@@ -1,4 +1,4 @@
-requirement sys
+req sys
 
 fn main() {
   sys.echo("Hello, world!")

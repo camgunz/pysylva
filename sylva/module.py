@@ -1,4 +1,4 @@
-from . import errors
+from . import debug, errors
 from .parser import Parser
 
 
@@ -51,7 +51,9 @@ class Module:
 
     def parse(self):
         if self._parsed:
+            debug(f'{self.name} already parsed')
             return
+        debug(f'Parsing {self.name}')
         self._parsed = True
         for requirement in self.requirements:
             requirement.parse()

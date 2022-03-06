@@ -23,7 +23,7 @@ rounding and handling of insufficient precision, will help us avoid prodigious
 failure handling and wrapping.
 
 ```sylva
-requirement random
+req random
 
 alias rand_health random.random(Health)
 
@@ -61,8 +61,8 @@ fn damage_monster(monster: &Monster!) {
 Without ranges, we have to use `max` and `min` to keep our values within range:
 
 ```sylva
-requirement math
-requirement random
+req math
+req random
 
 alias rand_dec random.random(dec)
 
@@ -100,13 +100,13 @@ they may be iterated over, and the programmer can use them to avoid handling
 indexing failures:
 
 ```sylva
-requirement sys
-requirement midi # Not a real stdlib module
+req sys
+req midi # Not a real stdlib module
 
 range PianoKey(1u8, 88u8)
 
 struct Keyboard {
-  pressed_keys: array[bool * PianoKey.count]
+  pressed_keys: [bool * PianoKey::count]
 }
 
 fn press_key(keyboard: &Keyboard!, key: PianoKey) {
@@ -154,7 +154,7 @@ fn main() {
 Ranges can be nested, and referred to independently just like struct variants:
 
 ```sylva
-requirement sys
+req sys
 
 range Age(0u8c, 250u8c) {
   range Child(0u8c, 17u8c)

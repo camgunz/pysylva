@@ -5,11 +5,11 @@ struct Dec {
   rounding_mode: DecimalRoundingMode(DECIMAL_ROUNDING_MODE_ABORT),
 }
 
-interface Adder {
+iface Adder {
   fntype add(self: &Adder, other: &Adder): &Adder
 )
 
-implementation(Dec: Adder) {
+impl(Dec: Adder) {
   fn add(self: &Adder, other: &Adder): &Adder {
     return $DecimalAdd(self, other)
   }

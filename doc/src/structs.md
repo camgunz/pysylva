@@ -18,7 +18,7 @@ struct Person {
 }
 
 fn main() {
-  var joe_biden: Person{"Joe Biden", age: 78u8}
+  var joe_biden: Person{name: "Joe Biden", age: 78u8}
   var charlie_gunyon: Person{name: "Charlie Gunyon", age: 38u8}
 }
 ```

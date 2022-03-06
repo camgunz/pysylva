@@ -19,7 +19,7 @@ struct Person {
   age: dec
 }
 
-enum Justices {
+enum Justice {
   John: Person{"John Roberts", 65}
   Clarence: Person{"Clarence Thomas", 72}
   Ruth: Person{"Ruth Bader Ginsburg", 87}
@@ -35,9 +35,9 @@ enum Justices {
 Enum members can be referenced like struct variants:
 
 ```sylva
-requirement sys
+req sys
 
-enum Days {
+enum Day {
   Sunday: "Sunday"
   Monday: "Monday"
   Tuesday: "Tuesday"
@@ -47,12 +47,12 @@ enum Days {
   Saturday: "Saturday"
 }
 
-fn print_today(today: Days) {
+fn print_today(today: Day) {
   sys.echo("Today is {today}")
 }
 
 fn main() {
-  print_today(Days.Sunday)
+  print_today(Day.Sunday)
 }
 ```
 
@@ -66,9 +66,9 @@ Enums have `first` and `last` fields that return the first and last member
 respectively:
 
 ```sylva
-requirement sys
+req sys
 
-enum Days {
+enum Day {
   Sunday: "Sunday"
   Monday: "Monday"
   Tuesday: "Tuesday"
@@ -79,8 +79,30 @@ enum Days {
 }
 
 fn main() {
-  sys.echo("First day of the week is {Days::first}")
-  sys.echo("Last day of the week is {Days::last}")
+  sys.echo("First day of the week is {Day::first}")
+  sys.echo("Last day of the week is {Day::last}")
+}
+```
+
+### `count`
+
+`count` contains the number of values in an enum.
+
+```sylva
+req sys
+
+enum Day {
+  Sunday: "Sunday"
+  Monday: "Monday"
+  Tuesday: "Tuesday"
+  Wednesday: "Wednesday"
+  Thursday: "Thursday"
+  Friday: "Friday"
+  Saturday: "Saturday"
+}
+
+fn main() {
+  sys.echo("There are {Day::count} days in a week")
 }
 ```
 
@@ -89,9 +111,9 @@ fn main() {
 `each` allows the programmer to iterate over an enum's values:
 
 ```sylva
-requirement sys
+req sys
 
-enum Days {
+enum Day {
   Sunday: "Sunday"
   Monday: "Monday"
   Tuesday: "Tuesday"
@@ -102,14 +124,14 @@ enum Days {
 }
 
 fn main() {
-  Days::each(fn (day: Days) {
-    sys.echo("Days: {day}")
+  Day::each(fn (day: Day) {
+    sys.echo("Day: {day}")
   })
 }
 ```
 
 ## Enums vs. ranges and variants
 
-- Variants: collections of types
-- Enums: collections of explicit values
+- Enums: collections of constant values
 - Ranges: collections of numbers
+- Variants: collections of types

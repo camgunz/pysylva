@@ -1,6 +1,6 @@
 [MASTER]
 
-disable=missing-docstring,too-few-public-methods,wildcard-import,unused-wildcard-import,bad-indentation,bad-continuation,redefined-builtin,invalid-name,len-as-condition,duplicate-code,abstract-method,inconsistent-return-statements,too-many-ancestors,too-many-branches,too-many-statements,too-many-arguments,too-many-return-statements
+disable=missing-docstring,too-few-public-methods,wildcard-import,unused-wildcard-import,bad-indentation,bad-continuation,redefined-builtin,invalid-name,len-as-condition,duplicate-code,abstract-method,inconsistent-return-statements,too-many-ancestors,too-many-branches,too-many-statements,too-many-arguments,too-many-return-statements,consider-using-f-string
 
 # A comma-separated list of package or module names from where C extensions may
 # be loaded. Extensions are loading into the active Python interpreter and may
