@@ -143,39 +143,26 @@ class CUnion(SylvaMetaType):
 
 class BaseFunctionType(SylvaMetaType):
 
-    location = None
-    name = None
-    parameters = None
-    return_type = None
+    def __init__(self, location, parameters, return_type, name=None):
+        self.location = location
+        self.parameters = parameters
+        self.return_type = return_type
+        self.name = name
 
     def __repr__(self):
-        return '%s(%r, %r, %r)' % (
+        return '%s(%r, %r, %r, %r)' % (
             type(self).__name__,
-            self.name,
+            self.location,
             self.parameters,
-            self.return_type
+            self.return_type,
+            self.name
         )
 
     def __str__(self):
+        name = self.name if self.name else ''
         parameters = ', '.join([f'{n}: {t}' for n, t in self.parameters])
-        if self.return_type:
-            return (
-                f'<{type(self).__name__} {self.name}({parameters}): '
-                '{self.return_type}>'
-            )
-        return f'<{type(self).__name__} {self.name}({parameters})>'
-
-    def parse(self, name, parser):
-        location, parameters, return_type = parser.parse_function_type()
-        return type(
-            name,
-            (type(self),),
-            {
-                'location': location,
-                'parameters': parameters,
-                'return_type': return_type,
-            }
-        )
+        return_type = f': {self.return_type}' if self.return_type else ''
+        return f'<{type(self).__name__} {name}({parameters}){return_type}>'
 
 
 class FunctionType(BaseFunctionType):
@@ -197,35 +184,29 @@ class BaseFunction(SylvaMetaType):
     return_type = None
     code = None
 
-    def parse(self, name, parser):
-        location, parameters, return_type, code = parser.parse_function()
-        return type(
-            name,
-            (type(self),),
-            {
-                'location': location,
-                'parameters': parameters,
-                'return_type': return_type,
-                'code': code,
-            }
-        )
+    def __init__(self, location, parameters, return_type, code, name=None):
+        self.location = location
+        self.parameters = parameters
+        self.return_type = return_type
+        self.code = code
+        self.name = name
 
     def __repr__(self):
-        return '%s(%r, %r, %r)' % (
+        return '%s(%r, %r, %r, %r, %r)' % (
             type(self).__name__,
-            self.name,
+            self.location,
             self.parameters,
-            self.return_type
+            self.return_type,
+            self.name,
+            self.code,
         )
 
     def __str__(self):
+        name = self.name if self.name else ''
         parameters = ', '.join([f'{n}: {t}' for n, t in self.parameters])
-        if self.return_type:
-            return (
-                f'<{type(self).__name__} {self.name}({parameters}): '
-                f'{self.return_type}>'
-            )
-        return f'<{type(self).__name__} {self.name}({parameters})>'
+        return_type = f': {self.return_type}' if self.return_type else ''
+        return f'<{type(self).__name__} {name}({parameters}){return_type}>'
+
 
 
 class Function(BaseFunction):
@@ -233,11 +214,23 @@ class Function(BaseFunction):
 
 
 class CFunction(BaseFunction):
-    pass
+    def __init__(self, location, parameters, return_type, name=None):
+        super().__init__(
+            location, parameters, return_type, code=None, name=name
+        )
 
 
 class CPtr(SylvaMetaType):
-    pass
+
+    def __init__(self, location, reference_type):
+        self.location = location
+        self.reference_type = reference_type
+
+    def __repr__(self):
+        return 'CPtr(%r, %r)' % (self.location, self.reference_type)
+
+    def __str__(self):
+        return f'<CPtr {self.reference_type}>'
 
 
 class CVoid(SylvaType):
@@ -307,16 +300,17 @@ class Integer(Scalar):
 
 BUILTINS = {
     # 'array': Array(), # meta
-    # 'carray': CArray(), # meta
     # 'iface': Interface(), # meta
     # 'struct': Struct(), # meta
-    # 'cstruct': CStruct(), # meta
     # 'variant': Variant(), # meta
-    # 'cunion': ..., # meta
     # 'fntype': FunctionType(), # meta
+    # 'fn': Function(), # meta
+
+    # 'carray': CArray(), # meta
+    # 'cstruct': CStruct(), # meta
+    # 'cunion': ..., # meta
     # 'cfntype': CFunctionType(), # meta
     # 'cblockfntype': CBlockFunctionType(), # meta
-    # 'fn': Function(), # meta
     # 'cfn': CFunction(), # meta
     # 'cptr': CPtr(), # meta
 

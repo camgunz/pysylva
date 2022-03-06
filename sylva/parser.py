@@ -102,14 +102,24 @@ class Parser:
         if deferred_lookups and identifier in deferred_lookups:
             return ast.DeferredLookup(location, identifier)
 
-        print(base_identifier)
-        if base_identifier in types.BUILTINS:
-            sylva_type = types.BUILTINS[base_identifier]
-            if issubclass(sylva_type, types.SylvaMetaType):
+        if identifier in types.BUILTINS:
+            sylva_type = types.BUILTINS[identifier]
+            if isinstance(sylva_type, types.SylvaMetaType):
                 return sylva_type.parse(None, self)
             return sylva_type
 
-        value = self.module.lookup(base_identifier)
+        if identifier == 'cptr':
+            self._expect(types=[TokenType.OpenParen])
+            ref_type_location, ref_type_identifier = self._parse_identifier()
+            ref_type = self.resolve_identifier(
+                ref_type_location,
+                ref_type_identifier,
+                deferred_lookups=deferred_lookups
+            )
+            self._expect(types=[TokenType.CloseParen])
+            return types.CPtr(location.copy(), ref_type)
+
+        value = self.module.lookup(identifier)
         if value:
             return value
 
@@ -136,32 +146,6 @@ class Parser:
             identifier,
             deferred_lookups=deferred_lookups,
         )
-
-    def _parse_function_signature(self, token=None):
-        self._expect(types=[TokenType.OpenParen], token=token)
-        parameters = []
-        while True:
-            token = self._expect(types=[TokenType.CloseParen, TokenType.Value])
-            if token.matches_type(TokenType.CloseParen):
-                break
-            parameter_name = token.value
-            self._expect(types=[TokenType.Colon])
-            if self.lexer.next_matches(token_types=[TokenType.OpenBracket]):
-                parameter_type = types.Array(*self.parse_array_type(
-                    accept_default=False
-                ))
-            else:
-                parameter_type = self._parse_type(accept_default=True)
-            parameters.append((parameter_name, parameter_type))
-            self.lexer.skip_next_if_matches(token_types=[TokenType.Comma])
-        return_type = None
-        state = self.lexer.get_state()
-        token = self.lexer.lex()
-        if token.matches_type(TokenType.Colon):
-            return_type = self._parse_type(accept_default=False)
-        else:
-            self.lexer.set_state(state)
-        return parameters, return_type
 
     def parse_module(self, token=None):
         # mod math
@@ -320,6 +304,28 @@ class Parser:
             element_count = None
         return location, element_type, element_count
 
+    def _parse_function_signature(self, token=None):
+        self._expect(types=[TokenType.OpenParen], token=token)
+        parameters = []
+        while True:
+            token = self._expect(types=[TokenType.CloseParen, TokenType.Value])
+            if token.matches_type(TokenType.CloseParen):
+                break
+            parameter_name = token.value
+            self._expect(types=[TokenType.Colon])
+            if self.lexer.next_matches(token_types=[TokenType.OpenBracket]):
+                parameter_type = types.Array(*self.parse_array_type(
+                    accept_default=False
+                ))
+            else:
+                parameter_type = self._parse_type(accept_default=True)
+            parameters.append((parameter_name, parameter_type))
+            self.lexer.skip_next_if_matches(token_types=[TokenType.Comma])
+        return_type = None
+        if self.lexer.skip_next_if_matches([TokenType.Colon]):
+            return_type = self._parse_type(accept_default=False)
+        return parameters, return_type
+
     def parse_function_type(self, token=None):
         token = self._expect(types=[TokenType.FnType], token=token)
         location = token.location.copy()
@@ -335,16 +341,18 @@ class Parser:
         return location, name, parameters, return_type
 
     def parse_c_function_type(self, token=None):
-        return types.CFunctionType(*self._parse_cfn_or_cfntype(
+        location, name, parameters, return_type = self._parse_cfn_or_cfntype(
             TokenType.CFnType,
             token=token
-        ))
+        )
+        return types.CFunctionType(location, parameters, return_type, name)
 
     def parse_c_function(self, token=None):
-        return types.CFunctionType(*self._parse_cfn_or_cfntype(
+        location, name, parameters, return_type = self._parse_cfn_or_cfntype(
             TokenType.CFn,
             token=token
-        ))
+        )
+        return types.CFunction(location, parameters, return_type, name)
 
     def parse_function(self, token=None):
         token = self._expect(types=[TokenType.Fn], token=token)
@@ -569,7 +577,7 @@ class Parser:
                 ])
             except errors.EOF:
                 break
-            print(self.lexer, token)
+            # print(self.lexer, token)
             if token.matches_type(TokenType.Module):
                 self.parse_module(token)
             elif token.matches_type(TokenType.Requirement):
