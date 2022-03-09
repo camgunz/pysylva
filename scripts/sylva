@@ -44,11 +44,16 @@ def parse(file_paths, stdlib=None, target_triple=None):
     """Parses files and prints output."""
     print_bar('Parsing')
     data_sources = [DataSource.FromFile(file_path) for file_path in file_paths]
-    program = Program(
-        data_sources,
-        stdlib_path=stdlib,
-        target_triple=target_triple
-    )
+    try:
+        program = Program(
+            data_sources,
+            stdlib_path=stdlib,
+            target_triple=target_triple
+        )
+    except errors.SylvaError as error:
+        debug(traceback.format_exc())
+        print(error.pformat())
+
     try:
         program.parse()
     except errors.SylvaError as error:

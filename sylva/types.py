@@ -1,3 +1,6 @@
+import ctypes
+
+
 class SylvaType:
     pass
 
@@ -14,7 +17,8 @@ class BaseArray(SylvaMetaType):
         self.element_count = element_count
 
     def __repr__(self):
-        return '{type(self).__name__(%r, %r, %r)' % (
+        return '%s(%r, %r, %r)' % (
+            type(self).__name__,
             self.location,
             self.element_type,
             self.element_count
@@ -26,7 +30,7 @@ class BaseArray(SylvaMetaType):
                 f'<{type(self).__name__} '
                 f'[{self.element_type} * {self.element_count}]>'
             )
-        return f'<{type(self).__name__} [{self.element_type}]>'
+        return f'<{type(self).__name__} [{self.element_type}...]>'
 
 
 class Array(BaseArray):
@@ -37,11 +41,35 @@ class CArray(BaseArray):
     pass
 
 
+class CBitField(SylvaMetaType):
+
+    __slots__ = ('location', 'field_type', 'field_size')
+
+    def __init__(self, location, field_type, field_size):
+        self.location = location
+        self.field_type = field_type
+        self.field_size = field_size
+
+    def __repr__(self):
+        return 'CBitField(%r, %r, %r)' % (
+            self.location,
+            self.field_type,
+            self.field_size
+        )
+
+    def __str__(self):
+        return f'<CBitField {self.field_type}:{self.field_size}>'
+
+
 class Interface(SylvaMetaType):
-    location = None
-    name = None
-    function_types = None
-    functions = None
+
+    __slots__ = ('location', 'name', 'function_types', 'functions')
+
+    def __init__(self, location, name, function_types, functions):
+        self.location = location
+        self.name = name
+        self.function_types = function_types
+        self.functions = functions
 
     def __repr__(self):
         return 'Interface(%r, %r, %r, %r)' % (
@@ -54,29 +82,22 @@ class Interface(SylvaMetaType):
     def __str__(self):
         return f'<Interface {self.name} {self.function_types} {self.functions}>'
 
-    def parse(self, name, parser):
-        location, function_types, functions = parser.parse_interface()
-        return type(
-            name,
-            (type(self),),
-            {
-                'location': location,
-                'function_types': function_types,
-                'functions': functions,
-            }
-        )
-
 
 class BaseStruct(SylvaMetaType):
-    location = None
-    name = None
-    type_params = None
-    fields = None
+
+    __slots__ = ('location', 'name', 'type_params', 'fields')
+
+    def __init__(self, location, name, type_params, fields):
+        self.location = location
+        self.name = name
+        self.type_params = type_params
+        self.fields = fields
 
     def __repr__(self):
-        type_name = 'ParamStruct' if self.type_params else 'Struct'
-        return '%s(%r, %r, %r)' % (
-            type_name,
+        prefix = 'Param' if self.type_params else ''
+        return '%s%s(%r, %r, %r)' % (
+            prefix,
+            type(self).__name__,
             self.location,
             self.name,
             self.fields
@@ -84,34 +105,30 @@ class BaseStruct(SylvaMetaType):
 
     def __str__(self):
         type_name = 'ParamStruct' if self.type_params else 'Struct'
-        fields = ', '.join([f'{name}: {type}' for name, type in self.fields])
+        fields = ', '.join([f'{name}: {type}' for name, type in self.fields.items()])
         return f'<{type_name} {self.name} {{{fields}}}>'
-
-    def parse(self, name, parser):
-        location, type_params, fields = parser.parse_struct_type()
-        return type(
-            name,
-            (type(self),),
-            {
-                'location': location,
-                'type_params': type_params,
-                'fields': fields,
-            }
-        )
 
 
 class Struct(BaseStruct):
-    pass
+    __slots__ = ('location', 'name', 'type_params', 'fields')
 
 
 class CStruct(BaseStruct):
-    pass
+
+    __slots__ = ('location', 'name', 'type_params', 'fields')
+
+    def __init__(self, location, fields, name=None):
+        super().__init__(location, name, [], fields)
 
 
 class Variant(SylvaMetaType):
-    location = None
-    name = None
-    fields = None
+
+    __slots__ = ('location', 'name', 'fields')
+
+    def __init__(self, location, name, fields):
+        self.location = location
+        self.name = name
+        self.fields = fields
 
     def __repr__(self):
         return 'Variant(%r, %r, %r)' % (
@@ -121,27 +138,36 @@ class Variant(SylvaMetaType):
         )
 
     def __str__(self):
-        fields = self.fields or []
-        fields = ', '.join([f'{name}: {type}' for name, type in fields])
+        fields = self.fields or {}
+        fields = ', '.join([f'{name}: {type}' for name, type in fields.items()])
         return f'<Variant {self.name} {{{fields}}}>'
-
-    def parse(self, name, parser):
-        location, fields = parser.parse_variant_type()
-        return type(
-            name,
-            (type(self),),
-            {
-                'location': location,
-                'fields': fields,
-            }
-        )
 
 
 class CUnion(SylvaMetaType):
-    pass
+
+    __slots__ = ('location', 'name', 'fields')
+
+    def __init__(self, location, fields, name=None):
+        self.location = location
+        self.name = name
+        self.fields = fields
+
+    def __repr__(self):
+        return 'CUnion(%r, %r, %r)' % (
+            self.location,
+            self.name,
+            self.fields
+        )
+
+    def __str__(self):
+        fields = ', '.join([f'{name}: {type}' for name, type in self.fields.items()])
+        name = self.name if self.name else '(anonymous)'
+        return f'<CUnion {name} {{{fields}}}>'
 
 
 class BaseFunctionType(SylvaMetaType):
+
+    __slots__ = ('location', 'parameters', 'return_type', 'name')
 
     def __init__(self, location, parameters, return_type, name=None):
         self.location = location
@@ -166,23 +192,20 @@ class BaseFunctionType(SylvaMetaType):
 
 
 class FunctionType(BaseFunctionType):
-    pass
+    __slots__ = ('location', 'parameters', 'return_type', 'name')
 
 
 class CFunctionType(BaseFunctionType):
-    pass
+    __slots__ = ('location', 'parameters', 'return_type', 'name')
 
 
 class CBlockFunctionType(BaseFunctionType):
-    pass
+    __slots__ = ('location', 'parameters', 'return_type', 'name')
 
 
 class BaseFunction(SylvaMetaType):
-    location = None
-    name = None
-    parameters = None
-    return_type = None
-    code = None
+
+    __slots__ = ('location', 'parameters', 'return_type', 'code', 'name')
 
     def __init__(self, location, parameters, return_type, code, name=None):
         self.location = location
@@ -210,10 +233,13 @@ class BaseFunction(SylvaMetaType):
 
 
 class Function(BaseFunction):
-    pass
+    __slots__ = ('location', 'parameters', 'return_type', 'code', 'name')
 
 
 class CFunction(BaseFunction):
+
+    __slots__ = ('location', 'parameters', 'return_type', 'code', 'name')
+
     def __init__(self, location, parameters, return_type, name=None):
         super().__init__(
             location, parameters, return_type, code=None, name=name
@@ -222,15 +248,28 @@ class CFunction(BaseFunction):
 
 class CPtr(SylvaMetaType):
 
-    def __init__(self, location, reference_type):
+    __slots__ = ('location', 'referenced_type')
+
+    def __init__(self, location, referenced_type, referenced_type_is_mutable,
+                 is_mutable):
         self.location = location
-        self.reference_type = reference_type
+        self.referenced_type = referenced_type
+        self.referenced_type_is_mutable = referenced_type_is_mutable
+        self.is_mutable = is_mutable
 
     def __repr__(self):
-        return 'CPtr(%r, %r)' % (self.location, self.reference_type)
+        return 'CPtr(%r, %r, %r, %r)' % (
+            self.location,
+            self.referenced_type,
+            self.referenced_type_is_mutable,
+            self.is_mutable
+        )
 
     def __str__(self):
-        return f'<CPtr {self.reference_type}>'
+        return (
+            f'<CPtr {self.referenced_type} {self.referenced_type_is_mutable} '
+            f'{self.is_mutable}>'
+        )
 
 
 class CVoid(SylvaType):
@@ -298,6 +337,37 @@ class Integer(Scalar):
         return f'{prefix}{type(self).__name__}(bits={self.bits})'
 
 
+class ReferencePointer(SylvaMetaType):
+
+    def __init__(self, location, referenced_type, is_mutable):
+        self.location = location
+        self.referenced_type = referenced_type
+        self.is_mutable = is_mutable
+
+    def __repr__(self):
+        return 'ReferencePointer(%r, %r, %r)' % (
+            self.location,
+            self.referenced_type,
+            self.is_mutable
+        )
+
+    def __str__(self):
+        return f'<ReferencePointer {self.referenced_type}>'
+
+
+class OwnedPointer(SylvaMetaType):
+
+    def __init__(self, location, referenced_type):
+        self.location = location
+        self.referenced_type = referenced_type
+
+    def __repr__(self):
+        return 'OwnedPointer(%r, %r)' % (self.location, self.referenced_type)
+
+    def __str__(self):
+        return f'<OwnedPointer {self.referenced_type}>'
+
+
 BUILTINS = {
     # 'array': Array(), # meta
     # 'iface': Interface(), # meta
@@ -326,6 +396,7 @@ BUILTINS = {
     'f32': Float(32),
     'f64': Float(64),
     'f128': Float(128),
+    'int': Integer(ctypes.sizeof(ctypes.c_int) * 8, signed=True),
     'i8': Integer(8, signed=True),
     'i16': Integer(16, signed=True),
     'i32': Integer(32, signed=True),
@@ -333,6 +404,7 @@ BUILTINS = {
     'i128': Integer(128, signed=True),
     'rune': Rune(),
     'str': String(),
+    'uint': Integer(ctypes.sizeof(ctypes.c_int) * 8, signed=False),
     'u8': Integer(8, signed=False),
     'u16': Integer(16, signed=False),
     'u32': Integer(32, signed=False),

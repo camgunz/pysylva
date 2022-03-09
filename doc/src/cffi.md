@@ -3,6 +3,8 @@
 Sylva includes a C foreign function interface. Bindings to C programs can be
 generated using:
 
+* `carray`
+* `cbitfield`
 * `cfn`
 * `cfntype`
 * `cblockfntype`
@@ -12,25 +14,10 @@ generated using:
 * `cunion`
 * `cvoid`
 
+C's scalar types (`int`, `complex`) map to Sylva's scalar types as you'd
+expect.
+
 Note well that the C FFI offers none of Sylva's guarantees.
-
-## Builtin types:
-
-- `void`
-- `char`
-- `signed char`
-- `unsigned char`
-- `short`
-- `unsigned short`
-- `int`
-- `unsigned int`
-- `long`
-- `unsigned long`
-- `__int128`
-- `unsigned __int128`
-- `float`
-- `double`
-- `long double`
 
 ## `libc`
 

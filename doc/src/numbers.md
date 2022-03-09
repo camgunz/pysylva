@@ -1,5 +1,8 @@
 # Numbers
 
+[TODO] Rounding modes don't make any sense on individual numbers. Figure out a
+       syntax for wrapping math operations.
+
 ## Overview
 
 Working with numbers in Sylva is, frankly, a real pain in the ass.  That's by
@@ -125,7 +128,7 @@ fn main() {
       sys.echo("Succesfully incremented a number ({inc_res.value})!")
     }
     case (Failure) {
-      sys.echoexit("Failed to increment a number: {inc_res.message})")
+      sys.die("Failed to increment a number: {inc_res.message})")
     }
   }
 }

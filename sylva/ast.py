@@ -10,11 +10,11 @@ class ASTNode:
         self.location = location
 
 
-class BaseExpr(ASTNode):
+class Expr(ASTNode):
     pass
 
 
-class LiteralExpr(BaseExpr):
+class LiteralExpr(Expr):
 
     def __init__(self, location, raw_value, value):
         super().__init__(location)
@@ -189,7 +189,7 @@ class DecimalLiteralExpr(NumericLiteralExpr):
         return cls(token.location.copy(), token.value, value, round)
 
 
-class CallExpr(BaseExpr):
+class CallExpr(Expr):
 
     def __init__(self, location, function, arguments):
         super().__init__(location)
@@ -200,7 +200,7 @@ class CallExpr(BaseExpr):
         return 'Call(%r, %r)' % (self.function, self.arguments)
 
 
-class IndexExpr(BaseExpr):
+class IndexExpr(Expr):
 
     def __init__(self, location, indexable, index):
         super().__init__(location)
@@ -211,7 +211,7 @@ class IndexExpr(BaseExpr):
         return 'Index(%r, %r)' % (self.indexable, self.index)
 
 
-class UnaryExpr(BaseExpr):
+class UnaryExpr(Expr):
 
     def __init__(self, location, operator, expr):
         super().__init__(location)
@@ -222,7 +222,7 @@ class UnaryExpr(BaseExpr):
         return 'Unary(%r, %r)' % (self.operator, self.expr)
 
 
-class BinaryExpr(BaseExpr):
+class BinaryExpr(Expr):
 
     def __init__(self, location, operator, lhs, rhs):
         super().__init__(location)
@@ -234,7 +234,7 @@ class BinaryExpr(BaseExpr):
         return 'Binary(%r, %r, %r)' % (self.operator, self.lhs, self.rhs)
 
 
-class LookupExpr(BaseExpr):
+class LookupExpr(Expr):
 
     def __init__(self, location, identifier):
         super().__init__(location)
@@ -242,19 +242,6 @@ class LookupExpr(BaseExpr):
 
     def __repr__(self):
         return 'Lookup(%r)' % (self.identifier)
-
-
-class ConstDefinition(ASTNode):
-
-    def __init__(self, location, name, literal_expr):
-        super().__init__(location)
-        self.name = name
-        self.literal_expr = literal_expr
-
-    def __repr__(self):
-        return 'ConstDefinition(%r, %r, %r)' % (
-            self.location, self.name, self.literal_expr
-        )
 
 
 class Implementation(ASTNode):

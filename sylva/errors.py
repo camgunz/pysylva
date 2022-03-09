@@ -71,6 +71,15 @@ class InvalidOperatorExpansion(LocationError):
         super().__init__(location, f'Invalid operator expansion: {message}')
 
 
+class InvalidExpressionType(LocationError):
+
+    def __init__(self, location, expected, actual):
+        super().__init__(
+            location,
+            f'Invalid expression type. Expected {expected}; got {actual}'
+        )
+
+
 class InvalidExpression(LocationError):
 
     def __init__(self, location):

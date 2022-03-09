@@ -16,12 +16,12 @@ struct Person {
 }
 
 fn print_usage(f: Failure) {
-  sys.echoexit("Usage: hello [name] [age]")
+  sys.die("Usage: hello [name] [age]")
 }
 
 fn have_birthday(person: &Person!) {
   person.age = (person.age + Age(1)).on_failure(fn (f: Failure) {
-    sys.echoexit("Person {person.name} is already the max age {person.age}")
+    sys.die("Person {person.name} is already the max age {person.age}")
   })
 }
 
@@ -35,7 +35,7 @@ fn main() {
     age: Age.parse_from_string(
       sys.args.get(1).on_failure(print_usage)
     ).on_failure(fn (f: Failure) {
-      sys.echoexit("Invalid age: {f}")
+      sys.die("Invalid age: {f}")
     })
   }
 
@@ -44,12 +44,12 @@ fn main() {
 }
 ```
 
-Sylva is [memory and data race safe](memory.html).  You cannot write a program
-in Sylva\* that will result in bugs like use after free, torn reads/writes,
-out-of-bounds memory accesses, [unexpected integer wraparounds](numbers.html),
-etc. It is designed to encourage the programmer to do the [robust
-thing](failure.html), and to structure applications such that the robust thing
-is also the easy thing.
+Sylva is largely [memory and data race safe](memory.html)\*, providing
+protection against bugs like use after free, torn reads/writes, out-of-bounds
+memory accesses, [unexpected integer wraparounds](numbers.html), etc. It is
+designed to encourage the programmer to do the [robust thing](failure.html),
+and to structure applications such that the robust thing is also the easy
+thing.
 
 Sylva is fast.  It is statically typed, compiled to native code ahead of time,
 does not use garbage collection, and requires no runtime.
@@ -65,7 +65,7 @@ Sylva should be familiar to most programmers.  Where possible, it defers to
 what the programmer is likely to know.
 
 Lastly, Sylva is readable. We pay careful attention to how the syntax and
-organization scan, but also to how constructs draw focus and thought.
+organization scan, but also to how constructs draw focus and shape thought.
 
 These values are in order. If something would be faster but isn't safe, Sylva
 prioritizes safety. If something would be more readable but is inconsistent,

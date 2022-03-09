@@ -83,8 +83,8 @@ _ALL_FLT_VALUE = r'(?P<value>-??\d+?\.\d+?([Ee]-??\d+?)??)'
 _INT_FLT_VALUE = r'(?P<value>-??\d+?\.([Ee]-??\d+?)??)'
 _DEC_FLT_VALUE = r'(?P<value>-??\.??\d+?([Ee]-??\d+?)??)'
 _EXP_FLT_VALUE = r'(?P<value>-??\d+?[Ee]-??\d+?)'
-_NAN_FLT_VALUE = r'(?P<value>NaN|nan|NAN)'
-_INF_FLT_VALUE = r'(?P<value>-??Inf|inf|INF)'
+_NAN_FLT_VALUE = r'(?P<value>NaN|NAN)'
+_INF_FLT_VALUE = r'(?P<value>-??Inf|INF)'
 _INT_SIGNEDNESS = r'(?P<signedness>i|u)'
 _NUMBER_SIZES = r'(?P<size>8|16|32|64|128)??'
 _INT_OVERFLOWS = r'(?P<overflow>w|c)??'
@@ -188,11 +188,11 @@ TOKEN_MATCHERS = [
     DelimitedTokenMatcher(r'enum', TokenType.Enum),
     DelimitedTokenMatcher(r'range', TokenType.Range),
 
-    DelimitedTokenMatcher(r'cfn', TokenType.CFn),
-    DelimitedTokenMatcher(r'cfntype', TokenType.CFnType),
-    DelimitedTokenMatcher(r'cblockfntype', TokenType.CFnType),
-    DelimitedTokenMatcher(r'cstruct', TokenType.CStruct),
-    DelimitedTokenMatcher(r'cunion', TokenType.CUnion),
+    DelimitedTokenMatcher(r'(?P<value>cfn)', TokenType.CFn),
+    DelimitedTokenMatcher(r'(?P<value>cfntype)', TokenType.CFnType),
+    DelimitedTokenMatcher(r'(?P<value>cblockfntype)', TokenType.CBlockFnType),
+    DelimitedTokenMatcher(r'(?P<value>cstruct)', TokenType.CStruct),
+    DelimitedTokenMatcher(r'(?P<value>cunion)', TokenType.CUnion),
 
     DelimitedTokenMatcher(r'alias', TokenType.Alias),
     DelimitedTokenMatcher(r'impl', TokenType.Implementation),
@@ -295,7 +295,7 @@ class Lexer:
             self.location.column += 1
 
         if token.matches_category(TokenCategory.SyntaxSugar):
-            self.buffer.expand(token.desugar(self.prev))
+            self.buffer.extend(token.desugar(self.prev))
             return self.buffer.pop(0)
 
         return token
@@ -306,8 +306,8 @@ class Lexer:
             self.location.line,
             self.location.column,
             self.should_skip_funcs,
-            self.buffer,
-            self.prev
+            self.prev,
+            self.buffer
         )
 
     def set_state(self, state):
@@ -315,8 +315,8 @@ class Lexer:
         self.location.line = state.line
         self.location.column = state.column
         self.should_skip_funcs = state.should_skip_funcs
-        self.buffer = state.buffer
         self.prev = state.prev
+        self.buffer = state.buffer
 
     @contextmanager
     def save_state(self):
@@ -330,6 +330,7 @@ class Lexer:
         token = self._lex_token()
         while self._should_skip(token):
             token = self._lex_token()
+        self.prev = token
         return token
 
     def next_matches(self, token_types=None, token_categories=None):

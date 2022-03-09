@@ -1,6 +1,6 @@
-module sys
+mod sys
 
-requirement libc
+req libc
 
 fn exit(code: i32) {
   libc.exit(code)

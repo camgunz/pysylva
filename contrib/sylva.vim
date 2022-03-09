@@ -10,8 +10,8 @@ endif
 
 syntax keyword SylvaType bool
 syntax keyword SylvaType rune
-syntax keyword SylvaType i8 i16 i32 i64 i128
-syntax keyword SylvaType u8 u16 u32 u64 u128
+syntax keyword SylvaType int i8 i16 i32 i64 i128
+syntax keyword SylvaType uint u8 u16 u32 u64 u128
 syntax keyword SylvaType f16 f32 f64 f128
 syntax keyword SylvaType c16 c32 c64 c128
 syntax keyword SylvaType dec
@@ -23,7 +23,7 @@ syntax keyword SylvaType fn
 syntax keyword SylvaType fntype
 syntax keyword SylvaType range
 syntax keyword SylvaType enum
-syntax keyword SylvaType carray cptr cstr cstruct cunion cvoid
+syntax keyword SylvaType carray cbitfield, cptr cstr cstruct cunion cvoid
 syntax keyword SylvaType cfn cfntype cblockfntype
 
 syntax keyword SylvaBoolean true false
@@ -47,14 +47,14 @@ syntax match SylvaIdentifier "\v\[a-zA-Z_]+[a-zA-Z0-9_]*"
 
 syntax keyword SylvaStatement return
 
-syntax match SylvaNumber "\v<\d+(i|i8|i16|i32|i64|i128|i256|u|u8|u16|u32|u64|u128|u256)?>"
-syntax match SylvaNumber "\v<\d+\.\d+(f16|f32|f64|f128|f256)?>"
-syntax match SylvaNumber "\v<\d*\.?\d+([Ee]-?)?\d+(f16|f32|f64|f128|f256)?>"
-syntax match SylvaNumber "\v<\d+\.\d+(c16|c32|c64|c128|c256)?>"
-syntax match SylvaNumber "\v<\d*\.?\d+([Ee]-?)?\d+(c16|c32|c64|c128|c256)?>"
-syntax match SylvaNumber "\v<0[xX]\x+(i|i8|i16|i32|i64|i128|i256|u|u8|u16|u32|u64|u128|u256)?>"
-syntax match SylvaNumber "\v<0b[01]+(i|i8|i16|i32|i64|i128|i256|u|u8|u16|u32|u64|u128|u256)?>"
-syntax match SylvaNumber "\v<0o\o+(i|i8|i16|i32|i64|i128|i256|u|u8|u16|u32|u64|u128|u256)?>"
+syntax match SylvaNumber "\v<\d+(i|i8|i16|i32|i64|i128|u|u8|u16|u32|u64|u128)?>"
+syntax match SylvaNumber "\v<\d+\.\d+(f16|f32|f64|f128)?>"
+syntax match SylvaNumber "\v<\d*\.?\d+([Ee]-?)?\d+(f16|f32|f64|f128)?>"
+syntax match SylvaNumber "\v<\d+\.\d+(c16|c32|c64|c128)?>"
+syntax match SylvaNumber "\v<\d*\.?\d+([Ee]-?)?\d+(c16|c32|c64|c128)?>"
+syntax match SylvaNumber "\v<0[xX]\x+(i|i8|i16|i32|i64|i128|u|u8|u16|u32|u64|u128)?>"
+syntax match SylvaNumber "\v<0b[01]+(i|i8|i16|i32|i64|i128|u|u8|u16|u32|u64|u128)?>"
+syntax match SylvaNumber "\v<0o\o+(i|i8|i16|i32|i64|i128|u|u8|u16|u32|u64|u128)?>"
 
 syntax keyword SylvaTodo TODO FIXME NOTE
 

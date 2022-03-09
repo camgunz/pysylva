@@ -167,7 +167,7 @@ fn main() {
 
 ## Hierarchy
 
-There's a small hierarchy here:
+There's a short hierarchy here:
 
 - Owned pointer / Stack allocated object (*Person, Person)
   - Mutable reference (&Person!)
