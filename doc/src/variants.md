@@ -5,44 +5,81 @@ Variants allow you to define a datatype that has varying shapes.
 ```sylva
 req sys
 
-range Age(0u8c, 250u8c) {
-  range Child(0u8c, 17u8c)
-  range Adult(18u8c, 250u8c)
+variant Age {
+  Child: 0u8..17u8,
+  Adult: 18u8..250u8,
 }
 
-struct Person {
-  variant Child {
-    name: str
-    age: Age.Child
-  }
-  variant Adult {
-    name: str
-    age: Age.Adult
+variant Person {
+  Child: {
+    name: str,
+    age: Age.Child,
+  },
+  Adult: {
+    name: str,
+    age: Age.Adult,
   }
 }
 
 fn make_person(name: str, age: Age): *Person {
   match (age) {
-    case (Child) {
-      return *Child{name: name, age: age}
+    case (child_age: Child) {
+      return *Person.Child{name: name, age: child_age}
     }
-    case (Adult) {
-      return *Adult{name: name, age: age}
+    case (adult_age: Adult) {
+      return *Person.Adult{name: name, age: adult_age}
     }
   }
 }
 
 fn greet(person: &Person, name: str): str {
   match (person) {
-    case (Child) {
-      return "Yo {name}, I'm {person.name}."
+    case (c: Child) {
+      return "Yo {name}, I'm {c.name}."
     }
-    case (Adult) {
-      return "Good day {name}, I'm {person.name}."
+    case (a: Adult) {
+      return "Good day {name}, I'm {a.name}."
     }
   }
 }
 ```
 
-Prefer variants to interfaces; typechecking with `match` is more descriptive,
-declarative, explicit, and local.
+## Matching
+
+Dealing with a variant's different incarnations requires the `match` statement.
+`match` is much like `switch`: it comprises a scoped code block for each
+possible value. The core difference is that its code blocks are defined per
+variation, rather than per value.
+
+```sylva
+req sys
+
+variant TrafficLight {
+  Red: {
+    flashing: bool(true),
+  },
+  Yellow: {
+    timeout: float(+0f32),
+  },
+  Green: {
+    whatever: uint(1u),
+  }
+}
+
+fn main() {
+  let tl: TrafficLight.Red{}
+
+  match (tl) {
+    case (red: Red) {
+      sys.echo("Current flashing status: {red.flashing}.")
+    }
+    case (yellow: Yellow) {
+      sys.echo("You have {yellow.timeout}s to make it!")
+    }
+    case (green: Green) {
+      sys.echo("Anything goes ({green.whatever})....")
+    }
+  }
+}
+
+```

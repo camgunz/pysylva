@@ -7,37 +7,24 @@ as it's so common Sylva provides `*` as shorthand:
 req sys
 
 struct Person {
-  name: str
-  age: u8
+  name: str,
+  age: u8,
 }
 
 fn long_way() {
   var barack: sys.alloc(Person::size)
-    .on_success(fn (mem: sys.MemoryBlock) {
-      mem.init(Person)(Person{name: "Barack", age: 57})
-      .on_failure(fn (f: Failure) {
-        sys.die("Initializing memory failed: {f.message}")
-      })
-    })
-    .on_failure(fn (f: Failure) {
-      sys.die("Allocating memory failed: {f.message}")
-    })
-    .value
-
+    .succeed_or_die()
+    .init(Person)(
+      Person{name: "Barack", age: 57}
+    ).succeed_or_die()
   var obamas: sys.alloc_array(Person::size, 2)
-    .on_success(fn (mem: MemoryBlock) {
-      mem.init([Person * 2])([
+    .succeed_or_die()
+    .init([Person * 2])(
+      [Person * 2][
         Person{name: "Barack", age: 57},
         Person{name: "Michelle", age: 56},
-      ])
-      .on_failure(fn (f: Failure) {
-        sys.die("Initializing memory failed: {f.message}")
-      })
-    })
-    .on_failure(fn (f: Failure) {
-      sys.die("Allocating memory failed: {f.message}")
-    })
-    .value
+      ]
+    ).succeed_or_die()
 }
 
 fn short_way() {

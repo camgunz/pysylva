@@ -5,26 +5,26 @@ available on a specific shape of data.
 
 ```sylva
 iface Orderable {
-  fntype get_rank(self: Orderable): num
-  fn comes_before(self: Orderable, other: Orderable): bool {
-    return(self.get_rank() < other.get_rank())
-  }
+  get_rank: (self: Orderable): num,
+  comes_before: (self: Orderable, other: Orderable): bool {
+    return self.get_rank() < other.get_rank()
+  },
 }
 
 iface Sortable {
-  fntype sort(self: Sortable!)
+  sort: (self: Sortable!),
 }
 
-impl Sortable: &[Orderable] {
+impl Sortable(&[Orderable]) {
   fn sort(self: &[Orderable]!) {
     ...
-  }
+  },
 }
 
-impl Orderable: int {
-  fn get_rank(self: int): num {
+impl Orderable(int) {
+  get_rank: (self: int): num {
     return self
-  }
+  },
 }
 ```
 
@@ -34,7 +34,7 @@ Interfaces can have concrete methods:
 req sys
 
 iface Greeter {
-  fn get_greeting(animal: &Animal): str
+  get_greeting: (animal: &Animal): str
 }
 
 fn greet(animal: &Animal) {
@@ -43,14 +43,14 @@ fn greet(animal: &Animal) {
 
 struct Cat {}
 
-impl Greeter: Cat {
-  fn get_greeting(self: &Cat): str { return "Meow" }
+impl Greeter(Cat) {
+  get_greeting: (self: &Cat): str { return "Meow" }
 }
 
 struct Dog {}
 
-impl Greeter: Dog {
-  fn get_greeting(self: &Dog): str { return "Woof" }
+impl Greeter(Dog) {
+  get_greeting: (self: &Dog): str { return "Woof" }
 }
 ```
 
@@ -68,17 +68,24 @@ they are orthogonal. For example, if Sylva's failures were an interface opening
 a file would have to look something like:
 
 ```sylva
+mod sys
+
 iface OpenFileResult {
-  fntype succeeded(): bool
-  fntype get_file(): *File
-  fntype get_failure_code(): uint
-  fntype get_failure_message(): str
+  succeeded: (): bool
+  get_file: (): *File
+  get_failure_code: (): uint
+  get_failure_message: (): str
 }
+
+mod main
+
+req sys
 
 fn main() {
   var file_path = "/home/dmr/.secrets"
-  var res = sys.open(file_path, "r")
-  if res.succeeded() {
+  var res = sys.open(file_path, "r") # `res` is an `OpenFileResult` here
+
+  if (res.succeeded()) {
     sys.echo("Data: {res.get_file().read_all()}")
   }
   else {
@@ -104,11 +111,11 @@ fn main() {
   var res: sys.open(file_path, "r")
 
   match (res) {
-    case (OK) {
+    case (file: FileOpen.OK) {
       sys.echo("Data: {file.read_utf8()}")
     }
-    case (Failed) {
-      sys.echoerr("[{res.code}] Failed to open {file_path}: {res.message}")
+    case (f: FileOpen.Failed) {
+      sys.echoerr("[{f.code}] Failed to open {file_path}: {f}")
     }
   }
 }
@@ -116,7 +123,10 @@ fn main() {
 
 <!-- [NOTE] A good example in favor of interfaces are streams -->
 
-Finally, bear in mind that Sylva's implementation of interfaces requires
-dereferencing, and that the very concept of interfaces necessitates function
-call overhead--after all interfaces are simply additional functions, so you
-must call those functions in order to take advantage of the interface.
+Finally, bear in mind the tradeoffs of interfaces and variants. Sylva's
+implementation of interfaces requires dereferencing, and the very concept of
+interfaces necessitates function call overhead--after all interfaces are simply
+additional functions, so you must call those functions in order to take
+advantage of the interface. Sylva's implementation of variants requires
+additional information in data structures, and in general uses more memory than
+necessary to represent every possible variant.

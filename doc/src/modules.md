@@ -7,27 +7,27 @@ necessary.
 ```sylva
 mod pets
 
-struct Pet {
-  variant Cat {
-    name: str
-  }
-  variant Dog {
-    name: str
-  }
+variant Pet {
+  Cat: {
+    name: str,
+  },
+  Dog: {
+    name: str,
+  },
 }
 
 mod vehicles
 
 struct Car {
-  make: str
-  model: str
+  make: str,
+  model: str,
 }
 
 mod vehicles.badass
 
 struct Motorcycle {
-  make: str
-  model: str
+  make: str,
+  model: str,
 }
 ```
 

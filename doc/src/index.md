@@ -6,21 +6,27 @@ applications like IRC servers or login daemons.
 ## Hello
 
 ```sylva
+mod main
+
 req sys
 
-range Age(0u8c, 250u8c)
+range Age (0u8, 250u8)
 
 struct Person {
-  name: str("")
-  age: Age(0u8c)
+  name: str(""),
+  age: Age(0u8),
 }
 
-fn print_usage(f: Failure) {
+fn print_usage() {
   sys.die("Usage: hello [name] [age]")
 }
 
+fn print_usage_on_failure(_: Failure) {
+  print_usage()
+}
+
 fn have_birthday(person: &Person!) {
-  person.age = (person.age + Age(1)).on_failure(fn (f: Failure) {
+  person.age = (person.age + Age(1)).on_failure((f: Failure) {
     sys.die("Person {person.name} is already the max age {person.age}")
   })
 }
@@ -31,11 +37,16 @@ fn greet_person(person: &Person) {
 
 fn main() {
   var person: Person{
-    name: sys.args.get(1).on_failure(print_usage)
+    name: sys.args.get(1).on_failure((f: Failure) {
+      print_usage()
+    })
     age: Age.parse_from_string(
-      sys.args.get(1).on_failure(print_usage)
-    ).on_failure(fn (f: Failure) {
-      sys.die("Invalid age: {f}")
+      sys.args.get(2).on_failure((f: Failure) {
+        print_usage()
+      })
+    ).on_failure((f: Failure) {
+      sys.echoerr("Invalid age: {f}")
+      print_usage()
     })
   }
 
@@ -47,7 +58,7 @@ fn main() {
 Sylva is largely [memory and data race safe](memory.html)\*, providing
 protection against bugs like use after free, torn reads/writes, out-of-bounds
 memory accesses, [unexpected integer wraparounds](numbers.html), etc. It is
-designed to encourage the programmer to do the [robust thing](failure.html),
+designed to encourage the programmer to do the [robust thing](failures.html),
 and to structure applications such that the robust thing is also the easy
 thing.
 

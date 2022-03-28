@@ -1,4 +1,5 @@
-from . import debug, errors
+from . import errors
+from .codegen import CodeGen
 from .parser import Parser
 
 
@@ -7,17 +8,11 @@ class Module:
     def __init__(self, program, name, data_sources, requirement_statements):
         self.program = program
         self.name = name
-        self.vars = {}
         self.data_sources = data_sources
         self.requirement_statements = requirement_statements
+        self.vars = {}
         self.requirements = set()
         self._parsed = False
-
-    @classmethod
-    def BuiltIn(cls, program, name):
-        m = cls(program, name, [], [])
-        m._parsed = True
-        return m
 
     def __repr__(self):
         return 'Module(%r, %r, %r, %r)' % (
@@ -51,14 +46,16 @@ class Module:
 
     def parse(self):
         if self._parsed:
-            debug(f'{self.name} already parsed')
             return
-        debug(f'Parsing {self.name}')
         self._parsed = True
         for requirement in self.requirements:
             requirement.parse()
         for data_source in self.data_sources:
             Parser(self, data_source).parse()
+
+    def get_ir(self):
+        self.parse()
+        return CodeGen(self).compile_module()
 
     def lookup(self, name):
         # [NOTE] Raise your own exceptions if this is bad for you

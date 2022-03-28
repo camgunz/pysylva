@@ -11,7 +11,7 @@ numbers for a number of reasons:
 Ranges inherit the properties from their boundaries.
 
 ```sylva
-range Health(0rz, 100rz)
+range Health (0rz, 100rz)
 ```
 
 This defines a range from 0-100, which includes such values as 0, 100, and
@@ -25,17 +25,17 @@ failure handling and wrapping.
 ```sylva
 req random
 
-alias rand_health random.random(Health)
-
 range Health(0rz, 1000rz)
 
-struct Monster {
-  variant Irukakun {
-    health: Health(100rz)
-  }
-  variant Sirotan {
-    health: Health(1000rz)
-  }
+alias rand_health: random.random(Health)
+
+variant Monster {
+  Irukakun: {
+    health: Health(100rz),
+  },
+  Sirotan: {
+    health: Health(1000rz),
+  },
 }
 
 fn get_random_health_value(): Health {
@@ -46,13 +46,13 @@ fn damage_monster(monster: &Monster!) {
   var base_damage: get_random_health_value()
 
   match (monster) {
-    case (Irukakun) {
+    case (i: Irukakun) {
       # Softie
-      monster.health -= get_random_health_value() * HealthRange(2rz)
+      i.health -= get_random_health_value() * HealthRange(2rz)
     }
-    case (Sirotan) {
+    case (s: Sirotan) {
       # Tough stuff
-      monster.health -= get_random_health_value() / HealthRange(2rz)
+      s.health -= get_random_health_value() / HealthRange(2rz)
     }
   }
 }
@@ -64,15 +64,15 @@ Without ranges, we have to use `max` and `min` to keep our values within range:
 req math
 req random
 
-alias rand_dec random.random(dec)
+alias rand_dec: random.random(dec)
 
-struct Monster {
-  variant Irukakun {
-    health: 100rz
-  }
-  variant Sirotan {
-    health: 1000rz
-  }
+variant Monster {
+  Irukakun: {
+    health: 100rz,
+  },
+  Sirotan: {
+    health: 1000rz,
+  },
 }
 
 fn get_random_health_value(): dec {
@@ -83,11 +83,11 @@ fn damage_monster(monster: &Monster!) {
   var damage: random.random(dec)(0rz, 100rz)
 
   match (monster) {
-    case (Irukakun) {
-      monster.health -= math.min(get_random_health_value() * 2rz, 100rz)
+    case (i: Irukakun) {
+      i.health -= math.min(get_random_health_value() * 2rz, 100rz)
     }
-    case (Sirotan) {
-      monster.health -= math.max(get_random_health_value() / 2rz, 100rz)
+    case (s: Sirotan) {
+      s.health -= math.max(get_random_health_value() / 2rz, 100rz)
     }
   }
 }
@@ -103,10 +103,10 @@ indexing failures:
 req sys
 req midi # Not a real stdlib module
 
-range PianoKey(1u8, 88u8)
+range PianoKey (1u8, 88u8)
 
 struct Keyboard {
-  pressed_keys: [bool * PianoKey::count]
+  pressed_keys: [bool(false) * PianoKey::count]
 }
 
 fn press_key(keyboard: &Keyboard!, key: PianoKey) {
@@ -151,14 +151,14 @@ fn main() {
 
 \*: _Note this only works for integer ranges._
 
-Ranges can be nested, and referred to independently just like struct variants:
+Ranges can be segmented using variants:
 
 ```sylva
 req sys
 
-range Age(0u8c, 250u8c) {
-  range Child(0u8c, 17u8c)
-  range Adult(18u8c, 250u8c)
+variant Age {
+  Child: 0u8..17u8,
+  Adult: 18u8..250u8,
 }
 
 fn print_age(age: Age) {
@@ -169,6 +169,3 @@ fn print_child_age(age: Age.Child) {
   sys.echo("Child age: {age}")
 }
 ```
-
-The comprised ranges don't have to cover the entire parent range, and any value
-is a valid member of the parent range.

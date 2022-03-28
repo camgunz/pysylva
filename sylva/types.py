@@ -2,11 +2,115 @@ import ctypes
 
 
 class SylvaType:
-    pass
+
+    @property
+    def type_name(self):
+        return type(self).__name__
 
 
 class SylvaMetaType(SylvaType):
+
+    __slots__ = ('location', 'name')
+
+    def __init__(self, location, name):
+        self.location = location
+        self.name = name
+
+
+class CBitField(SylvaType):
+
+    __slots__ = ('location', 'bits', 'signed', 'field_size')
+
+    def __init__(self, location, bits, signed, field_size):
+        self.location = location
+        self.bits = bits
+        self.signed = signed
+        self.field_size = field_size
+
+    def __repr__(self):
+        return 'CBitField(%r, %r, %r, %r)' % (
+            self.location,
+            self.bits,
+            self.signed,
+            self.field_size
+        )
+
+    def __str__(self):
+        prefix = 'i' if self.signed else 'u'
+        return f'<CBitField {prefix}{self.bits}:{self.field_size}>'
+
+
+class CVoid(SylvaType):
     pass
+
+
+class Scalar(SylvaType):
+
+    @property
+    def name(self):
+        return type(self).__name__
+
+    def __repr__(self):
+        return f'{self.name}()'
+
+    def __str__(self):
+        return f'<{self.name}>'
+
+
+# Booleans are the native integer type
+class Boolean(Scalar):
+    pass
+
+
+class Rune(Scalar):
+    pass
+
+
+class String(Scalar):
+    pass
+
+
+class CString(Scalar):
+    pass
+
+
+class Decimal(Scalar):
+    pass
+
+
+class Complex(Scalar):
+
+    __slots__ = ('bits',)
+
+    def __init__(self, bits):
+        self.bits = bits
+
+    def __repr__(self):
+        return f'{type(self).__name__}(bits={self.bits})'
+
+
+class Float(Scalar):
+
+    __slots__ = ('bits',)
+
+    def __init__(self, bits):
+        self.bits = bits
+
+    def __repr__(self):
+        return f'{type(self).__name__}(bits={self.bits})'
+
+
+class Integer(Scalar):
+
+    __slots__ = ('bits', 'signed')
+
+    def __init__(self, bits, signed):
+        self.bits = bits
+        self.signed = signed
+
+    def __repr__(self):
+        prefix = 'U' if not self.signed else ''
+        return f'{prefix}{type(self).__name__}(bits={self.bits})'
 
 
 class BaseArray(SylvaMetaType):
@@ -41,24 +145,57 @@ class CArray(BaseArray):
     pass
 
 
-class CBitField(SylvaMetaType):
+class Integer(Scalar):
 
-    __slots__ = ('location', 'field_type', 'field_size')
+    __slots__ = ('bits', 'signed')
 
-    def __init__(self, location, field_type, field_size):
-        self.location = location
-        self.field_type = field_type
-        self.field_size = field_size
+    def __init__(self, bits, signed):
+        self.bits = bits
+        self.signed = signed
 
     def __repr__(self):
-        return 'CBitField(%r, %r, %r)' % (
+        prefix = 'U' if not self.signed else ''
+        return f'{prefix}{type(self).__name__}(bits={self.bits})'
+
+
+class Enum(SylvaMetaType):
+
+    __slots__ = ('location', 'values')
+
+    def __init__(self, location, values):
+        self.location = location
+        self.values = values
+
+    def __repr__(self):
+        return 'Enum(%r, %r)' % (
             self.location,
-            self.field_type,
-            self.field_size
+            self.values
         )
 
     def __str__(self):
-        return f'<CBitField {self.field_type}:{self.field_size}>'
+        return f'<Enum {self.values}>'
+
+
+class Range(SylvaMetaType):
+
+    __slots__ = ('location', 'type', 'min', 'max')
+
+    def __init__(self, location, type, min, max):
+        self.location = location
+        self.type = type
+        self.min = min
+        self.max = max
+
+    def __repr__(self):
+        return 'Range(%r, %r, %r, %s)' % (
+            self.location,
+            self.type,
+            self.min,
+            self.max
+        )
+
+    def __str__(self):
+        return f'<Range {self.type} {self.min}-{self.max}>'
 
 
 class Interface(SylvaMetaType):
@@ -105,7 +242,9 @@ class BaseStruct(SylvaMetaType):
 
     def __str__(self):
         type_name = 'ParamStruct' if self.type_params else 'Struct'
-        fields = ', '.join([f'{name}: {type}' for name, type in self.fields.items()])
+        fields = ', '.join([
+            f'{name}: {type}' for name, type in self.fields.items()
+        ])
         return f'<{type_name} {self.name} {{{fields}}}>'
 
 
@@ -115,7 +254,7 @@ class Struct(BaseStruct):
 
 class CStruct(BaseStruct):
 
-    __slots__ = ('location', 'name', 'type_params', 'fields')
+    __slots__ = ('location', 'type_params', 'fields', 'name')
 
     def __init__(self, location, fields, name=None):
         super().__init__(location, name, [], fields)
@@ -270,71 +409,6 @@ class CPtr(SylvaMetaType):
             f'<CPtr {self.referenced_type} {self.referenced_type_is_mutable} '
             f'{self.is_mutable}>'
         )
-
-
-class CVoid(SylvaType):
-    pass
-
-
-class Scalar(SylvaType):
-    def __repr__(self):
-        return f'{type(self).__name__}()'
-
-
-# Booleans are the native integer type
-class Boolean(Scalar):
-    pass
-
-
-class Rune(Scalar):
-    pass
-
-
-class String(Scalar):
-    pass
-
-
-class CString(Scalar):
-    pass
-
-
-class Decimal(Scalar):
-    pass
-
-
-class Complex(Scalar):
-
-    __slots__ = ('bits',)
-
-    def __init__(self, bits):
-        self.bits = bits
-
-    def __repr__(self):
-        return f'{type(self).__name__}(bits={self.bits})'
-
-
-class Float(Scalar):
-
-    __slots__ = ('bits',)
-
-    def __init__(self, bits):
-        self.bits = bits
-
-    def __repr__(self):
-        return f'{type(self).__name__}(bits={self.bits})'
-
-
-class Integer(Scalar):
-
-    __slots__ = ('bits', 'signed')
-
-    def __init__(self, bits, signed):
-        self.bits = bits
-        self.signed = signed
-
-    def __repr__(self):
-        prefix = 'U' if not self.signed else ''
-        return f'{prefix}{type(self).__name__}(bits={self.bits})'
 
 
 class ReferencePointer(SylvaMetaType):

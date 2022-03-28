@@ -17,7 +17,7 @@ generated using:
 C's scalar types (`int`, `complex`) map to Sylva's scalar types as you'd
 expect.
 
-Note well that the C FFI offers none of Sylva's guarantees.
+Note well that the C FFI offers none of Sylva's safety guarantees.
 
 ## `libc`
 

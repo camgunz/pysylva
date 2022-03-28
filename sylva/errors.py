@@ -54,6 +54,13 @@ class UnexpectedToken(LocationError):
             f' {strlist(expected_token_categories)}'
         ))
 
+
+class SignedSizeError(LocationError):
+
+    def __init__(self, location):
+        super().__init__(location, 'Size must be an unsigned integer')
+
+
 class LiteralParseFailure(LocationError):
 
     def __init__(self, literal_type, token, message=None):
@@ -101,25 +108,6 @@ class InvalidOperatorArity(LocationError):
         )
 
 
-class NoOperatorForToken(LocationError):
-
-    def __init__(self, token):
-        super().__init__(
-            token.location,
-            f'No operator for {token.token_type.name}'
-        )
-
-
-class MultipleOperatorsForToken(LocationError):
-
-    def __init__(self, token, operators):
-        super().__init__(
-            token.location,
-            f'Multiple operators for {token.token_type.name}: '
-            f'{strlist(operators)}'
-        )
-
-
 class UndefinedSymbol(LocationError):
 
     def __init__(self, location, name):
@@ -162,3 +150,9 @@ class DuplicateAlias(LocationError):
 
     def __init__(self, location, name):
         super().__init__(location, f'Alias {name} already defined')
+
+
+class CircularDependency(SylvaError):
+
+    def __init__(self, module, seen):
+        super().__init__(f'Circular dependency: {module} cannot be in {seen}')

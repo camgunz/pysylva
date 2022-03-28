@@ -15,7 +15,7 @@
 - [Enums](enums.html)
 - [Variants](variants.html)
 - [Interfaces](interfaces.html)
-- [Failure](failure.html)
+- [Failures](failures.html)
 - [Ranges](ranges.html)
 - [Reflection](reflection.html)
 - [Allocation](allocation.html)

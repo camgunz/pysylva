@@ -13,5 +13,6 @@ can be configured at compile time.  `String` must be passed with sigils, can be
 owned, and can be mutated.
 
 Notably, format strings (``Hello {name}``) result in `String`.
+- This isn't necessarily required, if `{name}` is constant.
 
 Most of the time you can get away with `str`s.

@@ -2,7 +2,7 @@ import itertools
 
 from collections import defaultdict
 
-from . import sylva, debug
+from . import sylva
 
 from .keyword_scanner import RequirementScanner, ModuleScanner, ScannedItem
 from .location import Location
@@ -61,7 +61,6 @@ class ModuleLoader:
             if subsequent_module_statements:
                 next_module_statement = sorted(subsequent_module_statements)[0]
                 next_location = next_module_statement.location
-                debug(f'SMS: {data_source.name} {next_location}')
                 data_source.set_end(next_location)
             names_to_data_sources[module_statement.name].append(data_source)
         return [Module(

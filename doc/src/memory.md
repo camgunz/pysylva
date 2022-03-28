@@ -34,8 +34,8 @@ on us.
 req sys
 
 struct Person {
-  name: str
-  age: dec
+  name: str,
+  age: dec,
 }
 
 fn say_hey(person: Person) {  # Error!

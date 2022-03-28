@@ -1,2 +1,3 @@
 ../sylva_libc
-llvmlite>=0.31.0
+llvmlite>=0.38.0,<0.39
+pyparsing>=3.0.7,<3.1

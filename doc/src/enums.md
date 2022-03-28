@@ -4,10 +4,10 @@ Enums define a set of constants as a type.
 
 ```sylva
 enum Evens {
-  Two: 2
-  Four: 4
-  Six: 6
-  Eight: 8
+  Two: 2,
+  Four: 4,
+  Six: 6,
+  Eight: 8,
 }
 ```
 
@@ -15,20 +15,20 @@ Enums can also contain arrays and structs, though these will be immutable:
 
 ```sylva
 struct Person {
-  name: str
-  age: dec
+  name: str,
+  age: dec,
 }
 
 enum Justice {
-  John: Person{"John Roberts", 65}
-  Clarence: Person{"Clarence Thomas", 72}
-  Ruth: Person{"Ruth Bader Ginsburg", 87}
-  Stephen: Person{"Stephen Breyer", 82}
-  Samuel: Person{"Samuel Alito", 70}
-  Sonia: Person{"Sonia Sotomayor", 66}
-  Elena: Person{"Elena Kagen", 60}
-  Neil: Person{"Neil Gorsuch", 53}
-  Brett: Person{"Brett Kavanaugh", 55}
+  John: Person{name: "John Roberts", age: 65},
+  Clarence: Person{name: "Clarence Thomas", age: 72},
+  Ruth: Person{name: "Ruth Bader Ginsburg", age: 87},
+  Stephen: Person{name: "Stephen Breyer", age: 82},
+  Samuel: Person{name: "Samuel Alito", age: 70},
+  Sonia: Person{name: "Sonia Sotomayor", age: 66},
+  Elena: Person{name: "Elena Kagen", age: 60},
+  Neil: Person{name: "Neil Gorsuch", age: 53},
+  Brett: Person{name: "Brett Kavanaugh", age: 55},
 }
 ```
 
@@ -38,13 +38,13 @@ Enum members can be referenced like struct variants:
 req sys
 
 enum Day {
-  Sunday: "Sunday"
-  Monday: "Monday"
-  Tuesday: "Tuesday"
-  Wednesday: "Wednesday"
-  Thursday: "Thursday"
-  Friday: "Friday"
-  Saturday: "Saturday"
+  Sunday: "Sunday",
+  Monday: "Monday",
+  Tuesday: "Tuesday",
+  Wednesday: "Wednesday",
+  Thursday: "Thursday",
+  Friday: "Friday",
+  Saturday: "Saturday",
 }
 
 fn print_today(today: Day) {
@@ -69,13 +69,13 @@ respectively:
 req sys
 
 enum Day {
-  Sunday: "Sunday"
-  Monday: "Monday"
-  Tuesday: "Tuesday"
-  Wednesday: "Wednesday"
-  Thursday: "Thursday"
-  Friday: "Friday"
-  Saturday: "Saturday"
+  Sunday: "Sunday",
+  Monday: "Monday",
+  Tuesday: "Tuesday",
+  Wednesday: "Wednesday",
+  Thursday: "Thursday",
+  Friday: "Friday",
+  Saturday: "Saturday",
 }
 
 fn main() {
@@ -92,13 +92,13 @@ fn main() {
 req sys
 
 enum Day {
-  Sunday: "Sunday"
-  Monday: "Monday"
-  Tuesday: "Tuesday"
-  Wednesday: "Wednesday"
-  Thursday: "Thursday"
-  Friday: "Friday"
-  Saturday: "Saturday"
+  Sunday: "Sunday",
+  Monday: "Monday",
+  Tuesday: "Tuesday",
+  Wednesday: "Wednesday",
+  Thursday: "Thursday",
+  Friday: "Friday",
+  Saturday: "Saturday",
 }
 
 fn main() {
@@ -114,13 +114,13 @@ fn main() {
 req sys
 
 enum Day {
-  Sunday: "Sunday"
-  Monday: "Monday"
-  Tuesday: "Tuesday"
-  Wednesday: "Wednesday"
-  Thursday: "Thursday"
-  Friday: "Friday"
-  Saturday: "Saturday"
+  Sunday: "Sunday",
+  Monday: "Monday",
+  Tuesday: "Tuesday",
+  Wednesday: "Wednesday",
+  Thursday: "Thursday",
+  Friday: "Friday",
+  Saturday: "Saturday",
 }
 
 fn main() {
@@ -135,3 +135,8 @@ fn main() {
 - Enums: collections of constant values
 - Ranges: collections of numbers
 - Variants: collections of types
+
+It may help to distinguish between enums and ranges by keeping in mind that
+arithmetic on enums is impossible. Enums are required to be neither continuous
+nor numeric. To return to the above example, the expression `Day("Sunday") -
+Day("Monday")` is nonsensical.

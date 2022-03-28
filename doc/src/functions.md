@@ -15,7 +15,7 @@ Functions can be parameterized with a type:
 ```sylva
 req sys
 
-fn (name_type) hello(name: name_type) {
+fn hello (name_type) (name: name_type) {
   sys.echo("Hello, {name}")
 }
 
@@ -39,8 +39,8 @@ fn stringify_ints(func: int_stringer, ints: [int])
 But it's even more useful to use these alongside type parameters:
 
 ```sylva
-fntype (object_type) serialize(i: object_type): str
-fntype (object_type) deserialize(s: str): object_type
-alias serialize_u8 serialize(u8)
-alias deserialize_u8 deserialize(u8)
+fntype (object_type) serializer(i: object_type): str
+fntype (object_type) deserializer(s: str): object_type
+alias serializer_u8: serializer(u8)
+alias deserializer_u8: deserializer(u8)
 ```

@@ -1,5 +1,5 @@
 from . import sylva
-# from .module import Module
+from .codegen import CodeGen
 from .compiler import Compiler
 from .module_loader import ModuleLoader
 from .stdlib import Stdlib
@@ -17,19 +17,34 @@ class Program:
             )
         }
 
-        self.modules = {
+        unordered_modules = {
             module.name: module
             for module in ModuleLoader.load_from_data_sources(
                 self,
                 data_sources
             )
         }
+
         # [TODO] Do some kind of searching
         self.stdlib_path = stdlib_path
-        for module in self.modules.values():
+
+        for module in unordered_modules.values():
             module.resolve_requirements([])
 
+        ordered_modules = []
+        for module in unordered_modules.values():
+            self.order_module(module, ordered_modules)
+
+        self.modules = {module.name: module for module in ordered_modules}
+
         self.compiler = Compiler(target_triple)
+
+    def order_module(self, module, modules):
+        if module in modules:
+            return
+        for req in module.requirements:
+            self.order_module(req, modules)
+        modules.append(module)
 
     @property
     def is_executable(self):
@@ -39,9 +54,14 @@ class Program:
         for module in self.modules.values():
             module.parse()
 
-    def compile(self):
-        # [TODO]
-        self.parse()
+    def compile(self, output_folder):
+        # [TODO] Something about name and output folder...?
+        compiler = Compiler()
+        for module in self.modules.values():
+            compiler.compile_ir_to_file(
+                module.get_ir(),
+                output_folder / module.name
+            )
 
     def get_module(self, name):
         try:

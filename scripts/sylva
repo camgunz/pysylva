@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
 import argparse
-import distutils.util
-import os
 import sys
 import traceback
 
+from pathlib import Path
+
+# pylint: disable=import-self, no-name-in-module
 from sylva import errors, debug
 from sylva.data_source import DataSource
 from sylva.lexer import Lexer
@@ -36,45 +37,61 @@ def lex(file_paths):
             for token in Lexer(DataSource.FromFile(file_path)):
                 print(token)
         except errors.SylvaError as error:
-            debug(traceback.format_exc())
+            debug('main', traceback.format_exc())
             print(error.pformat())
 
 
 def parse(file_paths, stdlib=None, target_triple=None):
     """Parses files and prints output."""
     print_bar('Parsing')
+    # pylint: disable=import-outside-toplevel, unused-import
+    from pprint import pprint
+    # pylint: disable=import-outside-toplevel
+    import pyparsing as pp
+    # pylint: disable=no-name-in-module, import-outside-toplevel, unused-import
+    from sylva.peg import Expr, Module
+
+    # pylint: disable=unreachable
+    Module.create_diagram('grammar.html')
+
+    for file_path in file_paths:
+        try:
+            result = Module.set_debug().parse_file(file_path, parse_all=True)
+            print(result.dump())
+        except pp.ParseException as pe:
+            print(pe.explain())
+
+    return
+
+    # pylint: disable=unreachable
     data_sources = [DataSource.FromFile(file_path) for file_path in file_paths]
     try:
         program = Program(
-            data_sources,
-            stdlib_path=stdlib,
-            target_triple=target_triple
+            data_sources, stdlib_path=stdlib, target_triple=target_triple
         )
     except errors.SylvaError as error:
-        debug(traceback.format_exc())
+        debug('main', traceback.format_exc())
         print(error.pformat())
 
     try:
         program.parse()
     except errors.SylvaError as error:
-        debug(traceback.format_exc())
+        debug('main', traceback.format_exc())
         print(error.pformat())
 
 
 # pylint: disable=redefined-builtin
-def compile(file_paths, stdlib=None, target_triple=None):
+def compile(file_paths, output_folder, stdlib=None, target_triple=None):
     """Compiles files."""
     print_bar('Compiling')
     data_sources = [DataSource.FromFile(file_path) for file_path in file_paths]
     try:
         program = Program(
-            data_sources,
-            stdlib_path=stdlib,
-            target_triple=target_triple
+            data_sources, stdlib_path=stdlib, target_triple=target_triple
         )
-        program.compile()
+        program.compile(output_folder)
     except errors.SylvaError as error:
-        debug(traceback.format_exc())
+        debug('main', traceback.format_exc())
         print(error.pformat())
 
 
@@ -82,15 +99,16 @@ def main():
     """Main function."""
     parser = argparse.ArgumentParser(description='Sylva')
     parser.add_argument(
-        '--only-lex', action='store_true',
-        help='Only perform lexing'
+        '--only-lex', action='store_true', help='Only perform lexing'
     )
     parser.add_argument(
-        '--only-parse', action='store_true',
-        help='Only perform parsing'
+        '--only-parse', action='store_true', help='Only perform parsing'
     )
     parser.add_argument('--stdlib', type=str, help='Path to standard library')
     parser.add_argument('--target', type=str, help='Compilation target')
+    parser.add_argument(
+        '--output-folder', type=Path, required=True, help='Output folder'
+    )
     parser.add_argument('files', type=str, nargs='+', help='Files to compile')
 
     args = parser.parse_args()
@@ -104,7 +122,7 @@ def main():
     elif args.only_parse:
         parse(args.files, args.stdlib, args.target)
     else:
-        compile(args.files, args.stdlib, args.target)
+        compile(args.files, args.output_folder, args.stdlib, args.target)
 
 
 main()

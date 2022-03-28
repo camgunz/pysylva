@@ -15,8 +15,8 @@ Variables bound to constants can be reassigned; other variables cannot:
 
 ```sylva
 struct Person {
-  name: str
-  age: dec
+  name: str,
+  age: dec,
 }
 
 fn main() {
@@ -31,13 +31,13 @@ This however would be fine:
 
 ```sylva
 struct Person {
-  name: str
-  age: dec
+  name: str,
+  age: dec,
 }
 
 enum People {
-  Barack: Person{name: "Barack", age: 57}
-  Michelle: Person{name: "Michelle", age: 56}
+  Barack: Person{name: "Barack", age: 57},
+  Michelle: Person{name: "Michelle", age: 56},
 }
 
 fn main() {
@@ -52,8 +52,8 @@ By default, memory is allocated on the stack:
 
 ```sylva
 struct Person {
-  name: str
-  age: dec
+  name: str,
+  age: dec,
 }
 
 fn main() {
@@ -68,11 +68,11 @@ allowed:
 req sys
 
 struct Person {
-  name: str
-  age: dec
+  name: str,
+  age: dec,
 }
 
-fn print_sage(age: dec) {
+fn print_age(age: dec) {
   sys.echo("Age: {age}")
 }
 
@@ -88,7 +88,8 @@ fn main() {
 }
 ```
 
-While we could easily copy a `Person`, more complicated `struct`s that contain
+Sylva would have to implicitly copy the data in order to implement this, and
+while we could easily copy a `Person`, more complicated `struct`s that contain
 owned pointers or references would require deep copying in order to preserve
 the [ownership/reference semantics](memory.html).
 
@@ -100,8 +101,8 @@ is an error:
 
 ```sylva
 struct Person {
-  name: str
-  age: dec
+  name: str,
+  age: dec,
 }
 
 fn have_birthday(person: &Person!) {
@@ -135,8 +136,8 @@ In order to make a mutable reference, there can be no other references:
 req sys
 
 struct Person {
-  name: str
-  age: dec
+  name: str,
+  age: dec,
 }
 
 fn main() {
@@ -154,8 +155,8 @@ Moving also requires there are no other references.
 req sys
 
 struct Person {
-  name: str
-  age: dec
+  name: str,
+  age: dec,
 }
 
 fn main() {

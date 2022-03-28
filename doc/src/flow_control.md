@@ -72,30 +72,30 @@ req sys
 req math
 
 variant Shape {
-  struct Circle {
-    radius: dec
-  }
+  Circle: {
+    radius: dec,
+  },
 
-  struct Square {
-    side_length: dec
-  }
+  Square: {
+    side_length: dec,
+  },
 
-  struct Rectangle {
-    width: dec
-    height: dec
-  }
+  Rectangle: {
+    width: dec,
+    height: dec,
+  },
 }
 
 fn get_shape_area(shape: &Shape): dec {
   match (shape) {
-    case (Shape.Circle) {
-      return math.PI * (shape.radius ** 2)
+    case (c: Shape.Circle) {
+      return math.PI * (c.radius ** 2)
     }
-    case (Shape.Square) {
-      return shape.side_length ** 2
+    case (s: Shape.Square) {
+      return s.side_length ** 2
     }
-    case (Shape.Rectangle) {
-      return shape.width * shape.height
+    case (r: Shape.Rectangle) {
+      return r.width * r.height
     }
   }
 }

@@ -28,17 +28,15 @@ class Parser:
 
     def __init__(self, module, data_source):
         self.module = module
-        self.requirements = []
+        self.requirement_names = [m.name for m in module.requirements]
         self.aliases = {}
         self.implementations = []
         self.lexer = Lexer(data_source)
 
     # pylint: disable=redefined-outer-name
     def _expect(self, types=None, categories=None, token=None):
-        debug(f'_expect({types}, {categories}, {token})')
         if token is None:
             token = self.lexer.lex()
-        debug(f'{self.module.name}: {self.lexer.location} :: {token}')
         if not token.matches(token_types=types, token_categories=categories):
             if types and categories:
                 raise errors.UnexpectedToken(token, types, categories)
@@ -51,14 +49,16 @@ class Parser:
             )
         return token
 
-    def _parse_literal_expr(self):
-        # [TODO] Most (all?) of the time we want to also accept a constant
-        #        expression, which is a little harder.
-        token = self._expect(categories=[
-            TokenCategory.Boolean,
-            TokenCategory.Rune,
-            TokenCategory.String,
-            TokenCategory.Number
+    def _parse_const_expr(self, token=None):
+        token = self._expect(token=token, types=[
+            TokenType.Boolean,
+            TokenType.Rune,
+            TokenType.String,
+            TokenType.Integer,
+            TokenType.Float,
+            TokenType.Decimal,
+            TokenType.Value,
+            TokenType.OpenBrace,
         ])
 
         if token.matches_type(TokenType.Boolean):
@@ -68,11 +68,19 @@ class Parser:
         if token.matches_type(TokenType.String):
             return ast.StringLiteralExpr.from_token(token)
         if token.matches_type(TokenType.Integer):
+            # [TODO] Range or int expr
             return ast.IntegerLiteralExpr.from_token(token)
         if token.matches_type(TokenType.Float):
             return ast.FloatLiteralExpr.from_token(token)
         if token.matches_type(TokenType.Decimal):
             return ast.DecimalLiteralExpr.from_token(token)
+
+        raise errors.UnexpectedTokenCategory(token, [
+            TokenCategory.Boolean,
+            TokenCategory.Rune,
+            TokenCategory.String,
+            TokenCategory.Number
+        ])
 
     def _parse_list(self, opener, closer, parse_func, token=None):
         items = []
@@ -81,7 +89,7 @@ class Parser:
             token = self.lexer.lex()
             if token.matches_type(closer):
                 break
-            items.append(parse_func(token))
+            items.append(parse_func(token=token))
             token = self.lexer.lex()
             if token.matches_type(TokenType.Comma):
                 continue
@@ -91,7 +99,7 @@ class Parser:
 
         return items
 
-    def _parse_type_parameter_list(self, token=None):
+    def _parse_type_param_list(self, token=None):
         return self._parse_list(
             TokenType.OpenParen,
             TokenType.CloseParen,
@@ -112,7 +120,7 @@ class Parser:
         token = self._expect(types=[TokenType.Value], token=token)
 
         self._expect(types=[TokenType.Colon])
-        field_type = self._parse_type(
+        field_type = self._parse_type_param(
             accept_default=False,
             deferred_lookups=type_params
         )
@@ -138,7 +146,7 @@ class Parser:
             )
 
         self._expect(types=[TokenType.Colon])
-        field_type = self._parse_type(
+        field_type = self._parse_type_param(
             accept_default=False,
             deferred_lookups=type_params
         )
@@ -154,7 +162,7 @@ class Parser:
     def _parse_variant_field(self, type_params=None, token=None):
         token = self._expect(types=[TokenType.Value], token=token)
         self._expect(types=[TokenType.Colon])
-        field_type = self._parse_type(
+        field_type = self._parse_type_param(
             accept_default=True,
             deferred_lookups=type_params
         )
@@ -169,50 +177,40 @@ class Parser:
 
     def _parse_function_signature(self, token=None):
         self._expect(types=[TokenType.OpenParen], token=token)
-        parameters = []
+        params = []
         while True:
             token = self._expect(types=[TokenType.CloseParen, TokenType.Value])
             if token.matches_type(TokenType.CloseParen):
                 break
-            parameter_name = token.value
+            param_name = token.value
             self._expect(types=[TokenType.Colon])
             if self.lexer.next_matches(token_types=[TokenType.OpenBracket]):
-                parameter_type = types.Array(*self._parse_array_type(
+                param_type = types.Array(*self._parse_array_type(
                     accept_default=False
                 ))
             else:
-                parameter_type = self._parse_type(accept_default=True)
-            parameters.append((parameter_name, parameter_type))
+                param_type = self._parse_type_param(accept_default=True)
+            params.append((param_name, param_type))
             self.lexer.skip_next_if_matches(token_types=[TokenType.Comma])
         return_type = None
         if self.lexer.skip_next_if_matches([TokenType.Colon]):
-            return_type = self._parse_type(accept_default=False)
-        return parameters, return_type
+            return_type = self._parse_type_param(accept_default=False)
+        return params, return_type
 
     def _parse_cfn_or_cfntype(self, token_type, token=None):
         token = self._expect(types=[token_type], token=token)
         location = token.location.copy()
         name = self._expect(types=[TokenType.Value]).value
-        parameters, return_type = self._parse_function_signature()
-        return location, name, parameters, return_type
+        params, return_type = self._parse_function_signature()
+        return location, name, params, return_type
 
-    def _parse_array_type(self, accept_default, token=None):
-        # strings: [str...]
-        # strings: [str * 4]
-        token = self._expect(types=[TokenType.OpenBracket], token=token)
-        location = token.location.copy()
-        self._expect(types=[TokenType.OpenBracket])
-        element_type = self._parse_type(accept_default=accept_default)
-        token = self._expect(types=[TokenType.Star, TokenType.Ellipsis])
-        if token.matches_type(TokenType.Star):
-            element_count = self._expect(
-                categories=[TokenCategory.Integer]
-            ).value
-        elif token.matches_type(TokenType.Ellipsis):
-            element_count = None
-        return location, element_type, element_count
+    def _parse_size(self, token=None):
+        token = self._expect(categories=[TokenCategory.Integer], token=token)
+        if token['signedness'] != 'u':
+            raise errors.SignedSizeError(token.location)
+        return token.value
 
-    def _parse_type(self, accept_default, deferred_lookups=None, token=None):
+    def _parse_type_param(self, accept_default, deferred_lookups=None, token=None):
         # [TODO] Handle defaults (fn say(msg: str("hey")))
 
         token = token or self.lexer.lex()
@@ -241,6 +239,26 @@ class Parser:
             deferred_lookups=deferred_lookups,
         )
 
+    def _parse_array_type(self, accept_default, token=None):
+        # strings: [str...]
+        # strings: [str * 4]
+        token = self._expect(types=[TokenType.OpenBracket], token=token)
+        location = token.location.copy()
+        self._expect(types=[TokenType.OpenBracket])
+        element_type = self._parse_type_param(accept_default=accept_default)
+        token = self._expect(types=[TokenType.Star, TokenType.Ellipsis])
+        if token.matches_type(TokenType.Star):
+            element_count = self._parse_size()
+        elif token.matches_type(TokenType.Ellipsis):
+            element_count = None
+        else:
+            raise errors.UnexpectedTokenType(
+                token,
+                [TokenType.Star, TokenType.Ellipsis]
+            )
+        self._expect(types=[TokenType.CloseBracket])
+        return location, element_type, element_count
+
     def parse_identifier(self, token=None):
         token = self._expect(
             types=[
@@ -254,24 +272,33 @@ class Parser:
             token=token
         )
         location = token.location.copy()
-        namespaces = [token.value]
-        while self.lexer.skip_next_if_matches([TokenType.Dot]):
-            namespaces.append(self._expect(types=[TokenType.Value]).value)
-        return location, '.'.join(namespaces)
+        pieces = [token.value]
+        seps = [TokenType.Dot, TokenType.DoubleColon]
+        while True:
+            token = self.lexer.get_next_if_matches(token_types=seps)
+            if not token:
+                break
+            if token.matches_type(TokenType.Dot):
+                pieces.append('.')
+            else:
+                pieces.append('::')
+            pieces.append(self._expect(types=[TokenType.Value]).value)
+
+        return location, ''.join(pieces)
 
     def parse_c_function_type(self, token=None):
-        location, name, parameters, return_type = self._parse_cfn_or_cfntype(
+        location, name, params, return_type = self._parse_cfn_or_cfntype(
             TokenType.CFnType,
             token=token
         )
-        return types.CFunctionType(location, parameters, return_type, name)
+        return types.CFunctionType(location, params, return_type, name)
 
     def parse_c_block_function_type(self, token=None):
-        location, name, parameters, return_type = self._parse_cfn_or_cfntype(
+        location, name, params, return_type = self._parse_cfn_or_cfntype(
             TokenType.CBlockFnType,
             token=token
         )
-        return types.CBlockFunctionType(location, parameters, return_type, name)
+        return types.CBlockFunctionType(location, params, return_type, name)
 
     # pylint: disable=too-many-locals
     def resolve_identifier(self, location, identifier, deferred_lookups=None):
@@ -283,7 +310,7 @@ class Parser:
             while namespace in self.aliases:
                 namespace = self.aliases[namespace]
 
-            if namespace not in self.requirements:
+            if namespace not in self.requirement_names:
                 raise errors.UndefinedSymbol(location, identifier)
 
             module = self.module.program.modules[namespace]
@@ -316,7 +343,7 @@ class Parser:
 
             element_count = None
             if self.lexer.skip_next_if_matches(token_types=[TokenType.Comma]):
-                element_count = self._parse_literal_expr()
+                element_count = self._parse_const_expr()
                 if not isinstance(element_count, ast.NumericLiteralExpr):
                     raise errors.InvalidExpressionType(
                         location,
@@ -337,7 +364,7 @@ class Parser:
 
             self._expect(types=[TokenType.Comma])
 
-            field_size = self._parse_literal_expr()
+            field_size = self._parse_const_expr()
             if not isinstance(field_size, ast.NumericLiteralExpr):
                 raise errors.InvalidExpressionType(
                     location,
@@ -395,12 +422,8 @@ class Parser:
         # self.scopes.appendLeft({})
         code = []
         self._expect(types=[TokenType.OpenBrace])
-        token = self.lexer.get_next_if_not_matches([TokenType.CloseBrace])
-        while token:
-            debug(f'Got code token {token}')
-            code.append(self.parse_code_node(token))
-            token = self.lexer.get_next_if_not_matches([TokenType.CloseBrace])
-        self._expect(types=[TokenType.CloseBrace])
+        while not self.lexer.skip_next_if_matches([TokenType.CloseBrace]):
+            code.append(self.parse_code_node())
         # self.scopes.popLeft()
         return code
 
@@ -418,8 +441,8 @@ class Parser:
         # req math
         self._expect(types=[TokenType.Requirement], token=token)
         _, req = self.parse_identifier()
-        if req not in self.module.dependency_names:
-            raise RuntimeError(f'Requirement {req} not found in dependencies')
+        if req not in self.requirement_names:
+            raise RuntimeError(f'Requirement {req} not found in requirements')
         return req
 
     def parse_alias(self, token=None):
@@ -436,12 +459,23 @@ class Parser:
         target = self.resolve_identifier(target_location, target_identifier)
         return name, target
 
+    def parse_array_type(self, token=None):
+        token = self._expect(types=[TokenType.Array], token=token)
+        location = token.location.copy()
+        name = self._expect(types=[TokenType.Value]).value
+        type_params = []
+        if self.lexer.next_matches([TokenType.OpenParen]):
+            type_params = self._parse_type_param_list()
+        self._expect(types=[TokenType.Colon])
+        fields = self._parse_struct_field_list(type_params=type_params)
+        return types.Struct(location, name, type_params, fields)
+
     def parse_const(self, token=None):
         # const MAX_SIZE: 64u
         token = self._expect([TokenType.Const], token=token)
         name_token = self._expect([TokenType.Value])
         self._expect([TokenType.Colon])
-        literal_expr = self._parse_literal_expr()
+        literal_expr = self._parse_const_expr()
         return name_token.value, literal_expr
 
     def parse_enum_type(self, token=None):
@@ -451,23 +485,23 @@ class Parser:
         token = self._expect(types=[TokenType.FnType], token=token)
         location = token.location.copy()
         name = self._expect(types=[TokenType.Value]).value
-        parameters, return_type = self._parse_function_signature()
-        return types.FunctionType(location, parameters, return_type, name)
+        params, return_type = self._parse_function_signature()
+        return types.FunctionType(location, params, return_type, name)
 
     def parse_function(self, token=None):
         token = self._expect(types=[TokenType.Fn], token=token)
         location = token.location.copy()
         name = self._expect(types=[TokenType.Value]).value
-        parameters, return_type = self._parse_function_signature()
+        params, return_type = self._parse_function_signature()
         code = self.parse_code()
-        return types.Function(location, parameters, return_type, code, name)
+        return types.Function(location, params, return_type, code, name)
 
     def parse_c_function(self, token=None):
-        location, name, parameters, return_type = self._parse_cfn_or_cfntype(
+        location, name, params, return_type = self._parse_cfn_or_cfntype(
             TokenType.CFn,
             token=token
         )
-        return types.CFunction(location, parameters, return_type, name)
+        return types.CFunction(location, params, return_type, name)
 
     def parse_range_type(self, token=None):
         raise NotImplementedError()
@@ -476,6 +510,7 @@ class Parser:
         token = self._expect(types=[TokenType.CStruct], token=token)
         location = token.location.copy()
         name = self._expect(types=[TokenType.Value]).value
+        self._expect(types=[TokenType.Colon])
         fields = self._parse_ctype_field_list(type_params=[name])
         return types.CStruct(location, fields, name=name)
 
@@ -483,6 +518,7 @@ class Parser:
         token = self._expect(types=[TokenType.CUnion], token=token)
         location = token.location.copy()
         name = self._expect(types=[TokenType.Value]).value
+        self._expect(types=[TokenType.Colon])
         fields = self._parse_ctype_field_list(type_params=[name])
         return types.CUnion(location, fields, name=name)
 
@@ -491,9 +527,9 @@ class Parser:
         location = token.location.copy()
         name = self._expect(types=[TokenType.Value]).value
         type_params = []
-        paren_token = self.lexer.get_next_if_matches([TokenType.OpenParen])
-        if paren_token:
-            type_params = self._parse_type_parameter_list(token=paren_token)
+        if self.lexer.next_matches([TokenType.OpenParen]):
+            type_params = self._parse_type_param_list()
+        self._expect(types=[TokenType.Colon])
         fields = self._parse_struct_field_list(type_params=type_params)
         return types.Struct(location, name, type_params, fields)
 
@@ -515,12 +551,14 @@ class Parser:
             interface_location,
             interface_identifier
         )
-        self._expect(types=[TokenType.Comma])
+        self._expect(types=[TokenType.OpenParen])
         impl_type_location, impl_type_identifier = self.parse_identifier()
         implementing_type = self.resolve_identifier(
             impl_type_location,
             impl_type_identifier
         )
+        self._expect(types=[TokenType.CloseParen])
+        self._expect(types=[TokenType.Colon])
         self._expect(types=[TokenType.OpenBrace])
         funcs = []
         while not self.lexer.next_matches(token_types=[TokenType.CloseBrace]):
@@ -629,8 +667,8 @@ class Parser:
                 Operator.Not,
                 self.parse_expression(prec=Operator.max_precedence()+1)
             )
-        elif token.matches_category(TokenType.Value):
-            identifier = self.parse_identifier(token)
+        elif token.matches_type(TokenType.Value):
+            _, identifier = self.parse_identifier(token)
             lookup_expr = ast.LookupExpr(token.location.copy(), identifier)
             if self.lexer.next_matches(token_types=[TokenType.OpenParen]):
                 expr = ast.CallExpr(
@@ -679,32 +717,32 @@ class Parser:
     def parse_code_node(self, token=None):
         token = token or self.lexer.lex()
         if token.matches_type(TokenType.Var):
-            return self.parse_var(token)
+            return self.parse_var(token=token)
         if token.matches_type(TokenType.If):
-            return self.parse_if(token)
+            return self.parse_if(token=token)
         if token.matches_type(TokenType.Else):
-            return self.parse_else(token)
+            return self.parse_else(token=token)
         if token.matches_type(TokenType.Switch):
-            return self.parse_switch(token)
+            return self.parse_switch(token=token)
         if token.matches_type(TokenType.Match):
-            return self.parse_switch(token)
+            return self.parse_switch(token=token)
         if token.matches_type(TokenType.Case):
-            return self.parse_case(token)
+            return self.parse_case(token=token)
         if token.matches_type(TokenType.Default):
-            return self.parse_default(token)
+            return self.parse_default(token=token)
         if token.matches_type(TokenType.For):
-            return self.parse_for(token)
+            return self.parse_for(token=token)
         if token.matches_type(TokenType.Loop):
-            return self.parse_loop(token)
+            return self.parse_loop(token=token)
         if token.matches_type(TokenType.While):
-            return self.parse_while(token)
+            return self.parse_while(token=token)
         if token.matches_type(TokenType.Break):
-            return self.parse_break(token)
+            return self.parse_break(token=token)
         if token.matches_type(TokenType.Continue):
-            return self.parse_continue(token)
+            return self.parse_continue(token=token)
         if token.matches_type(TokenType.Return):
-            return self.parse_return(token)
-        return self.parse_expression(token)
+            return self.parse_return(token=token)
+        return self.parse_expression(token=token)
 
     def parse(self):  # pylint: disable=too-many-locals
         while True:
@@ -733,66 +771,64 @@ class Parser:
             if token.matches_type(TokenType.Alias):
                 name, target = self.parse_alias(token)
                 self.aliases[name] = target
-                print(f'<Alias {name} -> {target}>')
+                debug('parse', f'<alias {name} -> {target}>')
             elif token.matches_type(TokenType.Const):
                 name, literal_expr = self.parse_const(token)
                 self.module.define(name, literal_expr)
-                print(f'<Const {name} -> {literal_expr}>')
+                debug('parse', f'<const {name}:> {literal_expr}>')
             elif token.matches_type(TokenType.Enum):
                 enum = self.parse_enum_type(token)
                 self.module.define(enum.name, enum)
-                print(enum)
+                debug('parse', enum)
             elif token.matches_type(TokenType.FnType):
                 func_type = self.parse_function_type(token)
                 self.module.define(func_type.name, func_type)
-                print(func_type)
+                debug('parse', func_type)
             elif token.matches_type(TokenType.CFnType):
                 cfunc_type = self.parse_c_function_type(token)
                 self.module.define(cfunc_type.name, cfunc_type)
-                print(cfunc_type)
+                debug('parse', cfunc_type)
             elif token.matches_type(TokenType.CBlockFnType):
                 cblockfunc_type = self.parse_c_block_function_type(token)
                 self.module.define(cblockfunc_type.name, cblockfunc_type)
-                print(cblockfunc_type)
+                debug('parse', cblockfunc_type)
             elif token.matches_type(TokenType.Fn):
                 func = self.parse_function(token)
                 self.module.define(func.name, func)
-                print(func)
+                debug('parse', func)
             elif token.matches_type(TokenType.CFn):
                 cfunc = self.parse_c_function(token)
                 self.module.define(cfunc.name, cfunc)
-                print(cfunc)
+                debug('parse', cfunc)
             elif token.matches_type(TokenType.Interface):
                 interface = self.parse_interface_type(token)
                 self.module.define(interface.name, interface)
-                print(interface)
+                debug('parse', interface)
             elif token.matches_type(TokenType.Implementation):
                 implementation = self.parse_implementation(token)
                 # [TODO] Mark type as having implemented the interface
                 # [TODO] Mark interface as having type as an implementation
                 self.module.implementations.append(implementation)
-                print(implementation)
+                debug('parse', implementation)
             elif token.matches_type(TokenType.Module):
                 mod = self.parse_module(token)
-                print(f'<Module {mod}>')
+                debug('parse', f'<Module {mod}>')
             elif token.matches_type(TokenType.Range):
                 range_ = self.parse_range_type(token)
                 self.module.define(range_.name, range_)
-                print(range_)
+                debug('parse', range_)
             elif token.matches_type(TokenType.Requirement):
                 requirement = self.parse_requirement(token)
-                self.requirements.append(requirement)
-                print(f'<Requirement {requirement}>')
+                debug('parse', requirement)
             elif token.matches_type(TokenType.Struct):
                 struct = self.parse_struct_type(token)
                 self.module.define(struct.name, struct)
-                print(struct)
+                debug('parse', struct)
             elif token.matches_type(TokenType.CStruct):
                 cstruct = self.parse_c_struct_type(token)
                 self.module.define(cstruct.name, cstruct)
-                print(cstruct)
+                debug('parse', cstruct)
             elif token.matches_type(TokenType.CUnion):
                 cunion = self.parse_c_union_type(token)
                 self.module.define(cunion.name, cunion)
-                from pprint import pprint
-                pprint(cunion)
+                debug('parse', cunion)

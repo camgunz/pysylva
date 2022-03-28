@@ -175,30 +175,34 @@ TOKEN_MATCHERS = [
     SymbolTokenMatcher(r'%', TokenType.Percent),
     SymbolTokenMatcher(r'~', TokenType.Tilde),
     SymbolTokenMatcher(r'\.\.\.', TokenType.Ellipsis),
+    SymbolTokenMatcher(r'\.\.', TokenType.DoubleDot),
     SymbolTokenMatcher(r'\.', TokenType.Dot),
     SymbolTokenMatcher(r'::', TokenType.DoubleColon),
     SymbolTokenMatcher(r':', TokenType.Colon),
 
     DelimitedTokenMatcher(r'mod', TokenType.Module),
     DelimitedTokenMatcher(r'req', TokenType.Requirement),
-    DelimitedTokenMatcher(r'fn', TokenType.Fn),
-    DelimitedTokenMatcher(r'fntype', TokenType.FnType),
-    DelimitedTokenMatcher(r'struct', TokenType.Struct),
-    DelimitedTokenMatcher(r'variant', TokenType.Variant),
-    DelimitedTokenMatcher(r'enum', TokenType.Enum),
-    DelimitedTokenMatcher(r'range', TokenType.Range),
-
-    DelimitedTokenMatcher(r'(?P<value>cfn)', TokenType.CFn),
-    DelimitedTokenMatcher(r'(?P<value>cfntype)', TokenType.CFnType),
-    DelimitedTokenMatcher(r'(?P<value>cblockfntype)', TokenType.CBlockFnType),
-    DelimitedTokenMatcher(r'(?P<value>cstruct)', TokenType.CStruct),
-    DelimitedTokenMatcher(r'(?P<value>cunion)', TokenType.CUnion),
-
     DelimitedTokenMatcher(r'alias', TokenType.Alias),
+    DelimitedTokenMatcher(r'array', TokenType.Array),
+    DelimitedTokenMatcher(r'const', TokenType.Const),
+    DelimitedTokenMatcher(r'enum', TokenType.Enum),
+    DelimitedTokenMatcher(r'fntype', TokenType.FnType),
+    DelimitedTokenMatcher(r'fn', TokenType.Fn),
     DelimitedTokenMatcher(r'impl', TokenType.Implementation),
     DelimitedTokenMatcher(r'iface', TokenType.Interface),
+    DelimitedTokenMatcher(r'range', TokenType.Range),
+    DelimitedTokenMatcher(r'struct', TokenType.Struct),
+    DelimitedTokenMatcher(r'variant', TokenType.Variant),
 
-    DelimitedTokenMatcher(r'const', TokenType.Const),
+    DelimitedTokenMatcher(r'carray', TokenType.CArray),
+    DelimitedTokenMatcher(r'cbitfield', TokenType.CBitField),
+    DelimitedTokenMatcher(r'cenum', TokenType.CEnum),
+    DelimitedTokenMatcher(r'cfntype', TokenType.CFnType),
+    DelimitedTokenMatcher(r'cblockfntype', TokenType.CBlockFnType),
+    DelimitedTokenMatcher(r'cfn', TokenType.CFn),
+    DelimitedTokenMatcher(r'cstruct', TokenType.CStruct),
+    DelimitedTokenMatcher(r'cunion', TokenType.CUnion),
+
     DelimitedTokenMatcher(r'var', TokenType.Var),
     DelimitedTokenMatcher(r'if', TokenType.If),
     DelimitedTokenMatcher(r'else', TokenType.Else),
@@ -213,7 +217,7 @@ TOKEN_MATCHERS = [
     DelimitedTokenMatcher(r'continue', TokenType.Continue),
     DelimitedTokenMatcher(r'return', TokenType.Return),
 
-    TokenMatcher(r'(?P<value>[\@]*\w+)', TokenType.Value)
+    TokenMatcher(r'(?P<value>[@]*\w+)', TokenType.Value)
 ]
 
 
@@ -339,7 +343,11 @@ class Lexer:
 
     def get_next_if_matches(self, token_types=None, token_categories=None):
         state = self.get_state()
-        token = self.lex()
+        try:
+            token = self.lex()
+        except errors.EOF:
+            self.set_state(state)
+            return None
         if not token.matches(token_types, token_categories):
             self.set_state(state)
             return None
@@ -347,7 +355,11 @@ class Lexer:
 
     def get_next_if_not_matches(self, token_types=None, token_categories=None):
         state = self.get_state()
-        token = self.lex()
+        try:
+            token = self.lex()
+        except errors.EOF:
+            self.set_state(state)
+            return None
         if token.matches(token_types, token_categories):
             self.set_state(state)
             return None
@@ -355,7 +367,14 @@ class Lexer:
 
     def skip_next_if_matches(self, token_types=None, token_categories=None):
         state = self.get_state()
-        if not self.lex().matches(token_types, token_categories):
+        try:
+            matches = self.lex().matches(token_types, token_categories)
+        except errors.EOF:
             self.set_state(state)
             return False
-        return True
+
+        if matches:
+            return True
+
+        self.set_state(state)
+        return False
