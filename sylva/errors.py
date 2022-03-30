@@ -30,29 +30,38 @@ class LocationError(SylvaError):
 class UnexpectedTokenType(LocationError):
 
     def __init__(self, token, expected_token_types):
-        super().__init__(token.location, (
-            f'Unexpected token type {token.token_type} ({token}); '
-            f'expected: {strlist(expected_token_types)}'
-        ))
+        super().__init__(
+            token.location,
+            (
+                f'Unexpected token type {token.token_type} ({token}); '
+                f'expected: {strlist(expected_token_types)}'
+            )
+        )
 
 
 class UnexpectedTokenCategory(LocationError):
 
     def __init__(self, token, expected_token_categories):
-        super().__init__(token.location, (
-            f'Unexpected token {token}; '
-            f'expected: {strlist(expected_token_categories)}'
-        ))
+        super().__init__(
+            token.location,
+            (
+                f'Unexpected token {token}; '
+                f'expected: {strlist(expected_token_categories)}'
+            )
+        )
 
 
 class UnexpectedToken(LocationError):
 
     def __init__(self, token, expected_token_types, expected_token_categories):
-        super().__init__(token.location, (
-            f'Unexpected token {token}; '
-            f'expected: {strlist(expected_token_types)} or '
-            f' {strlist(expected_token_categories)}'
-        ))
+        super().__init__(
+            token.location,
+            (
+                f'Unexpected token {token}; '
+                f'expected: {strlist(expected_token_types)} or '
+                f' {strlist(expected_token_categories)}'
+            )
+        )
 
 
 class SignedSizeError(LocationError):
@@ -103,8 +112,7 @@ class InvalidOperatorArity(LocationError):
 
     def __init__(self, location, expected_arity):
         super().__init__(
-            location,
-            f'Expected {expected_arity.name.lower()} operator'
+            location, f'Expected {expected_arity.name.lower()} operator'
         )
 
 
@@ -116,7 +124,7 @@ class UndefinedSymbol(LocationError):
 
 class DuplicateDefinition(LocationError):
 
-    def __init__(self, existing_location, location):
+    def __init__(self, location, existing_location):
         super().__init__(
             location,
             f'Variable already defined: [{existing_location.shorthand}]'
@@ -134,8 +142,8 @@ class MutatingBuiltins(SylvaError):
     def __init__(self, builtin_module_statements):
         super().__init__(
             'Cannot modify builtins:\n' + '\n'.join([
-                f'\t{module_name}: {location.pformat()}'
-                for location, module_name in builtin_module_statements
+                f'\t{module_name}: {location.pformat()}' for location,
+                module_name in builtin_module_statements
             ])
         )
 
@@ -148,7 +156,7 @@ class RedundantAlias(LocationError):
 
 class DuplicateAlias(LocationError):
 
-    def __init__(self, location, name):
+    def __init__(self, location, existing_location, name):
         super().__init__(location, f'Alias {name} already defined')
 
 

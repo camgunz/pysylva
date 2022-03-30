@@ -30,7 +30,7 @@ lextest: install ## Run lexer tests
 .PHONY: parsetest
 
 parsetest: install ## Run parser tests
-	sylva --output-folder sbuild/ --only-parse examples/poker_hand_eval.sy
+	sylva --output-folder sbuild/ --only-parse examples/hello.sy
 
 .PHONY: utest
 

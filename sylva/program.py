@@ -1,4 +1,5 @@
-from . import sylva
+from . import errors, sylva
+
 from .codegen import CodeGen
 from .compiler import Compiler
 from .module_loader import ModuleLoader
@@ -7,37 +8,33 @@ from .stdlib import Stdlib
 
 class Program:
 
-    def __init__(self, data_sources, stdlib_path=None, target_triple=None):
-        self.stdlib = Stdlib.FromPath(stdlib_path or 'stdlib')
+    def __init__(self, streams, stdlib_path=None, target_triple=None):
+        # [TODO] Do some kind of searching
+        self.stdlib_path = stdlib_path or 'stdlib'
+        self.stdlib = Stdlib.FromPath(self.stdlib_path)
         self.stdlib_modules = {
             module.name: module
-            for module in ModuleLoader.load_from_data_sources(
-                self,
-                self.stdlib.data_sources
-            )
+            for module in
+            ModuleLoader.load_from_streams(self, self.stdlib.streams)
         }
 
-        unordered_modules = {
+        self.modules = {
             module.name: module
-            for module in ModuleLoader.load_from_data_sources(
-                self,
-                data_sources
-            )
+            for module in ModuleLoader.load_from_streams(self, streams)
         }
 
-        # [TODO] Do some kind of searching
-        self.stdlib_path = stdlib_path
-
-        for module in unordered_modules.values():
-            module.resolve_requirements([])
+        for module in self.modules.values():
+            module.resolve_requirements()
 
         ordered_modules = []
-        for module in unordered_modules.values():
+        for module in self.modules.values():
             self.order_module(module, ordered_modules)
 
         self.modules = {module.name: module for module in ordered_modules}
 
         self.compiler = Compiler(target_triple)
+
+        self._vars = {}
 
     def order_module(self, module, modules):
         if module in modules:
@@ -59,8 +56,7 @@ class Program:
         compiler = Compiler()
         for module in self.modules.values():
             compiler.compile_ir_to_file(
-                module.get_ir(),
-                output_folder / module.name
+                module.get_ir(), output_folder / module.name
             )
 
     def get_module(self, name):
@@ -79,3 +75,16 @@ class Program:
 
     def get_default_module(self):
         return self.get_main_module()
+
+    def lookup(self, module_name, name):
+        # [NOTE] Sometimes it's OK for lookups to fail, so don't raise an
+        #        exception
+        return self._vars.get(f'{module_name}.{name}')
+
+    def define(self, module_name, name, value):
+        existing_value = self.lookup(module_name, name)
+        if existing_value:
+            raise errors.DuplicateDefinition(
+                value.location, existing_value.location
+            )
+        self._vars[f'{module_name}.{name}'] = value

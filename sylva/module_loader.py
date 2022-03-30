@@ -1,71 +1,102 @@
-import itertools
-
 from collections import defaultdict
 
-from . import sylva
+from antlr4 import InputStream
 
-from .keyword_scanner import RequirementScanner, ModuleScanner, ScannedItem
+from .ast import ModuleStmt, RequirementStmt
+from .listener import SylvaListener
 from .location import Location
 from .module import Module
+from .parser_utils import parse_with_listener
+
+
+class ModuleScanner(SylvaListener):
+
+    def __init__(self, stream=None):
+        self._stream = stream
+        self.module_statements = []
+
+    def exitModuleDecl(self, ctx):
+        self.module_statements.append(
+            ModuleStmt(
+                Location.FromContext(ctx, self._stream),
+                ctx.children[1].getText()
+            )
+        )
+
+
+class RequirementScanner(SylvaListener):
+
+    def __init__(self, stream=None):
+        self._stream = stream
+        self.requirement_statements = []
+
+    def exitRequirementDecl(self, ctx):
+        self.requirement_statements.append(
+            RequirementStmt(
+                Location.FromContext(ctx, self._stream),
+                ctx.children[1].getText()
+            )
+        )
 
 
 class ModuleLoader:
 
     @staticmethod
-    def get_module_statements_from_data_sources(data_sources):
+    def get_module_statements_from_streams(streams):
         module_statements = []
-        for data_source in data_sources:
-            ds_module_statements = ModuleScanner.scan(data_source)
-            if not ds_module_statements:
-                module_statements.append(ScannedItem(
-                    Location(data_source),
-                    sylva.MAIN_MODULE_NAME
-                ))
-            else:
-                first = ds_module_statements[0].location
-                if not first.is_top:
-                    ds_module_statements.insert(0, ScannedItem(
-                        Location(first.location.data_source),
-                        sylva.MAIN_MODULE_NAME
-                    ))
-                module_statements.extend(ds_module_statements)
+        for s in streams:
+            ms = ModuleScanner(s)
+            parse_with_listener(s, ms)
+            module_statements.extend(ms.module_statements)
         return module_statements
 
     @staticmethod
-    def gather_requirements_from_data_sources(data_sources):
-        dep_lists = [RequirementScanner.scan(ds) for ds in data_sources]
+    def gather_requirements_from_streams(streams):
+        requirement_statements = []
+        for s in streams:
+            rs = RequirementScanner(s)
+            parse_with_listener(s, rs)
+            requirement_statements.extend(rs.requirement_statements)
         seen = set()
         return [
-            dep for dep in itertools.chain(*dep_lists)
-            if not dep.name in seen
-            and not seen.add(dep.name)
+            req for req in requirement_statements
+            if not req.name in seen and not seen.add(req.name)
         ]
 
     @staticmethod
-    def load_from_data_sources(program, input_data_sources):
-        names_to_data_sources = defaultdict(list)
+    def load_from_streams(program, input_streams):
+        names_to_streams = defaultdict(list)
+
         module_statements = (
-            ModuleLoader.get_module_statements_from_data_sources(
-                input_data_sources
-            )
+            ModuleLoader.get_module_statements_from_streams(input_streams)
         )
-        for module_statement in module_statements:
-            location = module_statement.location
-            data_source = location.data_source.copy()
-            data_source.set_begin(location)
-            subsequent_module_statements = [
-                ms for ms in module_statements
-                if ms.location.data_source == location.data_source
-                and ms.location > location
-            ]
-            if subsequent_module_statements:
-                next_module_statement = sorted(subsequent_module_statements)[0]
-                next_location = next_module_statement.location
-                data_source.set_end(next_location)
-            names_to_data_sources[module_statement.name].append(data_source)
-        return [Module(
-            program,
-            name,
-            data_sources,
-            ModuleLoader.gather_requirements_from_data_sources(data_sources)
-        ) for name, data_sources in names_to_data_sources.items()]
+
+        if not module_statements:
+            return []
+
+        for n, ms in enumerate(module_statements):
+            loc = ms.location
+            s = loc.stream
+            next_loc = (
+                module_statements[n + 1].location
+                if n + 1 < len(module_statements) else None
+            )
+
+            if next_loc and s == next_loc.stream:
+                data = str(s)[loc.index:next_loc.index]
+            else:
+                data = str(s)[loc.index:]
+
+            stream = InputStream(data + '\n')
+            stream.name = loc.stream_name
+            names_to_streams[ms.name].append(stream)
+
+        return [
+            Module(
+                program,
+                name,
+                streams,
+                ModuleLoader.gather_requirements_from_streams(streams)
+            ) for name,
+            streams in names_to_streams.items()
+        ]

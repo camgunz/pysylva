@@ -5,7 +5,7 @@ available on a specific shape of data.
 
 ```sylva
 iface Orderable {
-  get_rank: (self: Orderable): num,
+  get_rank: (self: Orderable): uint,
   comes_before: (self: Orderable, other: Orderable): bool {
     return self.get_rank() < other.get_rank()
   },
@@ -16,13 +16,13 @@ iface Sortable {
 }
 
 impl Sortable(&[Orderable]) {
-  fn sort(self: &[Orderable]!) {
+  sort: (self: &[Orderable]!) {
     ...
   },
 }
 
 impl Orderable(int) {
-  get_rank: (self: int): num {
+  get_rank: (self: int): uint {
     return self
   },
 }

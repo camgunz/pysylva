@@ -1,13 +1,25 @@
-import ctypes
-import decimal
-
-from . import errors
-
-
 class ASTNode:
 
     def __init__(self, location):
         self.location = location
+
+
+class Stmt(ASTNode):
+    pass
+
+
+class ModuleStmt(Stmt):
+
+    def __init__(self, location, name):
+        super().__init__(location)
+        self.name = name
+
+
+class RequirementStmt(Stmt):
+
+    def __init__(self, location, name):
+        super().__init__(location)
+        self.name = name
 
 
 class Expr(ASTNode):
@@ -26,30 +38,15 @@ class LiteralExpr(Expr):
 
 
 class BooleanLiteralExpr(LiteralExpr):
-
-    @classmethod
-    def from_token(cls, token):
-        if token.value == 'false':
-            return cls(token.location.copy(), token.value, False)
-        if token.value == 'true':
-            return cls(token.location.copy(), token.value, True)
-        raise errors.LiteralParseFailure(cls, token, 'Invalid value')
+    pass
 
 
 class RuneLiteralExpr(LiteralExpr):
-
-    @classmethod
-    def from_token(cls, token):
-        if len(token.value) != 1:
-            raise errors.LiteralParseFailure(cls, token, 'Length != 1')
-        return cls(token.location.copy(), token.value, token.value)
+    pass
 
 
 class StringLiteralExpr(LiteralExpr):
-
-    @classmethod
-    def from_token(cls, token):
-        return cls(token.location.copy(), token.value, token.value)
+    pass
 
 
 class NumericLiteralExpr(LiteralExpr):
@@ -64,48 +61,6 @@ class IntegerLiteralExpr(NumericLiteralExpr):
         self.size = size
         self.overflow = overflow
 
-    @classmethod
-    def from_token(cls, token):
-        try:
-            value = int(token.value, token['base'])
-        except Exception as e:
-            raise errors.LiteralParseFailure(cls, token, str(e))
-
-        if token['signedness'] == 'i':
-            signed = True
-        elif token['signedness'] == 'u':
-            signed = False
-        else:
-            raise errors.LiteralParseFailure(cls, token, 'Invalid signedness')
-
-        size = token.get('size')
-        if size:
-            try:
-                size = int(size)
-            except Exception:
-                raise errors.LiteralParseFailure(
-                    cls, token, 'Invalid size'
-                ) from None
-        else:
-            size = ctypes.sizeof(ctypes.c_int) * 8
-
-        if token['overflow'] == 'w':
-            overflow = 'wrap'
-        elif token['overflow'] == 'c':
-            overflow = 'clamp'
-        elif not token['overflow']:
-            overflow = None
-        else:
-            raise errors.LiteralParseFailure(
-                cls,
-                token,
-                'Invalid overflow handler'
-            )
-
-        return cls(
-            token.location.copy(), token.value, value, signed, size, overflow
-        )
-
 
 class FloatLiteralExpr(NumericLiteralExpr):
 
@@ -114,79 +69,12 @@ class FloatLiteralExpr(NumericLiteralExpr):
         self.size = size
         self.round = round
 
-    @classmethod
-    def from_token(cls, token):
-        try:
-            value = float(token.value)
-        except Exception as e:
-            raise errors.LiteralParseFailure(cls, token, str(e))
-
-        size = token.get('size')
-        if size:
-            try:
-                size = int(size)
-            except Exception:
-                raise (
-                    errors.LiteralParseFailure(cls, token, 'Invalid size')
-                ) from None
-        else:
-            size = ctypes.sizeof(ctypes.c_float) * 8
-
-        if token['round'] == 'rn':
-            round = 'nearest'
-        elif token['round'] == 'ru':
-            round = 'up'
-        elif token['round'] == 'rd':
-            round = 'down'
-        elif token['round'] == 'rz':
-            round = 'towards_zero'
-        elif token['round'] == 'ra':
-            round = 'away_from_zero'
-        elif not token['round']:
-            round = 'nearest'
-        else:
-            raise errors.LiteralParseFailure(
-                cls,
-                token,
-                'Invalid rounding mode'
-            )
-
-        return cls(token.location.copy(), token.value, value, size, round)
-
 
 class DecimalLiteralExpr(NumericLiteralExpr):
 
     def __init__(self, location, raw_value, value, round):
         super().__init__(location, raw_value, value)
         self.round = round
-
-    @classmethod
-    def from_token(cls, token):
-        try:
-            value = decimal.Decimal(token.value)
-        except Exception as e:
-            raise errors.LiteralParseFailure(cls, token, str(e))
-
-        if token['round'] == 'rn':
-            round = 'nearest'
-        if token['round'] == 'ru':
-            round = 'up'
-        elif token['round'] == 'rd':
-            round = 'down'
-        elif token['round'] == 'rz':
-            round = 'towards_zero'
-        elif token['round'] == 'ra':
-            round = 'away_from_zero'
-        elif not token['round']:
-            round = None
-        else:
-            raise errors.LiteralParseFailure(
-                cls,
-                token,
-                'Invalid rounding mode'
-            )
-
-        return cls(token.location.copy(), token.value, value, round)
 
 
 class CallExpr(Expr):
@@ -242,6 +130,21 @@ class LookupExpr(Expr):
 
     def __repr__(self):
         return 'Lookup(%r)' % (self.identifier)
+
+
+class Interface(ASTNode):
+
+    def __init__(self, location, func_types=None, funcs=None):
+        super().__init__(location)
+        self.location = location
+        self.func_types = func_types or []
+        self.funcs = funcs or []
+        self.implementing_types = {}
+
+    def __repr__(self):
+        return 'Interface(%r, %r, %r)' % (
+            self.location, self.func_types, self.funcs
+        )
 
 
 class Implementation(ASTNode):

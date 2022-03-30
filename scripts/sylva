@@ -1,15 +1,14 @@
 #!/usr/bin/env python
 
 import argparse
-import sys
 import traceback
 
 from pathlib import Path
 
+from antlr4 import FileStream
+
 # pylint: disable=import-self, no-name-in-module
 from sylva import errors, debug
-from sylva.data_source import DataSource
-from sylva.lexer import Lexer
 from sylva.program import Program
 
 
@@ -29,45 +28,13 @@ def print_bar(msg):
     print()
 
 
-def lex(file_paths):
-    """Lexes files and prints output."""
-    print_bar('Lexing')
-    for file_path in file_paths:
-        try:
-            for token in Lexer(DataSource.FromFile(file_path)):
-                print(token)
-        except errors.SylvaError as error:
-            debug('main', traceback.format_exc())
-            print(error.pformat())
-
-
 def parse(file_paths, stdlib=None, target_triple=None):
     """Parses files and prints output."""
     print_bar('Parsing')
-    # pylint: disable=import-outside-toplevel, unused-import
-    from pprint import pprint
-    # pylint: disable=import-outside-toplevel
-    import pyparsing as pp
-    # pylint: disable=no-name-in-module, import-outside-toplevel, unused-import
-    from sylva.peg import Expr, Module
-
-    # pylint: disable=unreachable
-    Module.create_diagram('grammar.html')
-
-    for file_path in file_paths:
-        try:
-            result = Module.set_debug().parse_file(file_path, parse_all=True)
-            print(result.dump())
-        except pp.ParseException as pe:
-            print(pe.explain())
-
-    return
-
-    # pylint: disable=unreachable
-    data_sources = [DataSource.FromFile(file_path) for file_path in file_paths]
+    streams = [FileStream(str(file_path)) for file_path in file_paths]
     try:
         program = Program(
-            data_sources, stdlib_path=stdlib, target_triple=target_triple
+            streams, stdlib_path=stdlib, target_triple=target_triple
         )
     except errors.SylvaError as error:
         debug('main', traceback.format_exc())
@@ -84,10 +51,10 @@ def parse(file_paths, stdlib=None, target_triple=None):
 def compile(file_paths, output_folder, stdlib=None, target_triple=None):
     """Compiles files."""
     print_bar('Compiling')
-    data_sources = [DataSource.FromFile(file_path) for file_path in file_paths]
+    streams = [FileStream(str(file_path)) for file_path in file_paths]
     try:
         program = Program(
-            data_sources, stdlib_path=stdlib, target_triple=target_triple
+            streams, stdlib_path=stdlib, target_triple=target_triple
         )
         program.compile(output_folder)
     except errors.SylvaError as error:
@@ -99,9 +66,6 @@ def main():
     """Main function."""
     parser = argparse.ArgumentParser(description='Sylva')
     parser.add_argument(
-        '--only-lex', action='store_true', help='Only perform lexing'
-    )
-    parser.add_argument(
         '--only-parse', action='store_true', help='Only perform parsing'
     )
     parser.add_argument('--stdlib', type=str, help='Path to standard library')
@@ -109,17 +73,11 @@ def main():
     parser.add_argument(
         '--output-folder', type=Path, required=True, help='Output folder'
     )
-    parser.add_argument('files', type=str, nargs='+', help='Files to compile')
+    parser.add_argument('files', type=Path, nargs='+', help='Files to compile')
 
     args = parser.parse_args()
 
-    if all([args.only_lex, args.only_parse]):
-        parser.print_help()
-        sys.exit(2)
-
-    if args.only_lex:
-        lex(args.files)
-    elif args.only_parse:
+    if args.only_parse:
         parse(args.files, args.stdlib, args.target)
     else:
         compile(args.files, args.output_folder, args.stdlib, args.target)

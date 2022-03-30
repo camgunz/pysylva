@@ -1,0 +1,6 @@
+mod result
+
+variant Result(ok_type, failure_type) {
+  OK: ok_type,
+  Failure: failure_type
+}

@@ -1,8 +1,3 @@
-# Grammar
-
-Below is Sylva's grammar written for ANTLR4.
-
-```
 grammar Sylva;
 
 module :
@@ -328,4 +323,3 @@ VALUE : [a-zA-Z_][a-zA-Z0-9_]* ;
 COMMENT : '#' .*? [\r\n] -> skip ;
 
 BS : [ \t\r\n]+ -> skip ;
-```
