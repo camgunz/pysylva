@@ -1,4 +1,4 @@
-from . import errors, sylva
+from . import errors, sylva, types
 
 from .codegen import CodeGen
 from .compiler import Compiler
@@ -35,6 +35,7 @@ class Program:
         self.compiler = Compiler(target_triple)
 
         self._vars = {}
+        self._vars.update(types.BUILTINS)
 
     def order_module(self, module, modules):
         if module in modules:
@@ -76,15 +77,16 @@ class Program:
     def get_default_module(self):
         return self.get_main_module()
 
-    def lookup(self, module_name, name):
+    def lookup(self, name):
         # [NOTE] Sometimes it's OK for lookups to fail, so don't raise an
         #        exception
-        return self._vars.get(f'{module_name}.{name}')
+        return self._vars.get(name)
 
     def define(self, module_name, name, value):
-        existing_value = self.lookup(module_name, name)
+        full_name = f'{module_name}.{name}'
+        existing_value = self.lookup(full_name)
         if existing_value:
             raise errors.DuplicateDefinition(
                 value.location, existing_value.location
             )
-        self._vars[f'{module_name}.{name}'] = value
+        self._vars[full_name] = value

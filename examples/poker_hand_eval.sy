@@ -2,10 +2,6 @@ mod poker
 
 req random
 
-req blah
-
-req bloo
-
 range Score 1u8..10u8
 
 range Value 1u8..14u8
@@ -18,7 +14,6 @@ enum Suit {
   Diamond: 2u8,
   Heart:   3u8,
 }
-
 
 variant Rank {
   Single: {

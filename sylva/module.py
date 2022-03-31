@@ -1,4 +1,4 @@
-from . import errors
+from . import debug, errors
 from .codegen import CodeGen
 from .module_builder import ModuleBuilder
 from .parser_utils import parse_with_listener
@@ -64,6 +64,7 @@ class Module: # pylint: disable=too-many-instance-attributes
         return CodeGen(self).compile_module()
 
     def add_alias(self, name, value):
+        debug('module_builder', f'alias {name} -> {value}')
         existing_alias = self._aliases.get(name)
         if existing_alias:
             raise errors.DuplicateAlias(
@@ -72,7 +73,14 @@ class Module: # pylint: disable=too-many-instance-attributes
         self._aliases[name] = value
 
     def lookup(self, name):
-        return self._program.lookup(self.name, name)
+        aliased_value = self._aliases.get(name)
+        if aliased_value:
+            return aliased_value
+        unqualified_value = self._program.lookup(name)
+        if unqualified_value:
+            return unqualified_value
+        return self._program.lookup(f'{self.name}.{name}')
 
     def define(self, name, value):
+        debug('module_builder', f'define {self.name}.{name} -> {value}')
         return self._program.define(self.name, name, value)

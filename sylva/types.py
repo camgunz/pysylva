@@ -7,14 +7,23 @@ class SylvaType:
     def type_name(self):
         return type(self).__name__
 
+    @property
+    def name(self):
+        return self.type_name
+
+    def __repr__(self):
+        return f'{self.name}()'
+
+    def __str__(self):
+        return f'<{self.name}>'
+
 
 class SylvaMetaType(SylvaType):
 
-    __slots__ = ('location', 'name')
+    __slots__ = ('location',)
 
-    def __init__(self, location, name):
+    def __init__(self, location):
         self.location = location
-        self.name = name
 
 
 class CBitField(SylvaType):
@@ -29,10 +38,7 @@ class CBitField(SylvaType):
 
     def __repr__(self):
         return 'CBitField(%r, %r, %r, %r)' % (
-            self.location,
-            self.bits,
-            self.signed,
-            self.field_size
+            self.location, self.bits, self.signed, self.field_size
         )
 
     def __str__(self):
@@ -45,20 +51,10 @@ class CVoid(SylvaType):
 
 
 class Scalar(SylvaType):
-
-    @property
-    def name(self):
-        return type(self).__name__
-
-    def __repr__(self):
-        return f'{self.name}()'
-
-    def __str__(self):
-        return f'<{self.name}>'
+    pass
 
 
-# Booleans are the native integer type
-class Boolean(Scalar):
+class Boolean(Scalar): # Booleans are the native integer type
     pass
 
 
@@ -74,11 +70,11 @@ class CString(Scalar):
     pass
 
 
-class Decimal(Scalar):
+class Numeric(Scalar):
     pass
 
 
-class Complex(Scalar):
+class SizedNumeric(Numeric):
 
     __slots__ = ('bits',)
 
@@ -86,43 +82,50 @@ class Complex(Scalar):
         self.bits = bits
 
     def __repr__(self):
-        return f'{type(self).__name__}(bits={self.bits})'
+        return f'{self.type_name}(bits={self.bits})'
+
+    def __str__(self):
+        return f'<{self.type_name}{self.bits}>'
 
 
-class Float(Scalar):
+class Decimal(Numeric):
+    pass
 
+
+class Complex(SizedNumeric):
     __slots__ = ('bits',)
 
-    def __init__(self, bits):
-        self.bits = bits
 
-    def __repr__(self):
-        return f'{type(self).__name__}(bits={self.bits})'
+class Float(SizedNumeric):
+    __slots__ = ('bits',)
 
 
-class Integer(Scalar):
+class Integer(SizedNumeric):
 
     __slots__ = ('bits', 'signed')
 
     def __init__(self, bits, signed):
-        self.bits = bits
+        super().__init__(bits)
         self.signed = signed
 
     def __repr__(self):
+        return f'{self.type_name}(bits={self.bits}, signed={self.signed})'
+
+    def __str__(self):
         prefix = 'U' if not self.signed else ''
-        return f'{prefix}{type(self).__name__}(bits={self.bits})'
+        return f'<{prefix}{self.type_name}{self.bits}>'
 
 
 class BaseArray(SylvaMetaType):
 
     def __init__(self, location, element_type, element_count):
-        self.location = location
+        super().__init__(location)
         self.element_type = element_type
         self.element_count = element_count
 
     def __repr__(self):
         return '%s(%r, %r, %r)' % (
-            type(self).__name__,
+            self.type_name,
             self.location,
             self.element_type,
             self.element_count
@@ -131,10 +134,10 @@ class BaseArray(SylvaMetaType):
     def __str__(self):
         if self.element_count:
             return (
-                f'<{type(self).__name__} '
+                f'<{self.type_name} '
                 f'[{self.element_type} * {self.element_count}]>'
             )
-        return f'<{type(self).__name__} [{self.element_type}...]>'
+        return f'<{self.type_name} [{self.element_type}...]>'
 
 
 class Array(BaseArray):
@@ -145,32 +148,16 @@ class CArray(BaseArray):
     pass
 
 
-class Integer(Scalar):
-
-    __slots__ = ('bits', 'signed')
-
-    def __init__(self, bits, signed):
-        self.bits = bits
-        self.signed = signed
-
-    def __repr__(self):
-        prefix = 'U' if not self.signed else ''
-        return f'{prefix}{type(self).__name__}(bits={self.bits})'
-
-
 class Enum(SylvaMetaType):
 
     __slots__ = ('location', 'values')
 
     def __init__(self, location, values):
-        self.location = location
+        super().__init__(location)
         self.values = values
 
     def __repr__(self):
-        return 'Enum(%r, %r)' % (
-            self.location,
-            self.values
-        )
+        return 'Enum(%r, %r)' % (self.location, self.values)
 
     def __str__(self):
         return f'<Enum {self.values}>'
@@ -181,17 +168,14 @@ class Range(SylvaMetaType):
     __slots__ = ('location', 'type', 'min', 'max')
 
     def __init__(self, location, type, min, max):
-        self.location = location
+        super().__init__(location)
         self.type = type
         self.min = min
         self.max = max
 
     def __repr__(self):
         return 'Range(%r, %r, %r, %s)' % (
-            self.location,
-            self.type,
-            self.min,
-            self.max
+            self.location, self.type, self.min, self.max
         )
 
     def __str__(self):
@@ -200,44 +184,34 @@ class Range(SylvaMetaType):
 
 class Interface(SylvaMetaType):
 
-    __slots__ = ('location', 'name', 'function_types', 'functions')
+    __slots__ = ('location', 'function_types', 'functions')
 
-    def __init__(self, location, name, function_types, functions):
-        self.location = location
-        self.name = name
+    def __init__(self, location, function_types, functions):
+        super().__init__(location)
         self.function_types = function_types
         self.functions = functions
 
     def __repr__(self):
-        return 'Interface(%r, %r, %r, %r)' % (
-            self.location,
-            self.name,
-            self.function_types,
-            self.functions
+        return 'Interface(%r, %r, %r)' % (
+            self.location, self.function_types, self.functions
         )
 
     def __str__(self):
-        return f'<Interface {self.name} {self.function_types} {self.functions}>'
+        return f'<Interface {self.function_types} {self.functions}>'
 
 
 class BaseStruct(SylvaMetaType):
 
-    __slots__ = ('location', 'name', 'type_params', 'fields')
+    __slots__ = ('location', 'type_params', 'fields')
 
-    def __init__(self, location, name, type_params, fields):
-        self.location = location
-        self.name = name
+    def __init__(self, location, type_params, fields):
+        super().__init__(location)
         self.type_params = type_params
         self.fields = fields
 
     def __repr__(self):
-        prefix = 'Param' if self.type_params else ''
-        return '%s%s(%r, %r, %r)' % (
-            prefix,
-            type(self).__name__,
-            self.location,
-            self.name,
-            self.fields
+        return '%s(%r, %r, %r)' % (
+            self.type_name, self.location, self.type_params, self.fields
         )
 
     def __str__(self):
@@ -245,153 +219,146 @@ class BaseStruct(SylvaMetaType):
         fields = ', '.join([
             f'{name}: {type}' for name, type in self.fields.items()
         ])
-        return f'<{type_name} {self.name} {{{fields}}}>'
+        return f'<{type_name} {{{fields}}}>'
 
 
 class Struct(BaseStruct):
-    __slots__ = ('location', 'name', 'type_params', 'fields')
+    __slots__ = ('location', 'type_params', 'fields')
 
 
 class CStruct(BaseStruct):
 
-    __slots__ = ('location', 'type_params', 'fields', 'name')
+    __slots__ = ('location', 'type_params', 'fields')
 
-    def __init__(self, location, fields, name=None):
-        super().__init__(location, name, [], fields)
+    def __init__(self, location, fields):
+        super().__init__(location, [], fields)
 
 
 class Variant(SylvaMetaType):
 
-    __slots__ = ('location', 'name', 'fields')
+    __slots__ = ('location', 'fields')
 
-    def __init__(self, location, name, fields):
-        self.location = location
-        self.name = name
+    def __init__(self, location, fields):
+        super().__init__(location)
         self.fields = fields
 
     def __repr__(self):
-        return 'Variant(%r, %r, %r)' % (
-            self.location,
-            self.name,
-            self.fields
-        )
+        return 'Variant(%r, %r)' % (self.location, self.fields)
 
     def __str__(self):
         fields = self.fields or {}
-        fields = ', '.join([f'{name}: {type}' for name, type in fields.items()])
-        return f'<Variant {self.name} {{{fields}}}>'
+        fields = ', '.join([
+            f'{name}: {type}' for name, type in fields.items()
+        ])
+        return f'<Variant {{{fields}}}>'
 
 
 class CUnion(SylvaMetaType):
 
-    __slots__ = ('location', 'name', 'fields')
+    __slots__ = ('location', 'fields')
 
-    def __init__(self, location, fields, name=None):
-        self.location = location
-        self.name = name
+    def __init__(self, location, fields):
+        super().__init__(location)
         self.fields = fields
 
     def __repr__(self):
-        return 'CUnion(%r, %r, %r)' % (
-            self.location,
-            self.name,
-            self.fields
-        )
+        return 'CUnion(%r, %r)' % (self.location, self.fields)
 
     def __str__(self):
-        fields = ', '.join([f'{name}: {type}' for name, type in self.fields.items()])
-        name = self.name if self.name else '(anonymous)'
-        return f'<CUnion {name} {{{fields}}}>'
+        fields = ', '.join([
+            f'{name}: {type}' for name, type in self.fields.items()
+        ])
+        return f'<CUnion {{{fields}}}>'
 
 
 class BaseFunctionType(SylvaMetaType):
 
-    __slots__ = ('location', 'parameters', 'return_type', 'name')
+    __slots__ = ('location', 'parameters', 'return_type')
 
-    def __init__(self, location, parameters, return_type, name=None):
-        self.location = location
+    def __init__(self, location, parameters, return_type):
+        super().__init__(location)
         self.parameters = parameters
         self.return_type = return_type
-        self.name = name
 
     def __repr__(self):
-        return '%s(%r, %r, %r, %r)' % (
-            type(self).__name__,
+        return '%s(%r, %r, %r)' % (
+            self.type_name,
             self.location,
             self.parameters,
             self.return_type,
-            self.name
         )
 
     def __str__(self):
-        name = self.name if self.name else ''
-        parameters = ', '.join([f'{n}: {t}' for n, t in self.parameters])
+        parameters = ', '.join([
+            f'{n}: {t}' for n, t in self.parameters.items()
+        ])
         return_type = f': {self.return_type}' if self.return_type else ''
-        return f'<{type(self).__name__} {name}({parameters}){return_type}>'
+        return f'<{self.type_name} ({parameters}){return_type}>'
 
 
 class FunctionType(BaseFunctionType):
-    __slots__ = ('location', 'parameters', 'return_type', 'name')
+    __slots__ = ('location', 'parameters', 'return_type')
 
 
 class CFunctionType(BaseFunctionType):
-    __slots__ = ('location', 'parameters', 'return_type', 'name')
+    __slots__ = ('location', 'parameters', 'return_type')
 
 
 class CBlockFunctionType(BaseFunctionType):
-    __slots__ = ('location', 'parameters', 'return_type', 'name')
+    __slots__ = ('location', 'parameters', 'return_type')
 
 
 class BaseFunction(SylvaMetaType):
 
-    __slots__ = ('location', 'parameters', 'return_type', 'code', 'name')
+    __slots__ = ('location', 'parameters', 'return_type', 'code')
 
-    def __init__(self, location, parameters, return_type, code, name=None):
-        self.location = location
+    def __init__(self, location, parameters, return_type, code):
+        super().__init__(location)
         self.parameters = parameters
         self.return_type = return_type
         self.code = code
-        self.name = name
 
     def __repr__(self):
-        return '%s(%r, %r, %r, %r, %r)' % (
-            type(self).__name__,
+        return '%s(%r, %r, %r, %r)' % (
+            self.type_name,
             self.location,
             self.parameters,
             self.return_type,
-            self.name,
             self.code,
         )
 
     def __str__(self):
-        name = self.name if self.name else ''
-        parameters = ', '.join([f'{n}: {t}' for n, t in self.parameters])
+        parameters = ', '.join([
+            f'{n}: {t}' for n, t in self.parameters.items()
+        ])
         return_type = f': {self.return_type}' if self.return_type else ''
-        return f'<{type(self).__name__} {name}({parameters}){return_type}>'
-
+        return f'<{self.type_name} ({parameters}){return_type}>{{{self.code}}}'
 
 
 class Function(BaseFunction):
-    __slots__ = ('location', 'parameters', 'return_type', 'code', 'name')
+    __slots__ = ('location', 'parameters', 'return_type', 'code')
 
 
 class CFunction(BaseFunction):
 
-    __slots__ = ('location', 'parameters', 'return_type', 'code', 'name')
+    __slots__ = ('location', 'parameters', 'return_type', 'code')
 
-    def __init__(self, location, parameters, return_type, name=None):
-        super().__init__(
-            location, parameters, return_type, code=None, name=name
-        )
+    def __init__(self, location, parameters, return_type):
+        super().__init__(location, parameters, return_type, code=None)
 
 
 class CPtr(SylvaMetaType):
 
     __slots__ = ('location', 'referenced_type')
 
-    def __init__(self, location, referenced_type, referenced_type_is_mutable,
-                 is_mutable):
-        self.location = location
+    def __init__(
+        self,
+        location,
+        referenced_type,
+        referenced_type_is_mutable,
+        is_mutable
+    ):
+        super().__init__(location)
         self.referenced_type = referenced_type
         self.referenced_type_is_mutable = referenced_type_is_mutable
         self.is_mutable = is_mutable
@@ -405,24 +372,23 @@ class CPtr(SylvaMetaType):
         )
 
     def __str__(self):
+        ref_is_mutable = self.referenced_type_is_mutable
         return (
-            f'<CPtr {self.referenced_type} {self.referenced_type_is_mutable} '
-            f'{self.is_mutable}>'
+            f'<CPtr{"!" if self.is_mutable else ""} '
+            f'{self.referenced_type}{"!" if ref_is_mutable else ""}>'
         )
 
 
 class ReferencePointer(SylvaMetaType):
 
     def __init__(self, location, referenced_type, is_mutable):
-        self.location = location
+        super().__init__(location)
         self.referenced_type = referenced_type
         self.is_mutable = is_mutable
 
     def __repr__(self):
         return 'ReferencePointer(%r, %r, %r)' % (
-            self.location,
-            self.referenced_type,
-            self.is_mutable
+            self.location, self.referenced_type, self.is_mutable
         )
 
     def __str__(self):
@@ -432,7 +398,7 @@ class ReferencePointer(SylvaMetaType):
 class OwnedPointer(SylvaMetaType):
 
     def __init__(self, location, referenced_type):
-        self.location = location
+        super().__init__(location)
         self.referenced_type = referenced_type
 
     def __repr__(self):
@@ -457,7 +423,6 @@ BUILTINS = {
     # 'cblockfntype': CBlockFunctionType(), # meta
     # 'cfn': CFunction(), # meta
     # 'cptr': CPtr(), # meta
-
     'cvoid': CVoid(),
     'bool': Boolean(),
     'c16': Complex(16),
@@ -470,7 +435,7 @@ BUILTINS = {
     'f32': Float(32),
     'f64': Float(64),
     'f128': Float(128),
-    'int': Integer(ctypes.sizeof(ctypes.c_int) * 8, signed=True),
+    'int': Integer(ctypes.sizeof(ctypes.c_size_t) * 8, signed=True),
     'i8': Integer(8, signed=True),
     'i16': Integer(16, signed=True),
     'i32': Integer(32, signed=True),
@@ -478,7 +443,7 @@ BUILTINS = {
     'i128': Integer(128, signed=True),
     'rune': Rune(),
     'str': String(),
-    'uint': Integer(ctypes.sizeof(ctypes.c_int) * 8, signed=False),
+    'uint': Integer(ctypes.sizeof(ctypes.c_size_t) * 8, signed=False),
     'u8': Integer(8, signed=False),
     'u16': Integer(16, signed=False),
     'u32': Integer(32, signed=False),

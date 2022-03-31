@@ -89,18 +89,18 @@ exprList : (expr ',')* (expr ','?)? ;
 
 expr :
   literal                                                # LiteralExpr
+  | '(' exprList ')'                                     # ParenExpr
+  | '[' exprList ']'                                     # ArrayExpr
   | (identifier | carrayTypeLiteral) arrayConstLiteral   # CArrayLiteralExpr
   | 'cptr' '(' expr ')'                                  # CPointerLiteralExpr
-  | (identifier | cstructTypeLiteral) structConstLiteral # CStructLiteralExpr
-  | (identifier | cunionTypeLiteral) structConstLiteral  # CUnionLiteralExpr
-  | 'cvoid' '(' expr ')' # CVoidLiteralExpr
+  | (identifier | cstructTypeLiteral) '{' exprList '}'   # CStructLiteralExpr
+  | (identifier | cunionTypeLiteral) '{' exprList '}'    # CUnionLiteralExpr
+  | 'cvoid' '(' expr ')'                                 # CVoidLiteralExpr
+  | singleIdentifier                                     # SingleLookupExpr
+  | expr ('.' | '::') expr                               # LookupExpr
   | expr '[' expr ']'                                    # IndexExpr
   | expr '(' exprList ')'                                # FunctionCallExpr
   | expr '(' typeLiteralList ')' '(' exprList ')'        # ParamFunctionCallExpr
-  | singleIdentifier                                     # SingleLookupExpr
-  | expr ('.' | '::') expr                               # LookupExpr
-  | '(' exprList ')'                                     # ParenExpr
-  | '[' exprList ']'                                     # ArrayExpr
   | expr ('++' | '--')                                   # IncDecExpr
   | ('+' | '-' | '~' | '!' ) expr                        # UnaryExpr
   | <assoc=right> expr '**' expr                         # PowerExpr
