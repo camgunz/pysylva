@@ -1,6 +1,6 @@
 from . import ast, errors, types
 
-from .listener import SylvaListener
+from .listener import SylvaParserListener
 from .location import Location
 from .parser import SylvaParser
 
@@ -172,6 +172,7 @@ def build_param_list_from_type_literal_pairs(module, pairs):
 
 
 def build_cstruct_from_type_literal(module, location, literal):
+    # [TODO] Check for duplicate fields
     return types.CStruct(
         location,
         build_param_list_from_type_literal_pairs(
@@ -182,6 +183,7 @@ def build_cstruct_from_type_literal(module, location, literal):
 
 
 def build_cunion_from_type_literal(module, location, literal):
+    # [TODO] Check for duplicate fields
     return types.CUnion(
         location,
         build_param_list_from_type_literal_pairs(
@@ -340,7 +342,7 @@ def lookup_identifier(module, identifier):
     return value
 
 
-class ModuleBuilder(SylvaListener):
+class ModuleBuilder(SylvaParserListener):
 
     def __init__(self, module):
         self.module = module

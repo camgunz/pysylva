@@ -131,6 +131,20 @@ class DuplicateDefinition(LocationError):
         )
 
 
+class DefinitionViolation(LocationError):
+
+    def __init__(self, location, name):
+        super().__init__(
+            location, f'Cannot define "{name}" in external module'
+        )
+
+
+class RedefinedBuiltIn(LocationError):
+
+    def __init__(self, location, name):
+        super().__init__(location, f'Cannot redefine builtin "{name}"')
+
+
 class NoSuchModule(LocationError):
 
     def __init__(self, location, module_name):

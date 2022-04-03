@@ -1,6 +1,7 @@
-from . import debug, errors
+from . import debug, errors, types
 from .codegen import CodeGen
 from .module_builder import ModuleBuilder
+from .module_checker import ModuleChecker
 from .parser_utils import parse_with_listener
 
 
@@ -14,6 +15,7 @@ class Module: # pylint: disable=too-many-instance-attributes
         self._parsed = False
 
         self._aliases = {}
+        self.vars = {}
 
         self.requirements = set()
 
@@ -59,6 +61,9 @@ class Module: # pylint: disable=too-many-instance-attributes
             module_builder = ModuleBuilder(self)
             parse_with_listener(stream, module_builder)
 
+    def check(self):
+        ModuleChecker(self).check()
+
     def get_ir(self):
         self.parse()
         return CodeGen(self).compile_module()
@@ -76,11 +81,25 @@ class Module: # pylint: disable=too-many-instance-attributes
         aliased_value = self._aliases.get(name)
         if aliased_value:
             return aliased_value
-        unqualified_value = self._program.lookup(name)
-        if unqualified_value:
-            return unqualified_value
-        return self._program.lookup(f'{self.name}.{name}')
+        local_value = self.vars.get(name)
+        if local_value:
+            return local_value
+        if '.' in name:
+            module, name = name.split('.', 1)
+            self._program.get_module(module)
+            if module:
+                return module.lookup(name)
+        return types.BUILTINS.get(name)
 
     def define(self, name, value):
         debug('module_builder', f'define {self.name}.{name} -> {value}')
-        return self._program.define(self.name, name, value)
+        existing_value = self.vars.get(name)
+        if existing_value:
+            raise errors.DuplicateDefinition(
+                value.location, existing_value.location
+            )
+        if '.' in name and self._program.get_module(name.split('.', 1)[0]):
+            raise errors.DefinitionViolation(value.location, name)
+        if name in types.BUILTINS:
+            raise errors.RedefinedBuiltIn(value.location, name)
+        self.vars[name] = value

@@ -23,7 +23,7 @@ syntax keyword SylvaType fn
 syntax keyword SylvaType fntype
 syntax keyword SylvaType range
 syntax keyword SylvaType enum
-syntax keyword SylvaType carray cbitfield, cptr cstr cstruct cunion cvoid
+syntax keyword SylvaType carray cbitfield cptr cstr cstruct cunion cvoid
 syntax keyword SylvaType cfn cfntype cblockfntype
 
 syntax keyword SylvaBoolean true false

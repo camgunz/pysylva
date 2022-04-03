@@ -1,6 +1,5 @@
-from . import errors, sylva, types
+from . import sylva
 
-from .codegen import CodeGen
 from .compiler import Compiler
 from .module_loader import ModuleLoader
 from .stdlib import Stdlib
@@ -34,9 +33,6 @@ class Program:
 
         self.compiler = Compiler(target_triple)
 
-        self._vars = {}
-        self._vars.update(types.BUILTINS)
-
     def order_module(self, module, modules):
         if module in modules:
             return
@@ -51,6 +47,10 @@ class Program:
     def parse(self):
         for module in self.modules.values():
             module.parse()
+
+    def check(self):
+        for module in self.modules.values():
+            module.check()
 
     def compile(self, output_folder):
         # [TODO] Something about name and output folder...?
@@ -76,17 +76,3 @@ class Program:
 
     def get_default_module(self):
         return self.get_main_module()
-
-    def lookup(self, name):
-        # [NOTE] Sometimes it's OK for lookups to fail, so don't raise an
-        #        exception
-        return self._vars.get(name)
-
-    def define(self, module_name, name, value):
-        full_name = f'{module_name}.{name}'
-        existing_value = self.lookup(full_name)
-        if existing_value:
-            raise errors.DuplicateDefinition(
-                value.location, existing_value.location
-            )
-        self._vars[full_name] = value
