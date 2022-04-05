@@ -171,10 +171,87 @@ class RedundantAlias(LocationError):
 class DuplicateAlias(LocationError):
 
     def __init__(self, location, existing_location, name):
-        super().__init__(location, f'Alias {name} already defined')
+        super().__init__(
+            location,
+            f'Alias {name} already defined at {existing_location.shorthand}'
+        )
 
 
 class CircularDependency(SylvaError):
 
     def __init__(self, module, seen):
         super().__init__(f'Circular dependency: {module} cannot be in {seen}')
+
+
+class EmptyVariant(LocationError):
+
+    def __init__(self, variant):
+        super().__init__(variant.location, 'Variant has no fields')
+
+
+class DuplicateVariantFields(LocationError):
+
+    def __init__(self, name, variant, dupes):
+        super().__init__(
+            variant.location, f'Duplicate fields in {name}: {strlist(dupes)}'
+        )
+
+
+class DuplicateEnumFields(LocationError):
+
+    def __init__(self, name, enum, dupes):
+        super().__init__(
+            enum.location, f'Duplicate fields in {name}: {strlist(dupes)}'
+        )
+
+
+class EmptyEnum(LocationError):
+
+    def __init__(self, enum):
+        super().__init__(enum.location, 'Enum has no fields')
+
+
+class MismatchedEnumMemberType(LocationError):
+
+    def __init__(self, type, member):
+        super().__init__(
+            member.location,
+            f'Mismatched enum type: expected {type}; got {member.type}'
+        )
+
+
+class MissingTypeParam(LocationError):
+
+    def __init__(self, location, type_param):
+        super().__init__(location, f'Missing type parameter {type_param}')
+
+
+class DuplicateStructFields(LocationError):
+
+    def __init__(self, name, struct, dupes):
+        super().__init__(
+            struct.location, f'Duplicate fields in {name}: {strlist(dupes)}'
+        )
+
+
+class DuplicateCStructFields(LocationError):
+
+    def __init__(self, name, cstruct, dupes):
+        super().__init__(
+            cstruct.location, f'Duplicate fields in {name}: {strlist(dupes)}'
+        )
+
+
+class DuplicateCFunctionParameters(LocationError):
+
+    def __init__(self, name, cfunction, dupes):
+        super().__init__(
+            cfunction.location,
+            f'Duplicate parameters in {name}: {strlist(dupes)}'
+        )
+
+
+class UnsizedCArray(LocationError):
+
+    def __init__(self, location):
+        super().__init__(location, 'Missing size in carray')

@@ -13,6 +13,7 @@ class Operator(enum.Enum):
 
     Multiply = ('*', 100)
     Divide = ('/', 100)
+    FloorDivide = ('//', 100)
     Remainder = ('%', 100)
 
     Plus = ('+', 90, 110)

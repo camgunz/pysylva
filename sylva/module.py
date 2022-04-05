@@ -1,5 +1,4 @@
 from . import debug, errors, types
-from .codegen import CodeGen
 from .module_builder import ModuleBuilder
 from .module_checker import ModuleChecker
 from .parser_utils import parse_with_listener
@@ -58,15 +57,20 @@ class Module: # pylint: disable=too-many-instance-attributes
         for requirement in self.requirements:
             requirement.parse()
         for stream in self._streams:
-            module_builder = ModuleBuilder(self)
+            module_builder = ModuleBuilder(self, stream)
             parse_with_listener(stream, module_builder)
 
     def check(self):
-        ModuleChecker(self).check()
-
-    def get_ir(self):
         self.parse()
-        return CodeGen(self).compile_module()
+        checker = ModuleChecker(self)
+        checker.check()
+        return checker.errors
+
+    def compile(self):
+        program_errors = self.check()
+        if program_errors:
+            return '', program_errors
+        return self._program.compiler.compile_module(self), []
 
     def add_alias(self, name, value):
         debug('module_builder', f'alias {name} -> {value}')

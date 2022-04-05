@@ -32,6 +32,11 @@ lextest: install ## Run lexer tests
 parsetest: install ## Run parser tests
 	sylva --output-folder sbuild/ --only-parse examples/hello.sy
 
+.PHONY: checktest
+
+checktest: install ## Run checker tests
+	sylva --output-folder sbuild/ --only-check examples/hello.sy
+
 .PHONY: utest
 
 utest: install ## Run unit tests

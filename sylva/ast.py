@@ -40,9 +40,6 @@ class LiteralExpr(Expr):
     def __repr__(self):
         return f'{type(self).__name__}({repr(self.value)})'
 
-    def to_string(self):
-        return self.raw_value
-
 
 class BooleanLiteralExpr(LiteralExpr):
 
@@ -61,15 +58,9 @@ class StringLiteralExpr(LiteralExpr):
     def __init__(self, location, raw_value):
         super().__init__(location, raw_value, raw_value[1:-1])
 
-    @property
-    def is_template_string(self):
-        return
-
 
 class NumericLiteralExpr(LiteralExpr):
-
-    def to_string(self):
-        return str(self.value)
+    pass
 
 
 class IntegerLiteralExpr(NumericLiteralExpr):

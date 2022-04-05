@@ -49,16 +49,21 @@ class Program:
             module.parse()
 
     def check(self):
+        errors = []
         for module in self.modules.values():
-            module.check()
+            errors.extend(module.check())
+        return errors
 
     def compile(self, output_folder):
-        # [TODO] Something about name and output folder...?
-        compiler = Compiler()
+        errors = []
         for module in self.modules.values():
-            compiler.compile_ir_to_file(
-                module.get_ir(), output_folder / module.name
-            )
+            with open(output_folder / module.name, 'wb') as fobj:
+                module_object_code, module_errors = module.compile()
+                if module_errors:
+                    errors.extend(module_errors)
+                else:
+                    fobj.write(module_object_code)
+        return errors
 
     def get_module(self, name):
         try:

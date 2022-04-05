@@ -28,20 +28,37 @@ def print_bar(msg):
     print()
 
 
-def parse(file_paths, stdlib=None, target_triple=None):
-    """Parses files and prints output."""
-    print_bar('Parsing')
-    streams = [FileStream(str(file_path)) for file_path in file_paths]
+def _load_program(file_paths, stdlib=None, target_triple=None):
+    s = [FileStream(str(file_path)) for file_path in file_paths]
     try:
-        program = Program(
-            streams, stdlib_path=stdlib, target_triple=target_triple
-        )
+        return Program(s, stdlib_path=stdlib, target_triple=target_triple)
     except errors.SylvaError as error:
         debug('main', traceback.format_exc())
         print(error.pformat())
 
+
+def parse(file_paths, stdlib=None, target_triple=None):
+    """Parses files and prints output."""
+    print_bar('Parsing')
+    program = _load_program(file_paths, stdlib, target_triple)
+
     try:
         program.parse()
+    except errors.SylvaError as error:
+        debug('main', traceback.format_exc())
+        print(error.pformat())
+
+
+def check(file_paths, stdlib=None, target_triple=None):
+    """Checks files and prints output."""
+    print_bar('Checking')
+    program = _load_program(file_paths, stdlib, target_triple)
+
+    try:
+        program_errors = program.check()
+        for error in program_errors:
+            print(error.pformat())
+            print()
     except errors.SylvaError as error:
         debug('main', traceback.format_exc())
         print(error.pformat())
@@ -51,12 +68,14 @@ def parse(file_paths, stdlib=None, target_triple=None):
 def compile(file_paths, output_folder, stdlib=None, target_triple=None):
     """Compiles files."""
     print_bar('Compiling')
-    streams = [FileStream(str(file_path)) for file_path in file_paths]
+    program = _load_program(file_paths, stdlib, target_triple)
+
     try:
-        program = Program(
-            streams, stdlib_path=stdlib, target_triple=target_triple
-        )
-        program.compile(output_folder)
+        program_errors = program.compile(output_folder)
+        print(program_errors)
+        for error in program_errors:
+            print(error.pformat())
+            print()
     except errors.SylvaError as error:
         debug('main', traceback.format_exc())
         print(error.pformat())
@@ -67,6 +86,9 @@ def main():
     parser = argparse.ArgumentParser(description='Sylva')
     parser.add_argument(
         '--only-parse', action='store_true', help='Only perform parsing'
+    )
+    parser.add_argument(
+        '--only-check', action='store_true', help='Only perform checking'
     )
     parser.add_argument('--stdlib', type=str, help='Path to standard library')
     parser.add_argument('--target', type=str, help='Compilation target')
@@ -79,6 +101,8 @@ def main():
 
     if args.only_parse:
         parse(args.files, args.stdlib, args.target)
+    elif args.only_check:
+        check(args.files, args.stdlib, args.target)
     else:
         compile(args.files, args.output_folder, args.stdlib, args.target)
 

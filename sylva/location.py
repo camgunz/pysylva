@@ -5,7 +5,7 @@ class Location:
 
     __slots__ = ('stream', 'index', 'line', 'column')
 
-    def __init__(self, stream, index=0, line=1, column=1):
+    def __init__(self, stream, index=0, line=1, column=0):
         self.stream = stream
         self.index = index
         self.line = line
@@ -68,4 +68,4 @@ class Location:
         lines = str(self.stream).splitlines()
 
         return '\n'.join([lines[i] for i in line_indices if lines[i]] +
-                         [('-' * (self.column - 1)) + '^'])
+                         [('-' * self.column) + '^'])

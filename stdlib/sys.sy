@@ -19,11 +19,13 @@ fn printerr(message: str) {
 }
 
 fn echo(message: str) {
-  print("{message}\n")
+  print(message)
+  print("\n")
 }
 
 fn echoerr(message: str) {
-  printerr("{message}\n")
+  printerr(message)
+  printerr("\n")
 }
 
 fn echoexit(code: i32, message: str) {
