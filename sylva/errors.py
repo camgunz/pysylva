@@ -226,29 +226,10 @@ class MissingTypeParam(LocationError):
         super().__init__(location, f'Missing type parameter {type_param}')
 
 
-class DuplicateStructFields(LocationError):
+class DuplicateFields(LocationError):
 
-    def __init__(self, name, struct, dupes):
-        super().__init__(
-            struct.location, f'Duplicate fields in {name}: {strlist(dupes)}'
-        )
-
-
-class DuplicateCStructFields(LocationError):
-
-    def __init__(self, name, cstruct, dupes):
-        super().__init__(
-            cstruct.location, f'Duplicate fields in {name}: {strlist(dupes)}'
-        )
-
-
-class DuplicateCFunctionParameters(LocationError):
-
-    def __init__(self, name, cfunction, dupes):
-        super().__init__(
-            cfunction.location,
-            f'Duplicate parameters in {name}: {strlist(dupes)}'
-        )
+    def __init__(self, obj, dupes):
+        super().__init__(obj.location, f'Duplicate fields: {strlist(dupes)}')
 
 
 class UnsizedCArray(LocationError):

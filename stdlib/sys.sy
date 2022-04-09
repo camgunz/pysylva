@@ -10,29 +10,29 @@ fn abort() {
   libc.abort()
 }
 
-fn print(message: str) {
+fn print(message: &str) {
   libc.write(libc.STDOUT_FILENO, cptr(cvoid(message)), message::size)
 }
 
-fn printerr(message: str) {
+fn printerr(message: &str) {
   libc.write(libc.STDERR_FILENO, cptr(cvoid(message)), message::size)
 }
 
-fn echo(message: str) {
+fn echo(message: &str) {
   print(message)
   print("\n")
 }
 
-fn echoerr(message: str) {
+fn echoerr(message: &str) {
   printerr(message)
   printerr("\n")
 }
 
-fn echoexit(code: i32, message: str) {
+fn echoexit(code: i32, message: &str) {
   echoerr(message)
   exit(code)
 }
 
-fn die(message: str) {
+fn die(message: &str) {
   echoexit(-1i32, message)
 }

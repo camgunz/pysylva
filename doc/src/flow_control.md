@@ -10,12 +10,12 @@ Some old friends here:
 req random
 
 fn get_random_name(): str {
-  var index: random.random(int)(0, 3)
+  let index: random.random(int)(0, 3)
 
   switch (index) {
     case (0) { return "Alice" }
     case (1) { return "Bernadette" }
-    case (2) { return "Cynthia" }
+    case (2) { return "Charlie" }
     case (3) { return "Diana" }
     default  { return "" }
   }
@@ -25,37 +25,35 @@ fn get_random_name(): str {
 
 fn main() {
   loop {
-    var loop_name: get_random_name()
+    let loop_name: get_random_name()
 
     if (loop_name == "Alice") {
       break
     }
 
-    sys.echo("Got a name: {loop_name}")
+    if (loop_name == "Bernadette") {
+      continue
+    }
+
+    if (loop_name == "Charlie") {
+      sys.echo("Whoa! Hey there {loop_name}")
+    }
+    else {
+      sys.echo("Got a name: {loop_name}")
+    }
   }
 
-  var while_name: get_random_name()
+  let while_name: get_random_name()
 
   while (while_name != "Alice") {
     sys.echo("Got a name: {while_name}")
     while_name = get_random_name()
   }
 
-  for (name: get_random_name(); name != "Alice"; name = get_random_name()) {
+  for (i: 0..14) {
     sys.echo("Got a name: {name}")
   }
-
-  loop {
-    var loop_name: get_random_name()
-
-    if (loop_name == "Alice") {
-      continue
-    }
-
-    sys.echo("Got a name: {loop_name}")
-  }
 }
-
 ```
 
 In practice, try to avoid explicit looping constructs. There are usually
@@ -88,21 +86,21 @@ variant Shape {
 
 fn get_shape_area(shape: &Shape): dec {
   match (shape) {
-    case (c: Shape.Circle) {
+    case (c: Circle) {
       return math.PI * (c.radius ** 2)
     }
-    case (s: Shape.Square) {
+    case (s: Square) {
       return s.side_length ** 2
     }
-    case (r: Shape.Rectangle) {
+    case (r: Rectangle) {
       return r.width * r.height
     }
   }
 }
 
 fn main() {
-  var circle = Shape.Circle{radius: 14}
-  var rectangle = Shape.Rectangle{width: 8, height: 9}
+  let circle = Shape.Circle{radius: 14}
+  let rectangle = Shape.Rectangle{width: 8, height: 9}
 
   sys.echo(
     "Area of a circle of radius {circle.radius}: {get_shape_area(circle)}"

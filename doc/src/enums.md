@@ -106,9 +106,9 @@ fn main() {
 }
 ```
 
-### `each`
+### Iterating
 
-`each` allows the programmer to iterate over an enum's values:
+Using `::indices` and `::get`, it's possible to iterate over an enum's values:
 
 ```sylva
 req sys
@@ -124,19 +124,20 @@ enum Day {
 }
 
 fn main() {
-  Day::each(fn (day: Day) {
-    sys.echo("Day: {day}")
-  })
+  for (i: Day::indices) {
+    sys.echo("Day: {Day::get(i)}")
+  }
 }
 ```
 
 ## Enums vs. ranges and variants
 
-- Enums: collections of constant values
 - Ranges: collections of numbers
-- Variants: collections of types
+- Enums: collections of named constant values
+- Variants: collections of named types
 
 It may help to distinguish between enums and ranges by keeping in mind that
 arithmetic on enums is impossible. Enums are required to be neither continuous
 nor numeric. To return to the above example, the expression `Day("Sunday") -
-Day("Monday")` is nonsensical.
+Day("Monday")` is nonsensical; enum values cannot be constructed, only
+referenced.

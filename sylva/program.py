@@ -1,13 +1,15 @@
 from . import sylva
 
-from .compiler import Compiler
 from .module_loader import ModuleLoader
 from .stdlib import Stdlib
+from .target import Target
 
 
 class Program:
 
     def __init__(self, streams, stdlib_path=None, target_triple=None):
+        self.target = Target(target_triple=target_triple)
+
         # [TODO] Do some kind of searching
         self.stdlib_path = stdlib_path or 'stdlib'
         self.stdlib = Stdlib.FromPath(self.stdlib_path)
@@ -31,8 +33,6 @@ class Program:
 
         self.modules = {module.name: module for module in ordered_modules}
 
-        self.compiler = Compiler(target_triple)
-
     def order_module(self, module, modules):
         if module in modules:
             return
@@ -44,24 +44,14 @@ class Program:
     def is_executable(self):
         return sylva.MAIN_MODULE_NAME in self.modules
 
-    def parse(self):
-        for module in self.modules.values():
-            module.parse()
-
-    def check(self):
-        errors = []
-        for module in self.modules.values():
-            errors.extend(module.check())
-        return errors
-
     def compile(self, output_folder):
         errors = []
         for module in self.modules.values():
-            with open(output_folder / module.name, 'wb') as fobj:
-                module_object_code, module_errors = module.compile()
-                if module_errors:
-                    errors.extend(module_errors)
-                else:
+            module_object_code, module_errors = module.get_object_code()
+            if module_errors:
+                errors.extend(module_errors)
+            else:
+                with open(output_folder / module.name, 'wb') as fobj:
                     fobj.write(module_object_code)
         return errors
 

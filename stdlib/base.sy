@@ -1,0 +1,38 @@
+mod base
+
+mod base.stringable
+
+iface Stringable {
+  to_string(self: Stringable): *str
+  to_string_ref(self: Stringable): &str
+}
+
+mod base.result
+
+req sys
+
+variant Result<ok_type> {
+  OK: ok_type,
+  Fail: Stringable,
+}
+
+fn on_failure<ok_type> (
+  r: Result(ok_type),
+  handler: fntype(s: Stringable)
+): Result(ok_type, failed_type) {
+  match (r) {
+    case (stringable: Fail) { handler(stringable) }
+    default {}
+  }
+
+  return r
+}
+
+fn succeed_or_die<ok_type> (
+  r: Result(ok_type)
+): ok_type {
+  match (r) {
+    case (value: OK) { return success }
+    case (stringable: Fail) { sys.die(stringable.to_string()) }
+  }
+}

@@ -1,8 +1,33 @@
+import enum
+
 from . import ast, debug, errors, types
 
 from .listener import SylvaParserListener
 from .location import Location
 from .parser import SylvaParser
+
+
+class TypeModifier(enum.Enum):
+    Raw = enum.auto()
+    Pointer = enum.auto()
+    Reference = enum.auto()
+    ExclusiveReference = enum.auto()
+
+    @classmethod
+    def FromTypeLiteral(cls, type_literal):
+        first_child = type_literal.children[0].getText()
+        last_child = type_literal.children[-1].getText()
+
+        if first_child == '*':
+            return cls.Pointer
+
+        if not first_child == '&':
+            return cls.Raw
+
+        if last_child == '!':
+            return cls.ExclusiveReference
+
+        return cls.Reference
 
 
 class ModuleBuilder(SylvaParserListener):
@@ -227,11 +252,11 @@ class ModuleBuilder(SylvaParserListener):
         )
 
 
-    def get_or_create_type_literal(self, location, literal, deferrable=False):
+    def get_or_create_type_literal(self, location, literal, deferrable=False,
+                                   modifier=TypeModifier.Raw):
         if isinstance(literal, types.SylvaType):
+            # Already built it
             return literal
-        if literal.arrayTypeLiteral():
-            pass
         if literal.carrayTypeLiteral():
             carray = literal.carrayTypeLiteral()
             element_count = (
@@ -328,11 +353,29 @@ class ModuleBuilder(SylvaParserListener):
             pass
         if literal.cvoidTypeLiteral():
             return self.module.lookup('cvoid')
+        if literal.arrayTypeLiteral():
+            modifier = TypeModifier.FromTypeLiteral(literal)
         if literal.functionTypeLiteral():
-            pass
+            modifier = TypeModifier.FromTypeLiteral(literal)
+        if literal.paramTypeLiteral():
+            modifier = TypeModifier.FromTypeLiteral(literal)
+        if literal.rangeTypeLiteral():
+            modifier = TypeModifier.FromTypeLiteral(literal)
+        if literal.structTypeLiteral():
+            modifier = TypeModifier.FromTypeLiteral(literal)
         if literal.identifier():
             name = literal.getText()
+            modifier = TypeModifier.FromTypeLiteral(literal)
+
+            if modifier == TypeModifier.Pointer:
+                name = name[1:]
+            elif modifier == TypeModifier.Reference:
+                name = name[1:]
+            elif modifier == TypeModifier.ExclusiveReference:
+                name = name[1:-1]
+
             value = self.module.lookup(name)
+
             if value is None:
                 if deferrable:
                     debug('compile', f'Adding deferred type lookup for {name}')
@@ -341,16 +384,14 @@ class ModuleBuilder(SylvaParserListener):
                         name
                     )
                 raise errors.UndefinedSymbol(location, name)
-            return self.get_or_create_type_literal(location, value)
-        if literal.paramTypeLiteral():
-            pass
-        if literal.rangeTypeLiteral():
-            pass
-        if literal.structTypeLiteral():
-            pass
+
+            return self.get_or_create_type_literal(
+                location,
+                value,
+                modifier=modifier
+            )
 
         raise Exception(f'Unknown type literal {literal.getText()}')
-
 
     def eval_const_literal(self, location, literal):
         if literal.arrayConstLiteral():

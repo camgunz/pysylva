@@ -6,43 +6,30 @@ failures. Sylva does this using variants, specifically a `Result` `variant`,
 very similar to Rust:
 
 ```sylva
-req sys
-
-variant Result(ok_type, failed_type) {
+variant Result<ok_type> {
   OK: ok_type,
-  Fail: failed_type,
+  Fail: Stringable,
 }
 
-fn on_failure(ok_type, failed_type) (
-    r: Result(ok_type, failed_type),
-    handler: fntype(f: failed_type)
-  ): Result(ok_type, failed_type) {
+fn on_failure<ok_type> (
+  r: Result(ok_type),
+  handler: fntype(s: Stringable)
+): Result(ok_type, failed_type) {
   match (r) {
-    case (failed_variant: Result.Fail) {
-      handler(failed_variant)
-    }
+    case (stringable: Fail) { handler(stringable) }
     default {}
   }
 
   return r
 }
 
-fn succeed_or_die(ok_type, failed_type) (
-    r: Result(ok_type, failed_type),
-    handler: fntype(f: failed_type)
-  ): Result(ok_type, failed_type) {
+fn succeed_or_die<ok_type> (
+  r: Result(ok_type)
+): ok_type {
   match (r) {
-    case (f: Result.Fail) {
-      sys.die("{f}")
-    }
-    default {}
+    case (value: OK) { return success }
+    case (stringable: Fail) { sys.die(stringable.to_string()) }
   }
-
-  return r
-}
-
-fn succeed_or_die(r: Result(ok_type, failed_type)): ok_type {
-  r.on_failure(fn(f: failed_type) { sys.die("{failed_type}") }).OK
 }
 ```
 
@@ -71,16 +58,16 @@ fn main() {
 This simple function `increment` attempts to return the result of `age +
 Age(1)`, and this surprisingly yields an error. This is because that expression
 has the potential to extend the value beyond its range--imagine if `age` were
-already `Age(250u8)`--and the operation returns a `Result(age, RangeError)`,
-but `increment`'s return value is `Age`. Simply changing the function's return
-type fixes this error:
+already `Age(250u8)`--and the operation returns a `Result<age>`, but
+`increment`'s return value is `Age`. Simply changing the function's return type
+fixes this error:
 
 ```sylva
 req sys
 
 range Age 0u8..250u8
 
-fn increment(age: Age): Result(age, RangeError) {
+fn increment(age: Age): Result<age> {
   return age++ # Potential failure!
 }
 
@@ -103,7 +90,7 @@ fn increment(age: Age): Age {
     case (new_age: OK) {
       return new_age
     }
-    case (failure: RangeError) {
+    case (failure: Fail) {
       sys.die("Out of range")
     }
   }
@@ -156,31 +143,32 @@ enum MathFailure {
   NegativeSquareRoot: "Negative square root"
 }
 
-alias FloatResult: Result(f64, MathFailure)
+alias MathResult: Result<f64>
 
-fn div(x: f64, y: f64): FloatResult {
-  if (y == 0.0) {
+fn div(x: f64, y: f64): MathResult {
+  if (y == 0f64) {
     # This operation would 'fail', instead let's return the reason of the
-    # failure wrapped in Failure
-    return FloatResult.Fail.DivisionByZero
+    # failure wrapped in Fail
+    return MathResult.Fail.DivisionByZero
   }
-  return FloatResult.OK(x / y)
+  # This operation is valid, return the result wrapped in `OK`
+  return MathResult.OK(x / y)
 }
 
-fn sqrt(x: f64): FloatResult {
-  if (x < 0.0) {
-    return FloatResult.Fail.NegativeSquareRoot
+fn sqrt(x: f64): MathResult {
+  if (x < 0f64) {
+    return MathResult.Fail.NegativeSquareRoot
   }
 
-  return FloatResult.OK(x.sqrt())
+  return MathResult.OK(x.sqrt())
 }
 
-fn ln(x: f64): FloatResult {
-  if (x <= 0.0) {
-    return FloatResult.Fail.NonPositiveLogarithm
+fn ln(x: f64): MathResult {
+  if (x <= 0f64) {
+    return MathResult.Fail.NonPositiveLogarithm
   }
 
-  return FloatResult.OK(x.ln())
+  return MathResult.OK(x.ln())
 }
 
 mod main
@@ -191,16 +179,22 @@ req checked
 # `op(x, y)` == `sqrt(ln(x / y))`
 fn op(x: f64, y: f64): f64 {
   # This is a three level match pyramid!
-  var div_res: checked.div(x, y).succeed_or_die()
-  var ln_res: checked.ln(div_res).succeed_or_die()
-  var sqrt_res: checked.sqrt(ln_res).succeed_or_die()
+  let div_res: checked.div(x, y).succeed_or_die()
+  let ln_res: checked.ln(div_res).succeed_or_die()
+  let sqrt_res: checked.sqrt(ln_res).succeed_or_die()
 
   return sqrt_res
+
+  return checked.sqrt(
+    checked.ln(
+      checked.div(x, y).succeed_or_die()
+    ).succeed_or_die()
+  ).succeed_or_die()
 }
 
 fn main() {
   # Will this fail?
-  sys.echo("{op(1.0f64, 10.0f64)}")
+  sys.echo(str(op(1f64, 10f64)))
 }
 ```
 

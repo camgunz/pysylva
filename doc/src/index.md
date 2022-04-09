@@ -21,12 +21,8 @@ fn print_usage() {
   sys.die("Usage: hello [name] [age]")
 }
 
-fn print_usage_on_failure(_: Failure) {
-  print_usage()
-}
-
 fn have_birthday(person: &Person!) {
-  person.age = (person.age + Age(1)).on_failure((f: Failure) {
+  person.age = (person.age + Age(1)).on_failure((f: Age::RangeFailure) {
     sys.die("Person {person.name} is already the max age {person.age}")
   })
 }
@@ -36,15 +32,15 @@ fn greet_person(person: &Person) {
 }
 
 fn main() {
-  var person: Person{
-    name: sys.args.get(1).on_failure((f: Failure) {
+  let person: Person{
+    name: sys.args.get(1).on_failure((f: sys.args::IndexFailure) {
       print_usage()
     })
     age: Age.parse_from_string(
-      sys.args.get(2).on_failure((f: Failure) {
+      sys.args.get(2).on_failure((f: sys.args::IndexFailure) {
         print_usage()
       })
-    ).on_failure((f: Failure) {
+    ).on_failure((f: sys.args::IndexFailure) {
       sys.echoerr("Invalid age: {f}")
       print_usage()
     })

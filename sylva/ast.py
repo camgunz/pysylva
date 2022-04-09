@@ -206,32 +206,6 @@ class LookupExpr(Expr):
         )
 
 
-class Interface(ASTNode):
-
-    def __init__(self, location, func_types=None, funcs=None):
-        super().__init__(location)
-        self.func_types = func_types or []
-        self.funcs = funcs or []
-        self.implementing_types = {}
-
-    def __repr__(self):
-        return 'Interface(%r, %r)' % (self.func_types, self.funcs)
-
-
-class Implementation(ASTNode):
-
-    def __init__(self, location, interface, implementing_type, funcs):
-        super().__init__(location)
-        self.interface = interface
-        self.implementing_type = implementing_type
-        self.funcs = funcs
-
-    def __repr__(self):
-        return 'Implementation(%r, %r, %r)' % (
-            self.interface, self.implementing_type, self.funcs
-        )
-
-
 class DeferredLookup(ASTNode):
 
     def __init__(self, location, value):

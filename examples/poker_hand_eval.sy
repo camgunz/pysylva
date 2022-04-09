@@ -8,14 +8,7 @@ range Value 1u8..14u8
 
 range DeckSize 0u8..52u8
 
-enum Suit {
-  Spade:   0u8,
-  Club:    1u8,
-  Diamond: 2u8,
-  Heart:   3u8,
-}
-
-variant Rank {
+variant RankVariant {
   Single: {
     name: str,
     score: Score,
@@ -30,80 +23,87 @@ variant Rank {
   }
 }
 
-struct Card {
+enum Rank {
+  Ace:   RankVariant.Double{"Ace",   Score(1), Score(10), Value(1), Value(14)},
+  Two:   RankVariant.Single{"Two",   Score(2),            Value(2)},
+  Three: RankVariant.Single{"Three", Score(3),            Value(3)},
+  Four:  RankVariant.Single{"Four",  Score(4),            Value(4)},
+  Five:  RankVariant.Single{"Five",  Score(5),            Value(5)},
+  Six:   RankVariant.Single{"Six",   Score(6),            Value(6)},
+  Seven: RankVariant.Single{"Seven", Score(7),            Value(7)},
+  Eight: RankVariant.Single{"Eight", Score(8),            Value(8)},
+  Nine:  RankVariant.Single{"Nine",  Score(9),            Value(9)},
+  Ten:   RankVariant.Single{"Ten",   Score(10),           Value(10)},
+  Jack:  RankVariant.Single{"Jack",  Score(10),           Value(11)},
+  Queen: RankVariant.Single{"Queen", Score(10),           Value(12)},
+  King:  RankVariant.Single{"King",  Score(10),           Value(13)},
+}
+
+enum Suit {
+  Spade:   0u8,
+  Club:    1u8,
+  Diamond: 2u8,
+  Heart:   3u8,
+}
+
+struct CardStruct {
   suit: Suit,
   rank: Rank
 }
 
-enum Ranks {
-  Ace:   Rank.Double{"Ace",   Score(1), Score(10), Value(1), Value(14)},
-  Two:   Rank.Single{"Two",   Score(2),            Value(2)},
-  Three: Rank.Single{"Three", Score(3),            Value(3)},
-  Four:  Rank.Single{"Four",  Score(4),            Value(4)},
-  Five:  Rank.Single{"Five",  Score(5),            Value(5)},
-  Six:   Rank.Single{"Six",   Score(6),            Value(6)},
-  Seven: Rank.Single{"Seven", Score(7),            Value(7)},
-  Eight: Rank.Single{"Eight", Score(8),            Value(8)},
-  Nine:  Rank.Single{"Nine",  Score(9),            Value(9)},
-  Ten:   Rank.Single{"Ten",   Score(10),           Value(10)},
-  Jack:  Rank.Single{"Jack",  Score(10),           Value(11)},
-  Queen: Rank.Single{"Queen", Score(10),           Value(12)},
-  King:  Rank.Single{"King",  Score(10),           Value(13)},
-}
-
 enum Cards {
-  AceOfSpades:     Card{Suit.Spade,   Rank.Ace},
-  TwofSpades:      Card{Suit.Spade,   Rank.Two},
-  ThreeOfSpades:   Card{Suit.Spade,   Rank.Three},
-  FourOfSpades:    Card{Suit.Spade,   Rank.Four},
-  FiveOfSpades:    Card{Suit.Spade,   Rank.Five},
-  SixOfSpades:     Card{Suit.Spade,   Rank.Six},
-  SevenOfSpades:   Card{Suit.Spade,   Rank.Seven},
-  EightOfSpades:   Card{Suit.Spade,   Rank.Eight},
-  NineOfSpades:    Card{Suit.Spade,   Rank.Nine},
-  TenOfSpades:     Card{Suit.Spade,   Rank.Ten},
-  JackOfSpades:    Card{Suit.Spade,   Rank.Jack},
-  QueenOfSpades:   Card{Suit.Spade,   Rank.Queen},
-  KingOfSpades:    Card{Suit.Spade,   Rank.King},
-  AceOfClubs:      Card{Suit.Club,    Rank.Ace},
-  TwoOfClubs:      Card{Suit.Club,    Rank.Two},
-  ThreeOfClubs:    Card{Suit.Club,    Rank.Three},
-  FourOfClubs:     Card{Suit.Club,    Rank.Four},
-  FiveOfClubs:     Card{Suit.Club,    Rank.Five},
-  SixOfClubs:      Card{Suit.Club,    Rank.Six},
-  SevenOfClubs:    Card{Suit.Club,    Rank.Seven},
-  EightOfClubs:    Card{Suit.Club,    Rank.Eight},
-  NineOfClubs:     Card{Suit.Club,    Rank.Nine},
-  TenOfClubs:      Card{Suit.Club,    Rank.Ten},
-  JackOfClubs:     Card{Suit.Club,    Rank.Jack},
-  QueenOfClubs:    Card{Suit.Club,    Rank.Queen},
-  KingOfClubs:     Card{Suit.Club,    Rank.King},
-  AceOfHearts:     Card{Suit.Heart,   Rank.Ace},
-  TwoOfHearts:     Card{Suit.Heart,   Rank.Two},
-  ThreeOfHearts:   Card{Suit.Heart,   Rank.Three},
-  FourOfHearts:    Card{Suit.Heart,   Rank.Four},
-  FiveOfHearts:    Card{Suit.Heart,   Rank.Five},
-  SixOfHearts:     Card{Suit.Heart,   Rank.Six},
-  SevenOfHearts:   Card{Suit.Heart,   Rank.Seven},
-  EightOfHearts:   Card{Suit.Heart,   Rank.Eight},
-  NineOfHearts:    Card{Suit.Heart,   Rank.Nine},
-  TenOfHearts:     Card{Suit.Heart,   Rank.Ten},
-  JackOfHearts:    Card{Suit.Heart,   Rank.Jack},
-  QueenOfHearts:   Card{Suit.Heart,   Rank.Queen},
-  KingOfHearts:    Card{Suit.Heart,   Rank.King},
-  AceOfDiamonds:   Card{Suit.Diamond, Rank.Ace},
-  TwoOfDiamonds:   Card{Suit.Diamond, Rank.Two},
-  ThreeOfDiamonds: Card{Suit.Diamond, Rank.Three},
-  FourOfDiamonds:  Card{Suit.Diamond, Rank.Four},
-  FiveOfDiamonds:  Card{Suit.Diamond, Rank.Five},
-  SixOfDiamonds:   Card{Suit.Diamond, Rank.Six},
-  SevenOfDiamonds: Card{Suit.Diamond, Rank.Seven},
-  EightOfDiamonds: Card{Suit.Diamond, Rank.Eight},
-  NineOfDiamonds:  Card{Suit.Diamond, Rank.Nine},
-  TenOfDiamonds:   Card{Suit.Diamond, Rank.Ten},
-  JackOfDiamonds:  Card{Suit.Diamond, Rank.Jack},
-  QueenOfDiamonds: Card{Suit.Diamond, Rank.Queen},
-  KingOfDiamonds:  Card{Suit.Diamond, Rank.King},
+  AceOfSpades:     CardStruct{Suit.Spade,   Rank.Ace},
+  TwofSpades:      CardStruct{Suit.Spade,   Rank.Two},
+  ThreeOfSpades:   CardStruct{Suit.Spade,   Rank.Three},
+  FourOfSpades:    CardStruct{Suit.Spade,   Rank.Four},
+  FiveOfSpades:    CardStruct{Suit.Spade,   Rank.Five},
+  SixOfSpades:     CardStruct{Suit.Spade,   Rank.Six},
+  SevenOfSpades:   CardStruct{Suit.Spade,   Rank.Seven},
+  EightOfSpades:   CardStruct{Suit.Spade,   Rank.Eight},
+  NineOfSpades:    CardStruct{Suit.Spade,   Rank.Nine},
+  TenOfSpades:     CardStruct{Suit.Spade,   Rank.Ten},
+  JackOfSpades:    CardStruct{Suit.Spade,   Rank.Jack},
+  QueenOfSpades:   CardStruct{Suit.Spade,   Rank.Queen},
+  KingOfSpades:    CardStruct{Suit.Spade,   Rank.King},
+  AceOfClubs:      CardStruct{Suit.Club,    Rank.Ace},
+  TwoOfClubs:      CardStruct{Suit.Club,    Rank.Two},
+  ThreeOfClubs:    CardStruct{Suit.Club,    Rank.Three},
+  FourOfClubs:     CardStruct{Suit.Club,    Rank.Four},
+  FiveOfClubs:     CardStruct{Suit.Club,    Rank.Five},
+  SixOfClubs:      CardStruct{Suit.Club,    Rank.Six},
+  SevenOfClubs:    CardStruct{Suit.Club,    Rank.Seven},
+  EightOfClubs:    CardStruct{Suit.Club,    Rank.Eight},
+  NineOfClubs:     CardStruct{Suit.Club,    Rank.Nine},
+  TenOfClubs:      CardStruct{Suit.Club,    Rank.Ten},
+  JackOfClubs:     CardStruct{Suit.Club,    Rank.Jack},
+  QueenOfClubs:    CardStruct{Suit.Club,    Rank.Queen},
+  KingOfClubs:     CardStruct{Suit.Club,    Rank.King},
+  AceOfHearts:     CardStruct{Suit.Heart,   Rank.Ace},
+  TwoOfHearts:     CardStruct{Suit.Heart,   Rank.Two},
+  ThreeOfHearts:   CardStruct{Suit.Heart,   Rank.Three},
+  FourOfHearts:    CardStruct{Suit.Heart,   Rank.Four},
+  FiveOfHearts:    CardStruct{Suit.Heart,   Rank.Five},
+  SixOfHearts:     CardStruct{Suit.Heart,   Rank.Six},
+  SevenOfHearts:   CardStruct{Suit.Heart,   Rank.Seven},
+  EightOfHearts:   CardStruct{Suit.Heart,   Rank.Eight},
+  NineOfHearts:    CardStruct{Suit.Heart,   Rank.Nine},
+  TenOfHearts:     CardStruct{Suit.Heart,   Rank.Ten},
+  JackOfHearts:    CardStruct{Suit.Heart,   Rank.Jack},
+  QueenOfHearts:   CardStruct{Suit.Heart,   Rank.Queen},
+  KingOfHearts:    CardStruct{Suit.Heart,   Rank.King},
+  AceOfDiamonds:   CardStruct{Suit.Diamond, Rank.Ace},
+  TwoOfDiamonds:   CardStruct{Suit.Diamond, Rank.Two},
+  ThreeOfDiamonds: CardStruct{Suit.Diamond, Rank.Three},
+  FourOfDiamonds:  CardStruct{Suit.Diamond, Rank.Four},
+  FiveOfDiamonds:  CardStruct{Suit.Diamond, Rank.Five},
+  SixOfDiamonds:   CardStruct{Suit.Diamond, Rank.Six},
+  SevenOfDiamonds: CardStruct{Suit.Diamond, Rank.Seven},
+  EightOfDiamonds: CardStruct{Suit.Diamond, Rank.Eight},
+  NineOfDiamonds:  CardStruct{Suit.Diamond, Rank.Nine},
+  TenOfDiamonds:   CardStruct{Suit.Diamond, Rank.Ten},
+  JackOfDiamonds:  CardStruct{Suit.Diamond, Rank.Jack},
+  QueenOfDiamonds: CardStruct{Suit.Diamond, Rank.Queen},
+  KingOfDiamonds:  CardStruct{Suit.Diamond, Rank.King},
 }
 
 alias Deck: [*Card * DeckSize::count]
@@ -218,7 +218,7 @@ fn deal_from_deck(deck: &Deck!): DealResult {
 }
 
 fn build_hand(hand: &Hand!, deck: &Deck!, count: DeckSize) {
-  for (i: 1..Hand::element_count) {
+  for (i: Hand::indices) {
     let res: deal_from_deck(deck)
 
     match (res) {
@@ -242,10 +242,7 @@ fn hand_get_card_at_index(hand: &Hand!, index: uint): &Card {
   return hand.cards.get(index).succeed_or_die()
 }
 
-fn hand_is_pair(hand: &Hand): bool {
-  let value_counts: [uint(0) * Value::max]
-  let pair_count: 0
-
+fn get_value_counts(hand: &Hand, counts: [uint * Value::max]) {
   for (&card: hand.cards) {
     match (card.rank) {
       case (s: Single) {
@@ -256,6 +253,13 @@ fn hand_is_pair(hand: &Hand): bool {
       }
     }
   }
+}
+
+fn hand_is_pair(hand: &Hand): bool {
+  let value_counts: [uint(0) * Value::max]
+  let pair_count: 0u
+
+  hand.get_value_counts(&value_counts!)
 
   for (count: value_counts) {
     pair_count += count % 2u
@@ -266,76 +270,46 @@ fn hand_is_pair(hand: &Hand): bool {
 
 fn hand_is_two_pair(hand: &Hand): bool {
   let value_counts: [uint(0) * Value::max]
-  let pair_count: 0
+  let pair_count: 0u
 
-  for (&card: hand.cards) {
-    match (card.rank) {
-      case (s: Single) {
-        value_counts[s.value]++
-      }
-      case (d: Double) {
-        value_counts[d.value1]++
-      }
-    }
-    return true
-  }
+  hand.get_value_counts(&value_counts!)
 
   for (count: value_counts) {
-    pair_count += count % 2
+    pair_count += count % 2u
   }
 
-  return pair_count > 2
+  return pair_count > 2u
 }
 
 fn hand_is_three_of_a_kind(hand: &Hand): bool {
   let value_counts: [uint(0) * Value::max]
-  let trip_count: 0
+  let trip_count: 0u
 
-  for (&card: hand.cards) {
-    match (card.rank) {
-      case (s: Single) {
-        value_counts[s.value]++
-      }
-      case (d: Double) {
-        value_counts[d.value1]++
-      }
-    }
-  }
+  hand.get_value_counts(&value_counts!)
 
   for (count: value_counts) {
-    trip_count += count % 3
+    trip_count += count % 3u
   }
 
-  return trip_count > 1
+  return trip_count > 1u
 }
 
 fn hand_is_four_of_a_kind(hand: &Hand): bool {
   let value_counts: [uint(0) * Value::max]
-  let quad_count: 0
+  let quad_count: 0u
 
-  for (&card: hand.cards) {
-    match (card.rank) {
-      case (s: Single) {
-        value_counts[s.value]++
-      }
-      case (d: Double) {
-        value_counts[d.value1]++
-      }
-    }
-  }
+  hand.get_value_counts(&value_counts!)
 
   for (count: value_counts) {
-    quad_count += count % 4
+    quad_count += count % 4u
   }
-
-  return quad_count > 1
 }
 
 fn hand_is_flush(hand: &Hand): bool {
   let initialized: false
   let last_card: &Cards.AceOfSpades
 
-  for (&card: self.cards) {
+  for (&card: hand.cards) {
     if (!initialized) {
       initialized = true
     }
@@ -353,7 +327,7 @@ fn hand_is_straight(hand: &Hand): bool {
   let initialized: false
   let last_card: &Cards.AceOfSpaces
 
-  for (&card: self.cards) {
+  for (&card: hand.cards) {
     if (!initialized) {
       initialized = true
     }

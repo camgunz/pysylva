@@ -82,8 +82,8 @@ mod main
 req sys
 
 fn main() {
-  var file_path = "/home/dmr/.secrets"
-  var res = sys.open(file_path, "r") # `res` is an `OpenFileResult` here
+  let file_path = "/home/dmr/.secrets"
+  let res = sys.open(file_path, "r") # `res` is an `OpenFileResult` here
 
   if (res.succeeded()) {
     sys.echo("Data: {res.get_file().read_all()}")
@@ -107,8 +107,8 @@ However, with variants this becomes robust:
 
 ```sylva
 fn main() {
-  var file_path = "/home/dmr/.secrets"
-  var res: sys.open(file_path, "r")
+  let file_path = "/home/dmr/.secrets"
+  let res: sys.open(file_path, "r")
 
   match (res) {
     case (file: FileOpen.OK) {
