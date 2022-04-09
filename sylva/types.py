@@ -26,8 +26,9 @@ class SylvaType:
     def __str__(self):
         return f'<{self.name}>'
 
+    # pylint: disable=no-self-use
     def check(self):
-        pass
+        return []
 
 
 class SylvaLLVMType(SylvaType):
@@ -533,6 +534,22 @@ class ParamStruct(ParamSylvaType):
 
 class MetaSylvaLLVMUnionType(MetaSylvaLLVMType):
 
+    __slots__ = ('location', 'fields')
+
+    def __init__(self, location, fields):
+        super().__init__(location)
+        self.fields = fields
+
+    def __repr__(self):
+        return '%s(%r, %r)' % (self.name, self.location, self.fields)
+
+    def __str__(self):
+        fields = ', '.join([
+            f'{name}: {type}' for name, type in self.fields.items()
+        ])
+        return f'<{self.name} {{{fields}}}>'
+
+    @property
     def names(self):
         return self.fields.keys()
 
@@ -554,21 +571,11 @@ class Variant(MetaSylvaLLVMUnionType):
 
     __slots__ = ('location', 'fields')
 
-    def __init__(self, location, fields):
-        super().__init__(location)
-        self.fields = fields
-        if not self.fields:
-            raise errors.EmptyVariant(self)
+    def check(self):
+        type_errors = super().check()
+        type_errors.append(errors.EmptyVariant(self))
 
-    def __repr__(self):
-        return '%s(%r, %r)' % (self.name, self.location, self.fields)
-
-    def __str__(self):
-        fields = self.fields or {}
-        fields = ', '.join([
-            f'{name}: {type}' for name, type in fields.items()
-        ])
-        return f'<{self.name} {{{fields}}}>'
+        return type_errors
 
     @cache
     def get_llvm_type(self, module):
@@ -615,19 +622,6 @@ class CUnion(MetaSylvaLLVMUnionType):
 
     __slots__ = ('location', 'fields')
 
-    def __init__(self, location, fields):
-        super().__init__(location)
-        self.fields = fields
-
-    def __repr__(self):
-        return '%s(%r, %r)' % (self.name, self.location, self.fields)
-
-    def __str__(self):
-        fields = ', '.join([
-            f'{name}: {type}' for name, type in self.fields.items()
-        ])
-        return f'<{self.name} {{{fields}}}>'
-
     @cache
     def get_llvm_type(self, module):
         return ir.LiteralStructType([self.get_largest_field(module)])
@@ -666,17 +660,17 @@ class BaseFunctionType(MetaSylvaLLVMType):
         return self.parameters.values()
 
     @cache
-    def get_llvm_type(self, compiler):
+    def get_llvm_type(self, module):
         debug('compile', f'{self}')
 
         params = []
 
         for n, p in self.parameters.items():
             debug('compile', f'{n}: {p}')
-            params.append(p.get_llvm_type(compiler))
+            params.append(p.get_llvm_type(module))
 
         return ir.FunctionType(
-            self.return_type.get_llvm_type(compiler)
+            self.return_type.get_llvm_type(module)
             if self.return_type else ir.VoidType(),
             params
         )
@@ -690,8 +684,8 @@ class CFunctionType(BaseFunctionType):
     __slots__ = ('location', 'parameters', 'return_type')
 
     @cache
-    def get_llvm_type(self, compiler):
-        return super().get_llvm_type(compiler).as_pointer()
+    def get_llvm_type(self, module):
+        return super().get_llvm_type(module).as_pointer()
 
 
 class CBlockFunctionType(BaseFunctionType):
@@ -754,8 +748,8 @@ class BasePointer(MetaSylvaLLVMType):
         return [self.referenced_type]
 
     @cache
-    def get_llvm_type(self, compiler):
-        return ir.PointerType(self.referenced_type.get_llvm_type(compiler))
+    def get_llvm_type(self, module):
+        return ir.PointerType(self.referenced_type.get_llvm_type(module))
 
 
 class CPtr(BasePointer):
