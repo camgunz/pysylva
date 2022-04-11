@@ -123,7 +123,7 @@ mutated.
 
 In Sylva, values, pointers, and references all have a scope. There are six
 types of scopes:
-- structs
+- structs/variants
 - arrays
 - functions
 - variable bindings

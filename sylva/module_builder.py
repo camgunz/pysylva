@@ -94,13 +94,19 @@ class ModuleBuilder(SylvaParserListener):
                 location, expr.singleIdentifier().getText()
             )
         elif isinstance(expr, SylvaParser.LookupExprContext):
-            lhs, rhs = expr.expr()
-            return ast.LookupExpr(
-                location,
-                self.build_expr(Location.FromContext(lhs, self.stream), lhs),
-                self.build_expr(Location.FromContext(rhs, self.stream), rhs),
-                reflection=expr.children[1].getText() == '::'
+            ns = expr.children.pop(0)
+            lookup_expr = self.build_expr(
+                Location.FromContext(ns, self.stream), ns
             )
+            while expr.children:
+                reflection = expr.children.pop(0).getText() == '::'
+                lookup_expr = ast.LookupExpr(
+                    Location.FromContext(ns, self.stream),
+                    lookup_expr,
+                    expr.children.pop(0).getText(),
+                    reflection=reflection
+                )
+            return lookup_expr
         elif isinstance(expr, SylvaParser.ParenExprContext):
             pass
         elif isinstance(expr, SylvaParser.ArrayExprContext):
@@ -378,7 +384,6 @@ class ModuleBuilder(SylvaParserListener):
 
             if value is None:
                 if deferrable:
-                    debug('compile', f'Adding deferred type lookup for {name}')
                     return types.DeferredTypeLookup(
                         Location.FromContext(literal, self.stream),
                         name
@@ -393,6 +398,7 @@ class ModuleBuilder(SylvaParserListener):
 
         raise Exception(f'Unknown type literal {literal.getText()}')
 
+    # pylint: disable=no-self-use
     def eval_const_literal(self, location, literal):
         if literal.arrayConstLiteral():
             pass
@@ -405,13 +411,19 @@ class ModuleBuilder(SylvaParserListener):
         elif literal.functionLiteral():
             pass
         elif literal.integerLiteral():
-            return ast.IntegerLiteralExpr(location, literal.getText())
+            return types.ConstDef(
+                location,
+                ast.IntegerLiteralExpr(location, literal.getText())
+            )
         elif literal.rangeConstLiteral():
             pass
         elif literal.runeLiteral():
             pass
         elif literal.stringLiteral():
-            return ast.StringLiteralExpr(location, literal.getText())
+            return types.ConstDef(
+                location,
+                ast.StringLiteralExpr(location, literal.getText()),
+            )
         elif literal.structConstLiteral():
             pass
 

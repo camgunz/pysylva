@@ -44,6 +44,10 @@ class Program:
     def is_executable(self):
         return sylva.MAIN_MODULE_NAME in self.modules
 
+    def parse(self):
+        for module in self.modules.values():
+            module.parse()
+
     def compile(self, output_folder):
         errors = []
         for module in self.modules.values():

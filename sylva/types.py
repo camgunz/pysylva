@@ -4,7 +4,7 @@ from functools import cache
 
 from llvmlite import ir
 
-from . import debug, errors, utils
+from . import errors, utils
 
 
 def round_up_to_multiple(x, base):
@@ -108,12 +108,8 @@ class MetaSylvaType(SylvaType):
         return missing_field_errors
 
 
-class MetaSylvaLLVMType(SylvaLLVMType):
-
+class MetaSylvaLLVMType(MetaSylvaType, SylvaLLVMType):
     __slots__ = ('location',)
-
-    def __init__(self, location):
-        self.location = location
 
 
 class DeferredTypeLookup(SylvaType):
@@ -324,6 +320,21 @@ class CArray(BaseArray):
         super().__init__(location, element_type, element_count)
         if self.element_count is None:
             raise errors.UnsizedCArray(location)
+
+
+class ConstDef(SylvaLLVMType):
+
+    __slots__ = ('location', 'value')
+
+    def __init__(self, location, value):
+        self.location = location
+        self.value = value
+
+    def __repr__(self):
+        return 'ConstDef(%r, %r)' % (self.location, self.value)
+
+    def __str__(self):
+        return f'<ConstDef {self.value}>'
 
 
 class Enum(MetaSylvaLLVMType):
@@ -661,12 +672,9 @@ class BaseFunctionType(MetaSylvaLLVMType):
 
     @cache
     def get_llvm_type(self, module):
-        debug('compile', f'{self}')
-
         params = []
 
-        for n, p in self.parameters.items():
-            debug('compile', f'{n}: {p}')
+        for p in self.parameters.values():
             params.append(p.get_llvm_type(module))
 
         return ir.FunctionType(

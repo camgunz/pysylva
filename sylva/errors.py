@@ -236,3 +236,15 @@ class UnsizedCArray(LocationError):
 
     def __init__(self, location):
         super().__init__(location, 'Missing size in carray')
+
+
+class ImpossibleLookup(LocationError):
+
+    def __init__(self, location):
+        super().__init__(location, 'Cannot lookup values in this namespace')
+
+
+class ImpossibleReflection(LocationError):
+
+    def __init__(self, location):
+        super().__init__(location, 'Reflection not possible')

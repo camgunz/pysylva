@@ -1,6 +1,12 @@
 import ctypes
 import decimal
 
+from functools import cache, cached_property
+
+from llvmlite import ir
+
+from . import types
+
 
 class ASTNode:
 
@@ -40,11 +46,35 @@ class LiteralExpr(Expr):
     def __repr__(self):
         return f'{type(self).__name__}({repr(self.value)})'
 
+    @property
+    def type_name(self):
+        raise NotImplementedError()
+
+    @cache
+    def get_type(self, module):
+        return module.lookup(self.type_name)
+
+    @cache
+    def get_llvm_type(self, module):
+        return self.get_type(module).get_llvm_type(module)
+
+    @cache
+    def get_llvm_value(self, module):
+        return self.get_type(module).make_constant(module, self.value)
+
 
 class BooleanLiteralExpr(LiteralExpr):
 
     def __init__(self, location, raw_value):
         super().__init__(location, raw_value, raw_value == 'true')
+
+    @property
+    def type_name(self):
+        return 'bool'
+
+    @cache
+    def get_llvm_value(self, module):
+        self.get_type(module).make_constant(module, 1 if self.value else 0)
 
 
 class RuneLiteralExpr(LiteralExpr):
@@ -52,11 +82,36 @@ class RuneLiteralExpr(LiteralExpr):
     def __init__(self, location, raw_value):
         super().__init__(location, raw_value, raw_value[1:-1])
 
+    @property
+    def type_name(self):
+        return 'rune'
+
 
 class StringLiteralExpr(LiteralExpr):
 
     def __init__(self, location, raw_value):
         super().__init__(location, raw_value, raw_value[1:-1])
+
+    @cached_property
+    def encoded_data(self):
+        # [NOTE] I suppose this is where we'd configure internal string
+        #        encoding; easy enough to grab from module.program
+        return bytearray(self.value, encoding='utf-8')
+
+    @property
+    def type_name(self):
+        return 'str'
+
+    @cache
+    def get_llvm_type(self, module):
+        return ir.ArrayType(
+            types.Integer(8, signed=True).get_llvm_type(module),
+            len(self.encoded_data)
+        )
+
+    @cache
+    def get_llvm_value(self, module):
+        self.get_llvm_type(module)(self.encoded_data)
 
 
 class NumericLiteralExpr(LiteralExpr):
@@ -66,7 +121,8 @@ class NumericLiteralExpr(LiteralExpr):
 class IntegerLiteralExpr(NumericLiteralExpr):
 
     def __init__(self, location, raw_value):
-        self.signed, self.size, value = self._parse_raw_value(raw_value)
+        self.signed, self.given_size, value = self._parse_raw_value(raw_value)
+        self.size = self.given_size or ctypes.sizeof(ctypes.c_size_t) * 8
         super().__init__(location, raw_value, value)
 
     @staticmethod
@@ -108,6 +164,10 @@ class IntegerLiteralExpr(NumericLiteralExpr):
             signed, size = False, None
 
         return signed, size or ctypes.sizeof(ctypes.c_size_t) * 8, value
+
+    @property
+    def type_name(self):
+        return f'{"i" if self.signed else "u"}{self.size}'
 
 
 class FloatLiteralExpr(NumericLiteralExpr):
@@ -192,18 +252,26 @@ class SingleLookupExpr(Expr):
 
 class LookupExpr(Expr):
 
-    def __init__(
-        self, location, left_name_expr, right_name_expr, reflection=False
-    ):
+    def __init__(self, location, namespace, name, reflection=False):
         super().__init__(location)
-        self.left_name_expr = left_name_expr
-        self.right_name_expr = right_name_expr
+        self.namespace = namespace
+        self.name = name
         self.reflection = reflection
 
     def __repr__(self):
-        return 'Lookup(%r, %r reflection=%r)' % (
-            self.left_name_expr, self.right_name_expr, self.reflection
+        return 'Lookup(%r, %r, reflection=%r)' % (
+            self.namespace, self.name, self.reflection
         )
+
+
+class LookupNameExpr(Expr):
+
+    def __init__(self, location, name):
+        super().__init__(location)
+        self.name = name
+
+    def __repr__(self):
+        return 'LookupName(%r)' % (self.name)
 
 
 class DeferredLookup(ASTNode):
