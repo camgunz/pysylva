@@ -107,16 +107,16 @@ expr :
   | (identifier | carrayTypeLiteral) arrayConstLiteral # CArrayLiteralExpr
   | CPTR OPEN_PAREN expr CLOSE_PAREN                   # CPointerLiteralExpr
   | (identifier | cstructTypeLiteral)
-    OPEN_BRACE exprList CLOSE_BRACE                    # CStructLiteralExpr
+      OPEN_BRACE exprList CLOSE_BRACE                  # CStructLiteralExpr
   | (identifier | cunionTypeLiteral)
-    OPEN_BRACE exprList CLOSE_BRACE                    # CUnionLiteralExpr
+      OPEN_BRACE exprList CLOSE_BRACE                  # CUnionLiteralExpr
   | CVOID OPEN_PAREN expr CLOSE_PAREN                  # CVoidLiteralExpr
   | singleIdentifier                                   # SingleLookupExpr
-  | expr (DOT | COLON_COLON) expr                      # LookupExpr
+  | expr ((DOT | COLON_COLON) singleIdentifier)+       # LookupExpr
   | expr OPEN_BRACKET expr CLOSE_BRACKET               # IndexExpr
   | expr OPEN_PAREN exprList CLOSE_PAREN               # FunctionCallExpr
   | expr OPEN_PAREN typeLiteralList CLOSE_PAREN
-    OPEN_PAREN exprList CLOSE_PAREN                    # ParamFunctionCallExpr
+         OPEN_PAREN exprList CLOSE_PAREN               # ParamFunctionCallExpr
   | expr (PLUS_PLUS | MINUS_MINUS)                     # IncDecExpr
   | (PLUS | MINUS | TILDE | BANG ) expr                # UnaryExpr
   | <assoc=right> expr STAR_STAR expr                  # PowerExpr
