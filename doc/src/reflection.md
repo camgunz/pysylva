@@ -40,6 +40,7 @@ distinguished from normal property access by the use of `::` instead of `.`.
 
 ## All range types
 
+* `::name`: returns 'range' as the name of the type
 * `::min`: returns the minimum value of the range
 * `::max`: returns the maximum value of the range
 * `::size`: returns the size in bytes of an instance of the range
@@ -56,8 +57,6 @@ distinguished from normal property access by the use of `::` instead of `.`.
 ## Strings
 
 * `::name`: returns 'str' as the name of the type
-* `::size`: returns the size in bytes of the string
-* `::count`: returns the number of codepoints in the string
 
 ## Struct types
 
@@ -73,3 +72,7 @@ distinguished from normal property access by the use of `::` instead of `.`.
 
 * `::type`: returns the type of the value
 * `::bytes`: returns a `&[i8 * value::type::size]`, the bytes of the value
+
+## (Runtime) string values
+* `::size`: returns the size in bytes of the string
+* `::count`: returns the number of codepoints in the string

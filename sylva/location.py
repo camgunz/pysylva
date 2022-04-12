@@ -29,7 +29,7 @@ class Location:
             return 'Location(<generated>)'
 
         return 'Location(%r, %d, %d, %d)' % (
-            self.stream, self.index, self.line, self.column
+            self.stream_name, self.index, self.line, self.column
         )
 
     @property

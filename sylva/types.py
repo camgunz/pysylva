@@ -5,13 +5,7 @@ from functools import cache
 from llvmlite import ir
 
 from . import errors, utils
-
-
-def round_up_to_multiple(x, base):
-    rem = x % base
-    if rem == 0:
-        return x
-    return x + base - rem
+from .location import Location
 
 
 class SylvaType:
@@ -29,6 +23,9 @@ class SylvaType:
     # pylint: disable=no-self-use
     def check(self):
         return []
+
+    def get_value(self, location):
+        raise NotImplementedError()
 
 
 class SylvaLLVMType(SylvaType):
@@ -158,7 +155,8 @@ class CVoid(SylvaLLVMType):
 
     @cache
     def get_llvm_type(self, module):
-        return ir.VoidType()
+        # return ir.VoidType()
+        raise Exception('Cannot get the LLVM type of CVoid')
 
 
 class Scalar(SylvaLLVMType):
@@ -171,6 +169,10 @@ class Boolean(Scalar):
     def get_llvm_type(self, module):
         return ir.IntType(8)
 
+    def get_value(self, location):
+        from . import ast
+        return ast.Boolean(location)
+
 
 class Rune(Scalar):
 
@@ -178,20 +180,23 @@ class Rune(Scalar):
     def get_llvm_type(self, module):
         return ir.IntType(32)
 
+    def get_value(self, location):
+        from . import ast
+        return ast.Rune(location)
 
-class BaseString(Scalar):
+
+class StaticString(Scalar):
 
     @cache
     def get_llvm_type(self, module):
         return ir.PointerType(ir.IntType(8))
 
 
-class String(BaseString):
-    pass
+class CString(Scalar):
 
-
-class CString(BaseString):
-    pass
+    @cache
+    def get_llvm_type(self, module):
+        return ir.PointerType(ir.IntType(8))
 
 
 class Numeric(Scalar):
@@ -213,7 +218,10 @@ class SizedNumeric(Numeric):
 
 
 class Decimal(Numeric):
-    pass
+
+    def get_value(self, location):
+        from . import ast
+        return ast.Decimal(location)
 
 
 class Complex(SizedNumeric):
@@ -232,6 +240,10 @@ class Complex(SizedNumeric):
             return ir.DoubleType()
         if self.bits == 128:
             return ir.DoubleType()
+
+    def get_value(self, location):
+        from . import ast
+        return ast.Complex(location, self.bits)
 
 
 class Float(SizedNumeric):
@@ -252,6 +264,10 @@ class Float(SizedNumeric):
         if self.bits == 128:
             return ir.DoubleType()
 
+    def get_value(self, location):
+        from . import ast
+        return ast.Float(location, self.bits)
+
 
 class Integer(SizedNumeric):
 
@@ -260,6 +276,10 @@ class Integer(SizedNumeric):
     def __init__(self, bits, signed):
         super().__init__(bits)
         self.signed = signed
+
+    @classmethod
+    def SmallestThatHolds(cls, x):
+        return cls(utils.smallest_uint(x), signed=False)
 
     def __repr__(self):
         return f'{self.name}(bits={self.bits}, signed={self.signed})'
@@ -272,6 +292,10 @@ class Integer(SizedNumeric):
     def get_llvm_type(self, module):
         return ir.IntType(self.bits)
 
+    def get_value(self, location):
+        from . import ast
+        return ast.Integer(location, self.bits, self.signed)
+
 
 class BaseArray(MetaSylvaLLVMType):
 
@@ -281,6 +305,9 @@ class BaseArray(MetaSylvaLLVMType):
         super().__init__(location)
         self.element_type = element_type
         self.element_count = element_count
+
+        if element_count is not None and element_count <= 0:
+            raise errors.EmptyArray(location)
 
     def __repr__(self):
         return '%s(%r, %r, %r)' % (
@@ -320,6 +347,8 @@ class CArray(BaseArray):
         super().__init__(location, element_type, element_count)
         if self.element_count is None:
             raise errors.UnsizedCArray(location)
+        if element_count <= 0:
+            raise errors.EmptyArray(location)
 
 
 class ConstDef(SylvaLLVMType):
@@ -446,11 +475,13 @@ class BaseStruct(MetaSylvaLLVMType):
         # self._alignment = 1
         # self._offsets = {}
         # for name, type in self.fields:
-        #     self._size = round_up_to_multiple(self._size, type.alignment)
+        #     self._size = utils.round_up_to_multiple(
+        #       self._size, type.alignment
+        #     )
         #     self._alignment = max(self._alignment, type.alignment)
         #     self._offsets[name] = self._size
         #     self._size += type.size
-        # self._size = round_up_to_multiple(self._size, self._alignment)
+        # self._size = utils.round_up_to_multiple(self._size, self._alignment)
 
     def __repr__(self):
         # return '%s(%r, %r)' % (self.name, self.location, self.fields)
@@ -470,6 +501,12 @@ class BaseStruct(MetaSylvaLLVMType):
     @property
     def types(self):
         return self.fields.values()
+
+    def get_field_info(self, name):
+        for n, field_name_and_type in enumerate(self.fields.items()):
+            field_name, field_type = field_name_and_type
+            if field_name == name:
+                return n, field_type
 
     # pylint: disable=arguments-differ
     def get_llvm_type(self, module, name=None):
@@ -543,6 +580,32 @@ class ParamStruct(ParamSylvaType):
         return Struct(location, fields)
 
 
+class String(Struct):
+
+    __slots__ = ('location', 'fields')
+
+    def __init__(self):
+        location = Location.Generate()
+        super().__init__(
+            location,
+            {
+                'size':
+                    Integer(ctypes.sizeof(ctypes.c_size_t * 8), signed=False),
+                'data': Array(location, Integer(8, signed=True), None)
+            }
+        )
+
+    def __repr__(self):
+        return 'String()'
+
+    def __str__(self):
+        return '<String>'
+
+    def get_value(self, location):
+        from . import ast
+        return ast.String(location)
+
+
 class MetaSylvaLLVMUnionType(MetaSylvaLLVMType):
 
     __slots__ = ('location', 'fields')
@@ -590,7 +653,7 @@ class Variant(MetaSylvaLLVMUnionType):
 
     @cache
     def get_llvm_type(self, module):
-        tag_bit_width = round_up_to_multiple(len(self.fields), 8)
+        tag_bit_width = utils.round_up_to_multiple(len(self.fields), 8)
         return ir.LiteralStructType([
             self.get_largest_field(module), ir.IntType(tag_bit_width)
         ])
@@ -697,10 +760,12 @@ class CFunctionType(BaseFunctionType):
 
 
 class CBlockFunctionType(BaseFunctionType):
+
     __slots__ = ('location', 'parameters', 'return_type')
 
 
 class CFunction(BaseFunctionType):
+
     __slots__ = ('location', 'parameters', 'return_type')
 
 
@@ -731,20 +796,20 @@ class Function(BaseFunctionType):
 
 class BasePointer(MetaSylvaLLVMType):
 
-    __slots__ = ('location', 'referenced_type', 'is_mutable')
+    __slots__ = ('location', 'referenced_type', 'is_exclusive')
 
-    def __init__(self, location, referenced_type, is_mutable):
+    def __init__(self, location, referenced_type, is_exclusive):
         super().__init__(location)
         self.referenced_type = referenced_type
-        self.is_mutable = is_mutable
+        self.is_exclusive = is_exclusive
 
     def __repr__(self):
-        return '%s(%r, %r, is_mutable=%r)' % (
-            self.name, self.location, self.referenced_type, self.is_mutable
+        return '%s(%r, %r, is_exclusive=%r)' % (
+            self.name, self.location, self.referenced_type, self.is_exclusive
         )
 
     def __str__(self):
-        suffix = '!' if self.is_mutable else ''
+        suffix = '!' if self.is_exclusive else ''
         return f'<{self.name}{suffix} {self.referenced_type}>'
 
     @property
@@ -765,44 +830,75 @@ class CPtr(BasePointer):
     __slots__ = (
         'location',
         'referenced_type',
-        'referenced_type_is_mutable',
-        'is_mutable'
+        'referenced_type_is_exclusive',
+        'is_exclusive'
     )
 
     def __init__(
         self,
         location,
         referenced_type,
-        referenced_type_is_mutable,
-        is_mutable
+        referenced_type_is_exclusive,
+        is_exclusive
     ):
-        super().__init__(location, referenced_type, is_mutable)
-        self.referenced_type_is_mutable = referenced_type_is_mutable
+        super().__init__(location, referenced_type, is_exclusive)
+        self.referenced_type_is_exclusive = referenced_type_is_exclusive
 
     def __repr__(self):
         return '%s(%r, %r, %r, %r)' % (
             self.name,
             self.location,
             self.referenced_type,
-            self.referenced_type_is_mutable,
-            self.is_mutable
+            self.referenced_type_is_exclusive,
+            self.is_exclusive
         )
 
     def __str__(self):
-        suffix = '!' if self.is_mutable else ''
-        ref_suffix = '!' if self.referenced_type_is_mutable else ''
+        suffix = '!' if self.is_exclusive else ''
+        ref_suffix = '!' if self.referenced_type_is_exclusive else ''
         return f'<{self.name}{suffix} {self.referenced_type}{ref_suffix}>'
+
+    def get_value(self, location):
+        from . import ast
+        return ast.CPointer(
+            location,
+            self.referenced_type,
+            self.referenced_type_is_exclusive,
+            self.is_exclusive
+        )
 
 
 class ReferencePointer(BasePointer):
-    __slots__ = ('location', 'referenced_type', 'is_mutable')
+
+    __slots__ = ('location', 'referenced_type', 'is_exclusive')
+
+    def get_value(self, location):
+        from . import ast
+        return ast.Reference(location, self.referenced_type, self.is_exclusive)
 
 
 class OwnedPointer(BasePointer):
-    __slots__ = ('location', 'referenced_type', 'is_mutable')
+    __slots__ = ('location', 'referenced_type', 'is_exclusive')
 
     def __init__(self, location, referenced_type):
-        super().__init__(location, referenced_type, is_mutable=True)
+        super().__init__(location, referenced_type, is_exclusive=True)
+
+    def get_value(self, location):
+        from . import ast
+        return ast.OwnedPointer(location, self.referenced_type)
+
+
+class Module(SylvaType):
+
+    def __init__(self, location, value):
+        self.location = location
+        self.value = value
+
+    def __repr__(self):
+        return 'Module(%r)' % (self.value.name)
+
+    def lookup(self, location, field):
+        return self.value.lookup(location, field)
 
 
 BUILTINS = {

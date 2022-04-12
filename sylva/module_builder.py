@@ -1,5 +1,6 @@
 import enum
 
+# pylint: disable=unused-import
 from . import ast, debug, errors, types
 
 from .listener import SylvaParserListener
@@ -36,7 +37,8 @@ class ModuleBuilder(SylvaParserListener):
         self.module = module
         self.stream = stream
 
-    def build_expr(self, location, expr):
+    def build_expr(self, location, expr, local_vars):
+        debug('compile', f'{expr.getText()} local vars: {local_vars}')
         if isinstance(expr, SylvaParser.LiteralExprContext):
             literal = expr.literal()
             if literal.arrayConstLiteral():
@@ -48,68 +50,128 @@ class ModuleBuilder(SylvaParserListener):
             elif literal.structConstLiteral():
                 pass
             elif literal.booleanLiteral():
-                return ast.BooleanLiteralExpr(location, literal.getText())
+                return ast.BooleanLiteral.FromRawValue(
+                    location, literal.getText()
+                )
             elif literal.decimalLiteral():
-                return ast.DecimalLiteralExpr(location, literal.getText())
+                return ast.DecimalLiteral.FromRawValue(
+                    location, literal.getText()
+                )
             elif literal.floatLiteral():
-                return ast.FloatLiteralExpr(location, literal.getText())
+                return ast.FloatLiteral.FromRawValue(
+                    location, literal.getText()
+                )
             elif literal.integerLiteral():
-                return ast.IntegerLiteralExpr(location, literal.getText())
+                return ast.IntegerLiteral.FromRawValue(
+                    location, literal.getText()
+                )
             elif literal.runeLiteral():
-                return ast.RuneLiteralExpr(location, literal.getText())
+                return ast.RuneLiteral.FromRawValue(
+                    location, literal.getText()
+                )
             elif literal.stringLiteral():
-                return ast.StringLiteralExpr(location, literal.getText())
+                return ast.StringLiteral.FromRawValue(
+                    location, literal.getText()
+                )
             else:
                 raise Exception(
                     f'Unknown literal {literal} {literal.getText()}'
                 )
+        elif isinstance(expr, SylvaParser.ParenExprContext):
+            pass
+        elif isinstance(expr, SylvaParser.ArrayExprContext):
+            pass
         elif isinstance(expr, SylvaParser.CArrayLiteralExprContext):
             pass
         elif isinstance(expr, SylvaParser.CPointerLiteralExprContext):
-            pass
+            # If there's a reference expr, we gotta unwrap it
+            referenced_value = self.build_expr(
+                Location.FromContext(expr.expr(), self.stream),
+                expr.expr(),
+                local_vars,
+            )
+
+            if isinstance(referenced_value, ast.Reference):
+                referenced_value = referenced_value.referenced_value
+
+            return ast.CPointer(
+                location,
+                referenced_value,
+                expr.expr().children[-1].getText() == '!',
+                expr.children[-1].getText() == '!'
+            )
         elif isinstance(expr, SylvaParser.CStructLiteralExprContext):
             pass
         elif isinstance(expr, SylvaParser.CUnionLiteralExprContext):
             pass
         elif isinstance(expr, SylvaParser.CVoidLiteralExprContext):
-            pass
+            location = Location.FromContext(expr.expr(), self.stream)
+            return ast.CVoidCast(
+                location, self.build_expr(location, expr.expr(), local_vars)
+            )
+        elif isinstance(expr, SylvaParser.SingleLookupExprContext):
+            name = expr.singleIdentifier().getText()
+            value = local_vars.get(name)
+
+            if not value:
+                value = self.module.lookup(location, name)
+
+            if not value:
+                raise errors.UndefinedSymbol(location, name)
+
+            if isinstance(value, ast.ConstExpr):
+                value = value.eval(location)
+
+            return value
+
+        elif isinstance(expr, SylvaParser.LookupExprContext):
+            first_child = expr.children.pop(0)
+            value = self.build_expr(
+                Location.FromContext(first_child, self.stream),
+                first_child,
+                local_vars
+            )
+            if isinstance(value, ast.Pointer):
+                value = value.deref(location)
+
+            debug('compile', f'Got {value} from {first_child.getText()}')
+            while expr.children:
+                reflection = expr.children.pop(0).getText() == '::'
+                field = expr.children.pop(0)
+
+                if reflection:
+                    value = value.reflect(location, field.getText())
+                else:
+                    value = value.lookup(location, field.getText())
+
+                if not value:
+                    raise errors.NoSuchField(
+                        Location.FromContext(field, self.stream),
+                        field.getText()
+                    )
+
+                if isinstance(value, ast.Pointer):
+                    value = value.deref(location)
+
+                debug('compile', f'Got {value} from {field.getText()}')
+            return value
         elif isinstance(expr, SylvaParser.IndexExprContext):
             pass
         elif isinstance(expr, SylvaParser.FunctionCallExprContext):
-            return ast.CallExpr(
+            return ast.Call(
                 location,
                 self.build_expr(
                     Location.FromContext(expr.expr(), self.stream),
-                    expr.expr()
+                    expr.expr(),
+                    local_vars
                 ),
                 [
-                    self.build_expr(Location.FromContext(px, self.stream), px)
-                    for px in expr.exprList().expr()
+                    self.build_expr(
+                        Location.FromContext(px, self.stream), px, local_vars
+                    ) for px in expr.exprList().expr()
                 ]
             )
         elif isinstance(expr, SylvaParser.ParamFunctionCallExprContext):
-            pass
-        elif isinstance(expr, SylvaParser.SingleLookupExprContext):
-            return ast.SingleLookupExpr(
-                location, expr.singleIdentifier().getText()
-            )
-        elif isinstance(expr, SylvaParser.LookupExprContext):
-            ns = expr.children.pop(0)
-            lookup_expr = self.build_expr(
-                Location.FromContext(ns, self.stream), ns
-            )
-            while expr.children:
-                reflection = expr.children.pop(0).getText() == '::'
-                lookup_expr = ast.LookupExpr(
-                    Location.FromContext(ns, self.stream),
-                    lookup_expr,
-                    expr.children.pop(0).getText(),
-                    reflection=reflection
-                )
-            return lookup_expr
-        elif isinstance(expr, SylvaParser.ParenExprContext):
-            pass
-        elif isinstance(expr, SylvaParser.ArrayExprContext):
             pass
         elif isinstance(expr, SylvaParser.IncDecExprContext):
             pass
@@ -136,15 +198,27 @@ class ModuleBuilder(SylvaParserListener):
         elif isinstance(expr, SylvaParser.OrExprContext):
             pass
         elif isinstance(expr, SylvaParser.OwnedPointerExprContext):
-            pass
+            return ast.Move(
+                location,
+                self.build_expr(
+                    Location.FromContext(expr.expr()), expr.expr(), local_vars
+                ),
+            )
         elif isinstance(expr, SylvaParser.ReferenceExprContext):
-            pass
+            return ast.Reference(
+                location,
+                self.build_expr(
+                    Location.FromContext(expr.expr()), expr.expr(), local_vars
+                ),
+                is_exclusive=expr.children[-1].getText() == '!'
+            )
         else:
             raise Exception(
                 f'Unknown expr type {type(expr)} ({expr.getText()})'
             )
 
-    def build_code_block(self, location, code_block):
+    # pylint: disable=unused-argument
+    def build_code_block(self, location, code_block, local_vars):
         code = []
         for c in code_block.children[1:-1]:
             if code_block.ifBlock():
@@ -173,7 +247,9 @@ class ModuleBuilder(SylvaParserListener):
                 for x in code_block.expr():
                     code.append(
                         self.build_expr(
-                            Location.FromContext(x, self.stream), x
+                            Location.FromContext(x, self.stream),
+                            x,
+                            local_vars
                         )
                     )
             else:
@@ -181,20 +257,38 @@ class ModuleBuilder(SylvaParserListener):
         return code
 
     def build_function_from_type_literal(self, location, literal):
+        params = self.build_param_list_from_type_literal_pairs(
+            literal.typeLiteralPairList()
+        )
+
+        debug('compile', f'{location.shorthand} params: {params}')
         # yapf: disable
-        return types.Function(
+        function_type = types.FunctionType(
             location,
-            self.build_param_list_from_type_literal_pairs(
-                literal.typeLiteralPairList()
-            ),
+            params,
             self.get_or_create_type_literal(
                 Location.FromContext(literal.typeLiteral(), self.stream),
                 literal.typeLiteral()
             ) if (hasattr(literal, 'typeLiteral')
-                  and literal.typeLiteral()) else None,
+                  and literal.typeLiteral()) else None
+        )
+
+        debug('compile', f'{location.shorthand} Func type: {function_type}')
+
+        # [FIXME] We want real locations here
+        local_vars = {
+            param_name: param_type.get_value(Location.Generate())
+            for param_name, param_type in params.items()
+        }
+
+        # yapf: disable
+        return ast.Function(
+            location,
+            function_type,
             self.build_code_block(
                 Location.FromContext(literal.codeBlock(), self.stream),
-                literal.codeBlock()
+                literal.codeBlock(),
+                local_vars
             )
         )
 
@@ -260,8 +354,23 @@ class ModuleBuilder(SylvaParserListener):
 
     def get_or_create_type_literal(self, location, literal, deferrable=False,
                                    modifier=TypeModifier.Raw):
+        debug(
+            'compile',
+            f'{location.shorthand} Building {literal}: {modifier}'
+        )
+
         if isinstance(literal, types.SylvaType):
             # Already built it
+            if modifier == TypeModifier.Pointer:
+                return types.OwnedPointer(location, literal)
+            if modifier == TypeModifier.Reference:
+                return types.ReferencePointer(
+                    location, literal, is_exclusive=False
+                )
+            if modifier == TypeModifier.ExclusiveReference:
+                return types.ReferencePointer(
+                    location, literal, is_exclusive=True
+                )
             return literal
         if literal.carrayTypeLiteral():
             carray = literal.carrayTypeLiteral()
@@ -277,8 +386,8 @@ class ModuleBuilder(SylvaParserListener):
                         Location.FromContext(carray.typeLiteral(), self.stream),
                         carray.typeLiteral()
                     ),
-                    referenced_type_is_mutable=True,
-                    is_mutable=True,
+                    referenced_type_is_exclusive=True,
+                    is_exclusive=True,
                 )
             return types.CArray(
                 location,
@@ -328,17 +437,17 @@ class ModuleBuilder(SylvaParserListener):
             )
         if literal.cpointerTypeLiteral():
             text = literal.getText()
-            referenced_type_is_mutable = False
-            is_mutable = False
+            referenced_type_is_exclusive = False
+            is_exclusive = False
 
             if text.endswith('!'):
-                is_mutable = True
+                is_exclusive = True
                 text = text[:-1]
 
             text = text[5:-1]
 
             if text.endswith('!'):
-                referenced_type_is_mutable = True
+                referenced_type_is_exclusive = True
 
             return types.CPtr(
                 location,
@@ -350,15 +459,15 @@ class ModuleBuilder(SylvaParserListener):
                     literal.cpointerTypeLiteral().typeLiteral(),
                     deferrable=True
                 ),
-                referenced_type_is_mutable,
-                is_mutable
+                referenced_type_is_exclusive,
+                is_exclusive
             )
         if literal.cstructTypeLiteral():
             pass
         if literal.cunionTypeLiteral():
             pass
         if literal.cvoidTypeLiteral():
-            return self.module.lookup('cvoid')
+            return self.module.lookup(location, 'cvoid')
         if literal.arrayTypeLiteral():
             modifier = TypeModifier.FromTypeLiteral(literal)
         if literal.functionTypeLiteral():
@@ -380,16 +489,23 @@ class ModuleBuilder(SylvaParserListener):
             elif modifier == TypeModifier.ExclusiveReference:
                 name = name[1:-1]
 
-            value = self.module.lookup(name)
+            # [TODO] Handle multiple dots/reflections
 
+            value = self.module.lookup(location, name)
             if value is None:
-                if deferrable:
-                    return types.DeferredTypeLookup(
-                        Location.FromContext(literal, self.stream),
-                        name
-                    )
-                raise errors.UndefinedSymbol(location, name)
+                if not deferrable:
+                    raise errors.UndefinedSymbol(location, name)
 
+                # [FIXME] This drops modifiers
+                return types.DeferredTypeLookup(
+                    Location.FromContext(literal, self.stream),
+                    name
+                )
+
+            debug('compile', (
+                f'{location.shorthand} '
+                f'TypeLiteral identifier {literal.getText()}: {modifier}'
+            ))
             return self.get_or_create_type_literal(
                 location,
                 value,
@@ -403,39 +519,31 @@ class ModuleBuilder(SylvaParserListener):
         if literal.arrayConstLiteral():
             pass
         elif literal.booleanLiteral():
-            pass
+            return ast.BooleanLiteral.FromRawValue(location, literal.getText())
         elif literal.decimalLiteral():
-            pass
+            return ast.DecimalLiteral.FromRawValue(location, literal.getText())
         elif literal.floatLiteral():
-            pass
+            return ast.FloatLiteral.FromRawValue(location, literal.getText())
         elif literal.functionLiteral():
             pass
         elif literal.integerLiteral():
-            return types.ConstDef(
-                location,
-                ast.IntegerLiteralExpr(location, literal.getText())
-            )
+            return ast.IntegerLiteral.FromRawValue(location, literal.getText())
         elif literal.rangeConstLiteral():
             pass
         elif literal.runeLiteral():
-            pass
+            return ast.RuneLiteral.FromRawValue(location, literal.getText())
         elif literal.stringLiteral():
-            return types.ConstDef(
-                location,
-                ast.StringLiteralExpr(location, literal.getText()),
-            )
+            return ast.StringLiteral.FromRawValue(location, literal.getText())
         elif literal.structConstLiteral():
             pass
-
 
     def lookup_identifier(self, identifier):
         location = Location.FromContext(identifier, self.stream)
         name = identifier.getText()
-        value = self.module.lookup(name)
+        value = self.module.lookup(location, name)
         if value is None:
             raise errors.UndefinedSymbol(location, name)
         return value
-
 
     def exitAliasDef(self, ctx):
         if ctx.identifier():

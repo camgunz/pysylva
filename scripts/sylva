@@ -43,22 +43,9 @@ def parse(file_paths, stdlib=None, target_triple=None):
     program = _load_program(file_paths, stdlib, target_triple)
 
     try:
-        program.parse()
-    except errors.SylvaError as error:
-        debug('main', traceback.format_exc())
-        print(error.pformat())
-
-
-def check(file_paths, stdlib=None, target_triple=None):
-    """Checks files and prints output."""
-    print_bar('Checking')
-    program = _load_program(file_paths, stdlib, target_triple)
-
-    try:
-        program_errors = program.check()
+        program_errors = program.parse()
         for error in program_errors:
-            print(error.pformat())
-            print()
+            print(error.pformat(), end='\n\n')
     except errors.SylvaError as error:
         debug('main', traceback.format_exc())
         print(error.pformat())
@@ -72,10 +59,8 @@ def compile(file_paths, output_folder, stdlib=None, target_triple=None):
 
     try:
         program_errors = program.compile(output_folder)
-        print(program_errors)
         for error in program_errors:
-            print(error.pformat())
-            print()
+            print(error.pformat(), end='\n\n')
     except errors.SylvaError as error:
         debug('main', traceback.format_exc())
         print(error.pformat())
@@ -86,9 +71,6 @@ def main():
     parser = argparse.ArgumentParser(description='Sylva')
     parser.add_argument(
         '--only-parse', action='store_true', help='Only perform parsing'
-    )
-    parser.add_argument(
-        '--only-check', action='store_true', help='Only perform checking'
     )
     parser.add_argument('--stdlib', type=str, help='Path to standard library')
     parser.add_argument('--target', type=str, help='Compilation target')
@@ -101,8 +83,6 @@ def main():
 
     if args.only_parse:
         parse(args.files, args.stdlib, args.target)
-    elif args.only_check:
-        check(args.files, args.stdlib, args.target)
     else:
         compile(args.files, args.output_folder, args.stdlib, args.target)
 

@@ -201,10 +201,15 @@ guess.
 
 ### Strings
 
-- `&str`:   `const char *`
-- `&str!`:  `char *` (ref)
-- `*str`:   `char *` (owned)
-- `String`: `StringBuffer`
+- Statically compiled string: `str` (`const char *`)
+  - constant value/length
+- Stack allocated string, shared: `&str` (`char *`)
+  - runtime value/length
+- Stack allocated string, exclusive: `&str!` (`char *`)
+  - runtime value/length
+- Heap allocated string `*str` (`char *`)
+  - runtime value/length
+- String buffer (uses heap allocation internally): `String` (`StringBuffer`)
 
 OK, always use the `&` prefix, because `str` is a aggregate type.
 

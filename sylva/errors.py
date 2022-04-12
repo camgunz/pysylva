@@ -122,6 +122,12 @@ class UndefinedSymbol(LocationError):
         super().__init__(location, f'Undefined symbol {name}')
 
 
+class NoSuchField(LocationError):
+
+    def __init__(self, location, name):
+        super().__init__(location, f'No such field {name}')
+
+
 class DuplicateDefinition(LocationError):
 
     def __init__(self, location, existing_location):
@@ -238,6 +244,12 @@ class UnsizedCArray(LocationError):
         super().__init__(location, 'Missing size in carray')
 
 
+class EmptyArray(LocationError):
+
+    def __init__(self, enum):
+        super().__init__(enum.location, 'Array has no elements')
+
+
 class ImpossibleLookup(LocationError):
 
     def __init__(self, location):
@@ -248,3 +260,11 @@ class ImpossibleReflection(LocationError):
 
     def __init__(self, location):
         super().__init__(location, 'Reflection not possible')
+
+
+class ImpossibleCompileTimeEvaluation(LocationError):
+
+    def __init__(self, location):
+        super().__init__(
+            location, 'Cannot evaluate expression at compile time'
+        )

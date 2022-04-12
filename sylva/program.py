@@ -45,8 +45,10 @@ class Program:
         return sylva.MAIN_MODULE_NAME in self.modules
 
     def parse(self):
+        errors = []
         for module in self.modules.values():
-            module.parse()
+            errors.extend(module.parse())
+        return errors
 
     def compile(self, output_folder):
         errors = []

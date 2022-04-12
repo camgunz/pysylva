@@ -22,20 +22,10 @@ depinstall: venv ## Install dependencies
 install: depinstall ## Install
 	@pip install .
 
-.PHONY: lextest
-
-lextest: install ## Run lexer tests
-	sylva --output-folder sbuild/ --only-lex examples/hello.sy
-
 .PHONY: parsetest
 
 parsetest: install ## Run parser tests
 	sylva --output-folder sbuild/ --only-parse examples/hello.sy
-
-.PHONY: checktest
-
-checktest: install ## Run checker tests
-	sylva --output-folder sbuild/ --only-check examples/hello.sy
 
 .PHONY: utest
 
