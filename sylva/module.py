@@ -1,12 +1,17 @@
-import llvmlite
+import re
+
+import llvmlite # type: ignore
 
 from llvmlite import ir
 
 # pylint: disable=unused-import
-from . import ast, debug, errors, types
+from . import ast, debug, errors
 from .location import Location
 from .module_builder import ModuleBuilder
 from .parser_utils import parse_with_listener
+
+
+_IDENTIFIER_DELIMITERS = re.compile(r'(\.|::)')
 
 
 class Module:
@@ -19,11 +24,11 @@ class Module:
         self._parsed = False
         self._errors = []
         self._llvm_module = None
+        self._definitions = {}
 
-        self._aliases = {}
         self.vars = {}
         self.requirements = set()
-        self.type = types.Module(Location.Generate(), self)
+        self.type = ast.ModuleType(Location.Generate(), self)
 
     @property
     def name(self):
@@ -77,81 +82,65 @@ class Module:
             parse_with_listener(stream, module_builder)
 
         for name, obj in self.vars.items():
-            if isinstance(obj, types.SylvaType):
+            if isinstance(obj, ast.SylvaType):
                 self._errors.extend(obj.check())
 
-            if isinstance(obj, types.MetaSylvaType):
+            if isinstance(obj, ast.MetaSylvaType):
                 self._errors.extend(obj.resolve_self_references(name))
 
         self._parsed = True
 
         return self._errors
 
-    def _handle_expr(self, builder, expr, local_vars):
-        if isinstance(expr, ast.Literal):
-            return expr.get_llvm_type(self)
+    def _compile_expr(self, builder, expr, local_vars):
+        debug('compile_expr', f'_compile_expr: {expr}')
+        if isinstance(expr, ast.LiteralExpr):
+            return expr.get_llvm_value(self)
 
-        if isinstance(expr, ast.SingleLookupExpr):
-            value = None
+        # if isinstance(expr, ast.ConstExpr):
+        #     # This catches CVoidCast and MoveExpr... why?
+        #     pass
 
-            value = local_vars.get(expr.name)
+        if isinstance(expr, ast.ValueExpr):
+            return self.llvm_lookup(expr.location, expr.name, local_vars)
 
-            if value is None:
-                value = self.lookup(
-                    expr.name, expr.location, local_vars=local_vars
-                )
+        if isinstance(expr, ast.FieldLookupExpr):
+            # return builder.gep(?)
+            pass
 
-            if value is None:
-                raise errors.UndefinedSymbol(expr.location, expr.name)
-
-            if isinstance(value, ir.GlobalVariable):
-                value = builder.load(value)
-
-            return value
-
-        if isinstance(expr, ast.LookupExpr):
-            # What might this be:
-            # - a local variable (argument, assignment)
-            #   - struct, enum, interface, variant, array (?)
-            # - a module
-            ns = self._handle_expr(builder, expr.namespace, local_vars)
-
-            if isinstance(ns, ir.Module) and expr.reflection:
-                raise errors.ImpossibleReflection(expr.location)
-
-            # At this point, ns could be something like LLVM-friendly like a
-            # Struct, or LLVM-unfriendly like an Interface. Regardless, we're
-            # doing `.lookup` on all of it.
-
-            value = ns.lookup(expr.name, expr.location)
-
-            if isinstance(value, ir.GlobalVariable):
-                value = builder.load(value)
-
-            return value
-
-        if isinstance(expr, ast.Call):
-            func = self._handle_expr(builder, expr.function, local_vars)
+        if isinstance(expr, ast.CallExpr):
+            func = self._compile_expr(builder, expr.function, local_vars)
             args = [
-                self._handle_expr(builder, arg_expr, local_vars)
+                self._compile_expr(builder, arg_expr, local_vars)
                 for arg_expr in expr.arguments
             ]
 
             return builder.call(func, args)
 
-        if isinstance(expr, ast.CPointer):
+        if isinstance(expr, ast.CPointerExpr):
             return expr
 
-    def _handle_function(self, name, func):
-        llvm_func = ir.Function(
-            self._llvm_module, func.get_llvm_type(self), name
-        )
+    # pylint: disable=too-many-locals
+    def _compile_function(self, name, function_def):
+        function = function_def.value
+        llvm_type = function.type.get_llvm_type(self)
+        llvm_func = ir.Function(self._llvm_module, llvm_type, name)
         block = llvm_func.append_basic_block()
         builder = ir.IRBuilder(block=block)
-        local_vars = dict(zip(func.parameters.keys(), llvm_func.args))
-        for node in func.code:
+        params = function.parameters.items()
+        local_vars = {}
+        for arg, param_name_and_param_type in zip(llvm_func.args, params):
+            param_name, param_type = param_name_and_param_type
+            param_llvm_type = param_type.get_llvm_type(self)
+            stack_slot = builder.alloca(param_llvm_type, name=param_name)
+            builder.store(arg, stack_slot)
+            local_vars[arg.name] = stack_slot
+        self._compile_code_block(function.code, builder, local_vars)
+
+    def _compile_code_block(self, code, builder, local_vars):
+        for node in code:
             if isinstance(node, ast.Expr):
-                self._handle_expr(builder, node, local_vars)
+                self._compile_expr(builder, node, local_vars)
 
     def get_llvm_module(self):
         if self._llvm_module:
@@ -166,41 +155,40 @@ class Module:
         # self._llvm_module = ir.Module(name=self.name, context=ir.Context())
         self._llvm_module = ir.Module(name=self.name)
 
-        for name, obj in self.vars.items():
-            if isinstance(obj, types.CFunction):
-                ir.Function(self._llvm_module, obj.get_llvm_type(self), name)
-            elif isinstance(obj, types.CStruct):
-                ir.GlobalVariable(
-                    self._llvm_module, obj.get_llvm_type(self, name), name
-                )
-            elif isinstance(obj, types.CUnion):
-                ir.GlobalVariable(
-                    self._llvm_module, obj.get_llvm_type(self), name
-                )
-            elif isinstance(obj, types.Function):
-                self._handle_function(name, obj)
-            elif isinstance(obj, types.Struct):
-                ir.GlobalVariable(
-                    self._llvm_module, obj.get_llvm_type(self), name
-                )
-            elif isinstance(obj, types.ConstDef):
-                var = ir.GlobalVariable(
-                    self._llvm_module, obj.value.get_llvm_type(self), name
-                )
-                var.initializer = obj.value.get_llvm_value(self)
+        for name, var in self.vars.items():
+            debug('compile', f'Compiling {name} {var}')
+            if isinstance(var, ast.CFunctionDef):
+                llvm_type = var.value.get_llvm_type(self)
+                ir.Function(self._llvm_module, llvm_type, name)
+            elif isinstance(var, ast.CStructDef):
+                llvm_type = var.value.get_llvm_type(self, name)
+                ir.GlobalVariable(self._llvm_module, llvm_type, name)
+            elif isinstance(var, ast.CUnionDef):
+                llvm_type = var.value.get_llvm_type(self)
+                ir.GlobalVariable(self._llvm_module, llvm_type, name)
+            elif isinstance(var, ast.FunctionDef):
+                self._compile_function(name, var)
+            # elif isinstance(var, ast.StructDef):
+            #     llvm_type = var.value.get_llvm_type(self)
+            #     ir.GlobalVariable(self._llvm_module, llvm_type, name)
+            elif isinstance(var, ast.ConstDef):
+                val = var.value # These are literals
+                llvm_type = val.value.get_llvm_type(self)
+                var = ir.GlobalVariable(self._llvm_module, llvm_type, name)
+                var.initializer = val.value.get_llvm_value(self)
                 var.global_constant = True
-            # elif isinstance(obj, types.CFunctionType):
-            #     self.compile_c_function_type(obj)
-            # elif isinstance(obj, types.CBlockFunctionType):
-            #     self.compile_c_block_function_type(obj)
-            # elif isinstance(obj, types.Enum):
-            #     self.compile_enum(obj)
-            # elif isinstance(obj, types.FunctionType):
-            #     self.compile_function_type(obj)
-            # elif isinstance(obj, types.Interface):
-            #     self.compile_interface(obj)
-            # elif isinstance(obj, types.Range):
-            #     self.compile_range(obj)
+            # elif isinstance(val, ast.CFunctionType):
+            #     self.compile_c_function_type(val)
+            # elif isinstance(val, ast.CBlockFunctionType):
+            #     self.compile_c_block_function_type(val)
+            # elif isinstance(val, ast.Enum):
+            #     self.compile_enum(val)
+            # elif isinstance(val, ast.FunctionType):
+            #     self.compile_function_type(val)
+            # elif isinstance(val, ast.Interface):
+            #     self.compile_interface(val)
+            # elif isinstance(val, ast.Range):
+            #     self.compile_range(val)
 
         return self._llvm_module, self._errors
 
@@ -209,37 +197,34 @@ class Module:
         if program_errors:
             return '', program_errors
 
+        print(str(llvm_module))
+
         llvm_mod_ref = llvmlite.binding.parse_assembly(str(llvm_module))
         llvm_mod_ref.verify()
 
         return self.target.machine.emit_object(llvm_mod_ref), []
 
-    def add_alias(self, name, value):
-        existing_alias = self._aliases.get(name)
-        if existing_alias:
-            raise errors.DuplicateAlias(
-                value.location, existing_alias.location, name
-            )
-        self._aliases[name] = value
+    def llvm_lookup(self, location, path, local_vars=None):
+        fields = _IDENTIFIER_DELIMITERS.split(path)
+        name = fields.pop(0)
+        value = self.lookup(location, name, local_vars)
 
-    def llvm_lookup(self, name, local_vars=None):
-        if local_vars:
-            value = local_vars.get(name)
-            if value:
-                return value
+        if not value:
+            raise errors.UndefinedSymbol(location, name)
 
-        aliased_name = self._aliases.get(name)
-        if aliased_name:
-            name = aliased_name
+        while fields:
+            reflection = fields.pop(0) == '::'
+            field = fields.pop(0)
 
-        module = self._program.get_module(name)
-        if module:
-            return module.llvm_module
+            if reflection:
+                value = value.reflect(location, field)
+            else:
+                value = value.lookup(location, field)
 
-        try:
-            return self._llvm_module.get_global(name)
-        except KeyError:
-            pass
+            if not value:
+                raise errors.NoSuchField(location, field)
+
+        return value.type.get_llvm_value(self)
 
     # pylint: disable=unused-argument
     def lookup(self, location, field, local_vars=None):
@@ -251,41 +236,38 @@ class Module:
         )
 
         if local_vars:
+            debug('lookup', 'Returning from local_vars')
             local_value = local_vars.get(field)
             if local_value is not None:
                 return local_value
 
-        aliased_value = self._aliases.get(field)
-        if aliased_value:
-            return aliased_value
-
-        local_value = self.vars.get(field)
-        if local_value:
-            return local_value
+        local_def = self.vars.get(field)
+        if local_def:
+            return local_def
 
         module = self._program.get_module(field)
         if module:
+            debug('lookup', 'Returning a module')
             return module
 
-        builtin = types.BUILTINS.get(field)
+        builtin = ast.BUILTIN_TYPES.get(field)
         if builtin:
+            debug('lookup', 'Returning a builtin')
             return builtin
 
     # pylint: disable=no-self-use
     def reflect(self, location, field):
         raise errors.ImpossibleReflection(location)
 
-    def define(self, name, value):
-        existing_value = self.vars.get(name)
-        if existing_value:
+    def add_definition(self, definition: ast.Def):
+        existing_def = self._definitions.get(definition.name)
+        if existing_def:
             raise errors.DuplicateDefinition(
-                value.location, existing_value.location
+                definition.location, existing_def.location
             )
 
-        if '.' in name and self._program.get_module(name.split('.', 1)[0]):
-            raise errors.DefinitionViolation(value.location, name)
+        if definition.name in ast.BUILTIN_TYPES:
+            raise errors.RedefinedBuiltIn(definition.location, definition.name)
 
-        if name in types.BUILTINS:
-            raise errors.RedefinedBuiltIn(value.location, name)
-
-        self.vars[name] = value
+        self.vars[definition.name] = definition.value
+        self._definitions[definition.name] = definition.location
