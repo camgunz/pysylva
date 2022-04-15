@@ -32,6 +32,9 @@ class Location:
             self.stream_name, self.index, self.line, self.column
         )
 
+    def __str__(self):
+        return repr(self)
+
     @property
     def is_generated(self):
         return self.stream is None

@@ -6,48 +6,50 @@ import typing
 
 from functools import cache, cached_property
 
-from attrs import define, field, resolve_types
+from attrs import define, field
 from llvmlite import ir # type: ignore
 
 from . import errors, utils
 from .location import Location
 from .operator import Operator
-from .validators import dict_not_empty, list_not_empty, positive
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class ASTNode:
-    pass
+
+    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
+    def lookup(self, location, field):
+        # raise errors.ImpossibleLookup(location)
+        raise errors.ImpossibleCompileTimeEvaluation(location)
+
+    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
+    def reflect(self, location, field):
+        raise errors.ImpossibleCompileTimeEvaluation(location)
+        # if field == 'type':
+        #     return self.type
+        # if field == 'bytes':
+        #     pass
+        # raise NotImplementedError()
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class Decl(ASTNode):
     location: Location
     name: str
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class ModuleDecl(Decl):
     pass
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class RequirementDecl(Decl):
     pass
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class SylvaType(ASTNode):
-
-    @property
-    def name(self):
-        return type(self).__name__
-
-    def __repr__(self):
-        return f'{self.name}()'
-
-    def __str__(self):
-        return f'<{self.name}>'
 
     # pylint: disable=no-self-use
     def check(self):
@@ -57,13 +59,14 @@ class SylvaType(ASTNode):
         raise NotImplementedError()
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class ParamSylvaType(SylvaType):
     location: Location
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class MetaSylvaType(SylvaType):
+    location: Location
 
     @property
     def names(self):
@@ -104,7 +107,7 @@ class MetaSylvaType(SylvaType):
         return missing_field_errors
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class SylvaLLVMType(SylvaType):
 
     @cache
@@ -128,17 +131,17 @@ class SylvaLLVMType(SylvaType):
         raise NotImplementedError()
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class MetaSylvaLLVMType(MetaSylvaType, SylvaLLVMType):
     pass
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class ScalarType(SylvaLLVMType):
     pass
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class BooleanType(ScalarType):
 
     @cache
@@ -149,7 +152,7 @@ class BooleanType(ScalarType):
         return BooleanExpr(location, name)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class RuneType(ScalarType):
 
     @cache
@@ -160,24 +163,24 @@ class RuneType(ScalarType):
         return RuneExpr(location, name)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class NumericType(ScalarType):
     pass
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class SizedNumericType(NumericType):
     bits: int
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class DecimalType(NumericType):
 
     def get_value(self, location: Location, name: str):
         return DecimalExpr(location, name)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class ComplexType(SizedNumericType):
 
     @cache
@@ -198,7 +201,7 @@ class ComplexType(SizedNumericType):
         return ComplexExpr(location=location, type=self, name=name)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class FloatType(SizedNumericType):
 
     @cache
@@ -217,10 +220,10 @@ class FloatType(SizedNumericType):
             return ir.DoubleType()
 
     def get_value(self, location: Location, name: str):
-        return FloatValue(location=location, type=self, name=name)
+        return FloatExpr(location=location, type=self, name=name)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class IntegerType(SizedNumericType):
     signed: bool
 
@@ -228,15 +231,19 @@ class IntegerType(SizedNumericType):
     def SmallestThatHolds(cls, x):
         return cls(utils.smallest_uint(x), signed=False)
 
+    @classmethod
+    def Platform(cls, signed):
+        return cls(bits=ctypes.sizeof(ctypes.c_size_t) * 8, signed=signed)
+
     @cache
     def get_llvm_type(self, module):
         return ir.IntType(self.bits)
 
     def get_value(self, location: Location, name: str):
-        return IntegerValue(location=location, type=self, name=name)
+        return IntegerExpr(location=location, type=self, name=name)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class StaticStringType(ScalarType):
 
     @cache
@@ -244,11 +251,16 @@ class StaticStringType(ScalarType):
         return ir.PointerType(ir.IntType(8))
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class BaseArrayType(MetaSylvaLLVMType):
-    location: Location
     element_type: SylvaType
-    element_count: None | int = field(validator=[list_not_empty])
+    element_count: None | int = field()
+
+    # pylint: disable=unused-argument
+    @element_count.validator
+    def check_element_count(self, attribute, value):
+        if value is not None and value <= 0:
+            raise errors.EmptyArray(self.location)
 
     @property
     def names(self):
@@ -264,47 +276,21 @@ class BaseArrayType(MetaSylvaLLVMType):
             self.element_type.get_llvm_type(module), self.element_count
         )
 
+    # pylint: disable=no-self-use,redefined-outer-name
+    @cache
+    def get_reflection_field_info(self, field):
+        if field == 'size':
+            return IntegerType.Platform(signed=False)
+        if field == 'count':
+            return IntegerType.Platform(signed=False)
 
-@define(frozen=True)
+
+@define(eq=False, slots=True)
 class ArrayType(BaseArrayType):
     pass
 
 
-@resolve_types
-@define(frozen=True)
-class EnumType(MetaSylvaLLVMType):
-    values: 'typing.Mapping[str, LiteralExpr]' = field(
-        validator=[dict_not_empty]
-    )
-
-    # pylint: disable=unused-argument
-    @values.validator
-    def check_empty(self, attribute, value):
-        if not len(list(value.keys())):
-            raise errors.EmptyEnum(self)
-
-    @cache
-    def get_llvm_type(self, module):
-        return self.types[0]
-
-    @cached_property
-    def names(self):
-        return list(self.values.keys()) # pylint: disable=no-member
-
-    @cached_property
-    def types(self):
-        return list(self.values.values()) # pylint: disable=no-member
-
-    def check(self):
-        super().check()
-
-        first_type = self.types[0].type
-        for value in self.types[1:]:
-            if value.type != first_type:
-                raise errors.MismatchedEnumMemberType(first_type, value)
-
-
-@define(frozen=True)
+@define(eq=False, slots=True)
 class BaseFunctionType(MetaSylvaLLVMType):
     parameters: typing.Mapping[str, SylvaType]
     return_type: SylvaType
@@ -331,18 +317,12 @@ class BaseFunctionType(MetaSylvaLLVMType):
         )
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class FunctionType(BaseFunctionType):
     pass
 
 
-@resolve_types
-@define(frozen=True)
-class InterfaceType(MetaSylvaType):
-    fields: 'typing.Mapping[str, FunctionValue | FunctionType]'
-
-
-@define(frozen=True)
+@define(eq=False, slots=True)
 class RangeType(MetaSylvaLLVMType):
     type: NumericType
     min: int
@@ -361,8 +341,9 @@ class RangeType(MetaSylvaLLVMType):
         return self.type.type
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class BaseStructType(MetaSylvaLLVMType):
+    name: str | None
     fields: typing.Mapping[str, SylvaType]
 
     # self._size = 0
@@ -385,6 +366,7 @@ class BaseStructType(MetaSylvaLLVMType):
     def types(self):
         return list(self.fields.values())
 
+    @cache
     def get_field_info(self, name):
         for n, field_name_and_type in enumerate(self.fields.items()):
             field_name, field_type = field_name_and_type
@@ -393,8 +375,8 @@ class BaseStructType(MetaSylvaLLVMType):
 
     # pylint: disable=arguments-differ
     @cache
-    def get_llvm_type(self, module, name=None):
-        if name is None:
+    def get_llvm_type(self, module):
+        if self.name is None:
             for f in self.fields.values():
                 if not isinstance(f, BasePointerType):
                     continue
@@ -405,7 +387,7 @@ class BaseStructType(MetaSylvaLLVMType):
                 f.get_llvm_type(module) for f in self.fields.values()
             ])
 
-        struct = module.get_identified_type(name)
+        struct = module.get_identified_type(self.name)
         fields = []
         for f in self.fields.values():
             if not isinstance(f, BasePointerType):
@@ -419,12 +401,12 @@ class BaseStructType(MetaSylvaLLVMType):
         return struct
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class StructType(BaseStructType):
     pass
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class ParamStructType(ParamSylvaType):
     type_params: typing.Mapping[str, str | SylvaType]
     fields: typing.Mapping[str, SylvaType]
@@ -442,9 +424,9 @@ class ParamStructType(ParamSylvaType):
         return StructType(location=location, fields=fields)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class StringType(StructType):
-    location: Location = Location.Generate()
+    location: Location = Location.Generate() # Hmmm...
     fields: typing.Mapping[str, SylvaType] = {
         'size': IntegerType( # yapf: disable
             bits=ctypes.sizeof(ctypes.c_size_t * 8),
@@ -456,9 +438,17 @@ class StringType(StructType):
     def get_value(self, location: Location, name: str):
         return StringExpr(location=location, name=name)
 
+    # pylint: disable=no-self-use,redefined-outer-name
+    @cache
+    def get_reflection_field_info(self, field):
+        if field == 'size':
+            return IntegerType.Platform(signed=False)
+        if field == 'count':
+            return IntegerType.Platform(signed=False)
 
-@define(frozen=True)
-class MetaSylvaLLVMUnionType(MetaSylvaLLVMType):
+
+@define(eq=False, slots=True)
+class BaseUnionType(MetaSylvaLLVMType):
     fields: typing.Mapping[str, SylvaType]
 
     @property
@@ -478,9 +468,16 @@ class MetaSylvaLLVMUnionType(MetaSylvaLLVMType):
                 largest_field = f
         return largest_field.get_llvm_type(module)
 
+    @cache
+    def get_field_info(self, name):
+        for n, field_name_and_type in enumerate(self.fields.items()):
+            field_name, field_type = field_name_and_type
+            if field_name == name:
+                return n, field_type
 
-@define(frozen=True)
-class VariantType(MetaSylvaLLVMUnionType):
+
+@define(eq=False, slots=True)
+class VariantType(BaseUnionType):
 
     def check(self):
         type_errors = super().check()
@@ -496,7 +493,7 @@ class VariantType(MetaSylvaLLVMUnionType):
         ])
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class ParamVariantType(ParamSylvaType):
     type_params: typing.Mapping[str, str | SylvaType]
     fields: typing.Mapping[str, SylvaType]
@@ -514,7 +511,7 @@ class ParamVariantType(ParamSylvaType):
         return VariantType(location=location, fields=fields)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class BasePointerType(MetaSylvaLLVMType):
     referenced_type: SylvaType
     is_exclusive: bool
@@ -531,15 +528,20 @@ class BasePointerType(MetaSylvaLLVMType):
     def get_llvm_type(self, module):
         return ir.PointerType(self.referenced_type.get_llvm_type(module))
 
+    # pylint: disable=redefined-outer-name
+    @cache
+    def get_reflection_field_info(self, field):
+        return self.referenced_type.get_reflection_field_info(field)
 
-@define(frozen=True)
+
+@define(eq=False, slots=True)
 class ReferencePointerType(BasePointerType):
 
     def get_value(self, location: Location, name: str):
         return ReferencePointerExpr(location=location, type=self, name=name)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class OwnedPointerType(BasePointerType):
     is_exclusive: bool = True
 
@@ -547,7 +549,15 @@ class OwnedPointerType(BasePointerType):
         return OwnedPointerExpr(location=location, type=self, name=name)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
+class CPtrType(BasePointerType):
+    referenced_type_is_exclusive: bool
+
+    def get_value(self, location: Location, name: str):
+        return CPointerExpr(location=location, type=self, name=name)
+
+
+@define(eq=False, slots=True)
 class ModuleType(SylvaType):
     value: typing.Any # Module, but we can't because it would be circular
 
@@ -556,7 +566,7 @@ class ModuleType(SylvaType):
         return self.value.lookup(location, field)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class CBitFieldType(SylvaLLVMType):
     bits: int
     signed: bool
@@ -567,7 +577,7 @@ class CBitFieldType(SylvaLLVMType):
         return ir.IntType(self.bits)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class CVoidType(SylvaLLVMType):
 
     @cache
@@ -576,7 +586,7 @@ class CVoidType(SylvaLLVMType):
         raise Exception('Cannot get the LLVM type of CVoid')
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class CStringType(ScalarType):
 
     @cache
@@ -584,86 +594,64 @@ class CStringType(ScalarType):
         return ir.PointerType(ir.IntType(8))
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class CArrayType(BaseArrayType):
-    element_count: int = field(validator=[positive])
+    element_count: int = field()
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class CFunctionType(BaseFunctionType):
     pass
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class CFunctionPointerType(BaseFunctionType):
 
     def get_llvm_type(self, module):
         return super().get_llvm_type(module).as_pointer()
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class CBlockFunctionType(BaseFunctionType):
     pass
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class CBlockFunctionPointerType(BaseFunctionType):
 
     def get_llvm_type(self, module):
         return super().get_llvm_type(module).as_pointer()
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class CStructType(BaseStructType):
     pass
 
 
-@define(frozen=True)
-class CUnionType(MetaSylvaLLVMUnionType):
+@define(eq=False, slots=True)
+class CUnionType(BaseUnionType):
 
     @cache
     def get_llvm_type(self, module):
         return ir.LiteralStructType([self.get_largest_field(module)])
 
 
-@define(frozen=True)
-class CPtrType(BasePointerType):
-    referenced_type_is_exclusive: bool
-
-    def get_value(self, location: Location, name: str):
-        return CPointerExpr(location=location, type=self, name=name)
-
-
-@define(frozen=True)
+@define(eq=False, slots=True)
 class Expr(ASTNode):
     location: Location
-    type: 'SylvaType'
+    type: SylvaType
 
     # pylint: disable=no-self-use
     def eval(self, location):
         raise errors.ImpossibleCompileTimeEvaluation(location)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class ValueExpr(Expr):
     name: str | None
 
-    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
-    def lookup(self, location, field):
-        # raise errors.ImpossibleLookup(location)
-        raise errors.ImpossibleCompileTimeEvaluation(location)
 
-    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
-    def reflect(self, location, field):
-        raise errors.ImpossibleCompileTimeEvaluation(location)
-        # if field == 'type':
-        #     return self.type
-        # if field == 'bytes':
-        #     pass
-        # raise NotImplementedError()
-
-
-@define(frozen=True)
+@define(eq=False, slots=True)
 class ConstExpr(Expr):
     value: typing.Any
 
@@ -672,8 +660,6 @@ class ConstExpr(Expr):
 
     # pylint: disable=unused-argument,no-self-use,redefined-outer-name
     def lookup(self, location, field):
-        raise NotImplementedError()
-
         # if isinstance(self.type, types.CStruct):
         #     raise NotImplementedError() # This is a GEP call?
         # if isinstance(self.type, types.CUnion):
@@ -688,20 +674,17 @@ class ConstExpr(Expr):
         #     raise NotImplementedError() # This is a bitcast and a GEP call?
         # if isinstance(self.type, types.Module):
         #     return self.type.lookup(location, field)
+        raise NotImplementedError()
 
     def reflect(self, location, field):
-        if field == 'type':
-            return StringLiteralExpr(
-                location=location, value=self.type.type_name
-            )
-
-        if field == 'bytes':
-            pass
-
+        # if field == 'type':
+        #     pass
+        # if field == 'bytes':
+        #     pass
         raise NotImplementedError()
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class LiteralExpr(ConstExpr):
 
     @cache
@@ -709,12 +692,12 @@ class LiteralExpr(ConstExpr):
         return self.type.make_constant(module, self.value)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class CVoidCastExpr(ConstExpr):
     type: IntegerType = IntegerType(bits=8, signed=True)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class BooleanLiteralExpr(LiteralExpr):
     type: BooleanType = BooleanType()
 
@@ -727,12 +710,12 @@ class BooleanLiteralExpr(LiteralExpr):
         self.type.make_constant(module, 1 if self.value else 0)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class BooleanExpr(ValueExpr):
     type: BooleanType = BooleanType()
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class RuneLiteralExpr(LiteralExpr):
     type: RuneType = RuneType()
 
@@ -741,12 +724,12 @@ class RuneLiteralExpr(LiteralExpr):
         return cls(location, value=raw_value[1:-1])
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class RuneExpr(ValueExpr):
     type: RuneType = RuneType()
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class StringLiteralExpr(LiteralExpr):
     type: ArrayType
 
@@ -781,31 +764,37 @@ class StringLiteralExpr(LiteralExpr):
             )
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class StringExpr(ValueExpr):
-    type: StringType = StringType()
+    type: StringType = StringType(name='str')
 
     # pylint: disable=redefined-outer-name
     def reflect(self, location, field):
         if field == 'size':
             field_index, field_type = self.type.get_field_info(field)
-            return FieldLookupExpr(location, field_type, self, field_index)
+            return FieldIndexLookupExpr(
+                location, field_type, self, field_index
+            )
 
         raise NotImplementedError()
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class NumericLiteralExpr(LiteralExpr):
     pass
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class IntegerLiteralExpr(NumericLiteralExpr):
     type: IntegerType
 
     @classmethod
     def Build(cls, location, size, signed, value):
-        return cls(location, IntegerType(size, signed=signed), value)
+        return cls(
+            location=location,
+            type=IntegerType(size, signed=signed),
+            value=value
+        )
 
     @classmethod
     def Platform(cls, location, signed, value):
@@ -860,7 +849,11 @@ class IntegerLiteralExpr(NumericLiteralExpr):
 
         size = size or ctypes.sizeof(ctypes.c_size_t) * 8
 
-        return cls.Build(location, size, signed, value)
+        return cls(
+            location=location,
+            type=IntegerType(size, signed=signed),
+            value=value
+        )
 
     @property
     def signed(self):
@@ -870,13 +863,9 @@ class IntegerLiteralExpr(NumericLiteralExpr):
     def size(self):
         return self.type.bits
 
-    @property
-    def type_name(self):
-        return f'{"i" if self.signed else "u"}{self.size}'
 
-
-@define(frozen=True)
-class IntegerValue(ValueExpr):
+@define(eq=False, slots=True)
+class IntegerExpr(ValueExpr):
     type: IntegerType
 
     @classmethod
@@ -884,7 +873,7 @@ class IntegerValue(ValueExpr):
         return cls(location, type=IntegerType(size, signed=signed), name=name)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class FloatLiteralExpr(NumericLiteralExpr):
     type: FloatType
 
@@ -909,8 +898,8 @@ class FloatLiteralExpr(NumericLiteralExpr):
         return self.type.bits
 
 
-@define(frozen=True)
-class FloatValue(ValueExpr):
+@define(eq=False, slots=True)
+class FloatExpr(ValueExpr):
     type: FloatType
 
     @classmethod
@@ -918,7 +907,7 @@ class FloatValue(ValueExpr):
         cls(location, type=FloatType(size), name=name)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class ComplexLiteralExpr(NumericLiteralExpr):
     type: ComplexType
 
@@ -943,7 +932,7 @@ class ComplexLiteralExpr(NumericLiteralExpr):
         return self.type.bits
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class ComplexExpr(ValueExpr):
     type: ComplexType
 
@@ -952,7 +941,7 @@ class ComplexExpr(ValueExpr):
         cls(location, type=ComplexType(size), name=name)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class DecimalLiteralExpr(NumericLiteralExpr):
     type: DecimalType = DecimalType()
 
@@ -961,54 +950,82 @@ class DecimalLiteralExpr(NumericLiteralExpr):
         return cls(location, value=decimal.Decimal(raw_value))
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class DecimalExpr(ValueExpr):
     type: DecimalType = DecimalType()
 
 
-@define(frozen=True)
-class FunctionValue(ValueExpr):
+@define(eq=False, slots=True)
+class FunctionExpr(ValueExpr):
     type: FunctionType
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class CallExpr(Expr):
     function: Expr
     arguments: list[Expr]
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class IndexExpr(Expr):
     indexable: Expr
     index: Expr
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class UnaryExpr(Expr):
     operator: Operator
     expr: Expr
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class BinaryExpr(Expr):
     operator: Operator
     lhs: Expr
     rhs: Expr
 
 
-@define(frozen=True)
-class FieldLookupExpr(Expr):
-    object: Expr
+@define(eq=False, slots=True)
+class LookupExpr(Expr):
+    name: str
+
+    # [FIXME] This causes a problem with Module.lookup because lookups are
+    #         supposed to return LookupExprs, not actual things.
+
+    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
+    def lookup(self, location, field):
+        return self.type.lookup(location, field)
+
+    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
+    def reflect(self, location, field):
+        return self.type.reflect(location, field)
+
+
+@define(eq=False, slots=True)
+class FieldNameLookupExpr(Expr):
+    object: ASTNode
+    name: str
+
+
+@define(eq=False, slots=True)
+class FieldIndexLookupExpr(Expr):
+    object: ASTNode
     index: int
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
+class ReflectionLookupExpr(Expr):
+    object: ASTNode
+    name: str
+
+
+@define(eq=False, slots=True)
 class MoveExpr(ConstExpr):
     type: OwnedPointerType
     value: Expr
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class BasePointerExpr(ValueExpr):
 
     @property
@@ -1019,6 +1036,7 @@ class BasePointerExpr(ValueExpr):
     def is_exclusive(self):
         return self.type.is_exclusive
 
+    @cache
     def deref(self, location, name):
         return self.referenced_type.get_value(location, name)
 
@@ -1035,12 +1053,12 @@ class ReferencePointerExpr(BasePointerExpr):
         )
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class OwnedPointerExpr(BasePointerExpr):
     type: OwnedPointerType
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class CPointerExpr(BasePointerExpr):
     type: CPtrType
 
@@ -1065,98 +1083,216 @@ class CPointerExpr(BasePointerExpr):
         )
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class Stmt(ASTNode):
     location: Location
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class StmtBlock(Stmt):
     code: list[Expr | Stmt]
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class Break(Stmt):
     pass
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class Continue(Stmt):
     pass
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class Return(Stmt):
     expr: Expr
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class If(StmtBlock):
     conditional_expr: Expr
     else_code: list[Expr | Stmt]
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class Loop(StmtBlock):
     pass
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class While(StmtBlock):
     conditional_expr: Expr
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
 class Def(ASTNode):
     location: Location
-    module: typing.Any
     name: str
-    value: ConstExpr | SylvaType
+
+    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
+    def lookup(self, location: Location, field: str):
+        raise errors.ImpossibleLookup(location)
+
+    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
+    def reflect(self, location, field):
+        raise errors.ImpossibleReflection(location)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
+class AliasDef(Def):
+    value: str | SylvaType = field()
+
+    # pylint: disable=unused-argument
+    @value.validator
+    def check_value(self, attribute, value):
+        if isinstance(value, str) and value == self.name:
+            raise errors.RedundantAlias(self.location, self.name)
+
+
+@define(eq=False, slots=True)
 class ConstDef(Def):
     value: ConstExpr
 
+    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
+    def lookup(self, location: Location, field: str):
+        return self.value.lookup(location, field)
 
-@define(frozen=True)
-class TypeDef(Def):
-    value: SylvaType
+    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
+    def reflect(self, location, field):
+        return self.value.reflect(location, field)
 
 
-@define(frozen=True)
-class FunctionDef(TypeDef):
-    value: FunctionType
+@define(eq=False, slots=True)
+class FunctionDef(Def):
+    type: FunctionType
     code: list[Expr | Stmt]
 
 
-@define(frozen=True)
-class CFunctionDef(TypeDef):
-    value: CFunctionType
+@define(eq=False, slots=True)
+class CFunctionDef(Def):
+    type: CFunctionType
 
 
-@define(frozen=True)
-class CUnionDef(TypeDef):
-    value: CUnionType
+@define(eq=False, slots=True)
+class TypeDef(Def):
+    type: SylvaType
 
 
-@define(frozen=True)
-class CStructDef(TypeDef):
-    value: CStructType
+@define(eq=False, slots=True)
+class IndexedFieldsTypeDef(TypeDef):
+    type: StructType | CStructType
+
+    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
+    def lookup(self, location: Location, field: str):
+        field_index, field_type = self.type.get_field_info(field)
+        return FieldIndexLookupExpr(location, field_type, self, field_index)
+
+    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
+    # def reflect(self, location, field):
+    #     return self.value.reflect(location, field)
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
+class StructDef(IndexedFieldsTypeDef):
+    pass
+
+
+@define(eq=False, slots=True)
+class CStructDef(IndexedFieldsTypeDef):
+    pass
+
+
+@define(eq=False, slots=True)
 class DeferredTypeLookup:
     location: Location
     value: str
 
 
-@define(frozen=True)
+@define(eq=False, slots=True)
+class InterfaceType(MetaSylvaType):
+    fields: typing.Mapping[str, FunctionExpr | FunctionType]
+
+    @cache
+    def get_field_info(self, name):
+        for n, field_name_and_value in enumerate(self.fields.items()):
+            field_name, field_value = field_name_and_value
+            if field_name == name:
+                return n, field_value
+
+
+@define(eq=False, slots=True)
 class Implementation(ASTNode):
     location: Location
     interface: InterfaceType
     implementing_type: SylvaType
-    funcs: list[FunctionValue]
+    funcs: list[FunctionExpr]
+
+
+@define(eq=False, slots=True)
+class EnumType(MetaSylvaLLVMType):
+    # yapf: disable
+    values: typing.Mapping[
+        str,
+        LiteralExpr
+    ] = field()
+
+    # pylint: disable=unused-argument
+    @values.validator
+    def check_values(self, attribute, value):
+        if len(list(value.keys())) <= 0:
+            raise errors.EmptyEnum(self.location)
+
+    @cache
+    def get_llvm_type(self, module):
+        return self.types[0].get_llvm_type(module)
+
+    @cache
+    def get_field_info(self, name):
+        vals = self.values.items() # pylint: disable=no-member
+        for n, field_name_and_value in enumerate(vals):
+            field_name, field_value = field_name_and_value
+            if field_name == name:
+                return n, field_value
+
+    @cached_property
+    def names(self):
+        return list(self.values.keys()) # pylint: disable=no-member
+
+    @cached_property
+    def types(self):
+        return list(self.values.values()) # pylint: disable=no-member
+
+    def check(self):
+        super().check()
+
+        first_type = self.types[0].type
+        for value in self.types[1:]:
+            if value.type != first_type:
+                raise errors.MismatchedEnumMemberType(first_type, value)
+
+
+@define(eq=False, slots=True)
+class NamedFieldsTypeDef(TypeDef):
+    type: VariantType | CUnionType | EnumType | InterfaceType
+
+    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
+    def lookup(self, location: Location, field: str):
+        _, field_type = self.type.get_field_info(field)
+        return FieldNameLookupExpr(location, field_type, self, field)
+
+    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
+    # def reflect(self, location, field):
+    #     return self.value.reflect(location, field)
+
+
+@define(eq=False, slots=True)
+class VariantDef(NamedFieldsTypeDef):
+    pass
+
+
+@define(eq=False, slots=True)
+class CUnionDef(NamedFieldsTypeDef):
+    pass
 
 
 BUILTIN_TYPES = {
@@ -1193,7 +1329,7 @@ BUILTIN_TYPES = {
     'i64': IntegerType(64, signed=True),
     'i128': IntegerType(128, signed=True),
     'rune': RuneType(),
-    'str': StringType(),
+    'str': StringType(name='str'),
     'uint': IntegerType(ctypes.sizeof(ctypes.c_size_t) * 8, signed=False),
     'u8': IntegerType(8, signed=False),
     'u16': IntegerType(16, signed=False),

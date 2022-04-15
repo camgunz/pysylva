@@ -213,8 +213,8 @@ class DuplicateEnumFields(LocationError):
 
 class EmptyEnum(LocationError):
 
-    def __init__(self, enum):
-        super().__init__(enum.location, 'Enum has no fields')
+    def __init__(self, location):
+        super().__init__(location, 'Enum has no fields')
 
 
 class MismatchedEnumMemberType(LocationError):
@@ -246,8 +246,8 @@ class UnsizedCArray(LocationError):
 
 class EmptyArray(LocationError):
 
-    def __init__(self, enum):
-        super().__init__(enum.location, 'Array has no elements')
+    def __init__(self, location):
+        super().__init__(location, 'Array has no elements')
 
 
 class ImpossibleLookup(LocationError):
