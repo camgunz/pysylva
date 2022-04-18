@@ -106,13 +106,14 @@ enum Cards {
   KingOfDiamonds:  CardStruct{Suit.Diamond, Rank.King},
 }
 
-alias Deck: [*Card * DeckSize::count]
+array Deck [*Card * DeckSize::count]
 
-alias Hand: [&Card * 5]
+array Hand [&Card * 5]
 
+# Generics
 alias DealResult: Result(&Card, str)
 
-fntype rank_value_comparer(value1: Value, value2: RankValue): bool
+fn rank_value_comparer(value1: Value, value2: RankValue): bool
 
 fn rank_value_less_than(value1: Value, value2: RankValue): bool {
   return value1 < value2
@@ -201,6 +202,7 @@ fn card_equals(card: &Card, other: &Card): bool {
 }
 
 fn shuffle_deck(deck: &Deck!) {
+  # Generics
   random.shuffle(&Deck)(deck)
 }
 
@@ -231,7 +233,9 @@ fn build_hand(hand: &Hand!, deck: &Deck!, count: DeckSize) {
     }
   }
 
-  array_sort(&Hand!)(&hand!) # [TODO] Is `array_sort` a function? Probably not
+  # Generics
+  # [TODO] Implement base.array_sort
+  base.array_sort(&hand::type!)(&hand!)
 }
 
 fn hand_remove_card_at_index(hand: &Hand!, index: uint) {
