@@ -1,7 +1,6 @@
 from pathlib import Path
 
-from antlr4 import FileStream
-
+from .stream import Stream
 
 # [NOTE] We assume one module per file here, and that each file is named for
 #        the module it contains.
@@ -25,5 +24,5 @@ class Stdlib:
                 raise ValueError(
                     f'Expected {module_name} at {module_path} to be a file'
                 )
-            streams.append(FileStream(str(module_path)))
+            streams.append(Stream.FromFile(str(module_path)))
         return cls(streams)

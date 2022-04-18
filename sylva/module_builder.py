@@ -1,11 +1,12 @@
 import enum
 
+import lark
+
 # pylint: disable=unused-import
 from . import ast, debug, errors
 
-from .listener import SylvaParserListener
 from .location import Location
-from .parser import SylvaParser
+from .parser import Lark_StandAlone as Parser
 
 
 class TypeModifier(enum.Enum):
@@ -31,11 +32,11 @@ class TypeModifier(enum.Enum):
         return cls.Reference
 
 
-class ModuleBuilder(SylvaParserListener):
+class ModuleBuilder(lark.Visitor):
 
     def __init__(self, module, stream):
-        self.module = module
-        self.stream = stream
+        self._module = module
+        self._stream = stream
 
     # pylint: disable=too-many-locals
     def build_expr(self, location, expr, local_type_lookup):
@@ -85,22 +86,32 @@ class ModuleBuilder(SylvaParserListener):
         elif isinstance(expr, SylvaParser.CArrayLiteralExprContext):
             pass
         elif isinstance(expr, SylvaParser.CPointerLiteralExprContext):
-            # If there's a reference expr, we gotta unwrap it
+            is_exclusive = expr.children[-1].getText() == '!'
+
+            reference_expr = expr.expr()
+            referenced_type_is_exclusive = (
+                reference_expr.children[-1].getText() == '!'
+            )
+
             referenced_value = self.build_expr(
-                Location.FromContext(expr.expr(), self.stream),
-                expr.expr(),
+                Location.FromContext(reference_expr, self.stream),
+                reference_expr,
                 local_type_lookup,
             )
 
             if isinstance(referenced_value, ast.ReferencePointerExpr):
                 referenced_value = referenced_value.referenced_value
 
-            return ast.CPointerExpr.Build(
-                location,
-                referenced_value,
-                expr.expr().children[-1].getText() == '!',
-                expr.children[-1].getText() == '!',
-                None
+            return ast.CPointerCastExpr(
+                location=location,
+                type=ast.CPtrType(
+                    location=location,
+                    referenced_type=referenced_value.type,
+                    is_exclusive=is_exclusive,
+                    referenced_type_is_exclusive=referenced_type_is_exclusive
+                ),
+                name=None,
+                value=referenced_value
             )
         elif isinstance(expr, SylvaParser.CStructLiteralExprContext):
             pass
@@ -109,8 +120,10 @@ class ModuleBuilder(SylvaParserListener):
         elif isinstance(expr, SylvaParser.CVoidLiteralExprContext):
             location = Location.FromContext(expr.expr(), self.stream)
             return ast.CVoidCastExpr(
-                location,
-                self.build_expr(location, expr.expr(), local_type_lookup)
+                location=location,
+                value=self.build_expr(
+                    location, expr.expr(), local_type_lookup
+                )
             )
         elif isinstance(expr, SylvaParser.SingleLookupExprContext):
             full_name = expr.getText()
@@ -178,7 +191,10 @@ class ModuleBuilder(SylvaParserListener):
                         raise errors.NoSuchField(location, field_name)
 
                     lexpr = ast.ReflectionLookupExpr(
-                        location, field_type, lexpr.type, field_name
+                        location=location,
+                        type=field_type,
+                        object=lexpr,
+                        name=field_name
                     )
                 elif isinstance(lexpr, ast.IndexedFieldsTypeDef):
                     debug('lookup', f'  Looking up {field_name} in {lexpr}')
@@ -204,7 +220,7 @@ class ModuleBuilder(SylvaParserListener):
                         location, field_type, lexpr.type, field_name
                     )
                 elif isinstance(lexpr, ast.LookupExpr):
-                    value = lexpr.type.lookup(location, field_name)
+                    value = self.module.lookup(location, field_name)
                     if value is None:
                         raise errors.NoSuchField(location, field_name)
 
@@ -694,3 +710,51 @@ class ModuleBuilder(SylvaParserListener):
         self.module.add_definition(
             ast.CStructDef(location=location, name=name, type=cstruct)
         )
+
+    def _lookup_type(self, location, type_name):
+        res = self._module.lookup_type(type_name)
+        if res is None:
+            raise errors.UndefinedSymbol(location, type_name)
+        return res
+
+    def _get_type(self, type_obj):
+        if isinstance(type_obj, lark.Token):
+            loc = Location.FromToken(type_obj, self._stream)
+            self._lookup_type(loc, type_obj.value)
+        elif type_obj.data.value == 'c_pointer_type_expr':
+            return ast.CPointer(
+                location=Location.FromTree(type_obj, self._stream),
+                referenced_type=self._get_type(type_obj.children[0]),
+            )
+        raise NotImplementedError
+
+    def c_function_type_def(self, tree):
+        name = tree.children[0].value
+        param_objs = tree.children[1].children[:-1]
+        return_type_obj = tree.children[1].children[-1]
+        params = []
+        for name_token, param_type_obj in param_objs.children:
+            params.append(
+                ast.Parameter(
+                    location=Location.FromToken(name_token, self._stream),
+                    name=name_token.value,
+                    type=self._get_type(param_type_obj)
+                )
+            )
+        if return_type_obj is not None:
+            return_type = self._get_type(return_type_obj)
+        else:
+            return_type = None
+
+        self._module.add_definition(
+            ast.CFunction(
+                location=Location.FromTree(tree, self._stream),
+                name=tree.children[0].value,
+                params=params,
+                return_type=return_type
+            )
+        )
+
+    def function_def(self, tree):
+        import pdb
+        pdb.set_trace()

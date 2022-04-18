@@ -1,28 +1,31 @@
-from antlr4 import FileStream
+from attrs import define
+
+from .stream import Stream
 
 
+@define(frozen=True, slots=True)
 class Location:
-
-    __slots__ = ('stream', 'index', 'line', 'column')
-
-    def __init__(self, stream, index=0, line=1, column=0):
-        self.stream = stream
-        self.index = index
-        self.line = line
-        self.column = column
+    stream: Stream | None = None
+    index: int = 0
+    line: int = 1
+    column: int = 0
 
     @classmethod
     def FromToken(cls, token, stream=None):
-        return cls(stream, token.start, token.line, token.column)
+        return cls(stream, token.start_pos, token.line, token.column)
 
     @classmethod
     def FromContext(cls, ctx, stream=None):
-        token = ctx.start
-        return cls(stream, token.start, token.line, token.column)
+        return cls(stream, ctx.start.start, ctx.start.line, ctx.start.column)
+
+    @classmethod
+    def FromTree(cls, tree, stream=None):
+        md = tree.data
+        return cls(stream, md.start_pos, md.line, md.column)
 
     @classmethod
     def Generate(cls):
-        return cls(None)
+        return cls()
 
     def __repr__(self):
         if self.is_generated:
@@ -33,7 +36,7 @@ class Location:
         )
 
     def __str__(self):
-        return repr(self)
+        return self.shorthand
 
     @property
     def is_generated(self):
@@ -47,9 +50,6 @@ class Location:
     def stream_name(self):
         if self.is_generated:
             return '<generated>'
-
-        if isinstance(self.stream, FileStream):
-            return self.stream.fileName
 
         return self.stream.name
 

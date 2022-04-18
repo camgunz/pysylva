@@ -1,67 +1,58 @@
 from collections import defaultdict
 
-from antlr4 import InputStream
+import lark
 
 from .ast import ModuleDecl, RequirementDecl
-from .listener import SylvaParserListener
 from .location import Location
 from .module import Module
-from .parser_utils import parse_with_listener
+from .parser import Lark_StandAlone as Parser
+from .stream import Stream
 
 
-class ModuleScanner(SylvaParserListener):
+class ModuleDeclVisitor(lark.Visitor):
 
-    def __init__(self, stream=None):
+    def __init__(self, stream, decls):
         self._stream = stream
-        self.module_declarations = []
+        self._decls = decls
 
-    def exitModuleDecl(self, ctx):
-        self.module_declarations.append(
-            ModuleDecl(
-                Location.FromContext(ctx, self._stream),
-                ctx.children[1].getText()
-            )
-        )
+    def module_decl(self, tree):
+        loc = Location.FromTree(tree, stream=self._stream)
+        self._decls.append(ModuleDecl(loc, tree.children[0].children[0].value))
 
 
-class RequirementScanner(SylvaParserListener):
+class RequirementDeclVisitor(lark.Visitor):
 
-    def __init__(self, stream=None):
+    def __init__(self, stream, decls):
         self._stream = stream
-        self.requirement_declarations = []
+        self._decls = decls
+        self._seen = set()
 
-    def exitRequirementDecl(self, ctx):
-        self.requirement_declarations.append(
-            RequirementDecl(
-                Location.FromContext(ctx, self._stream),
-                ctx.children[1].getText()
-            )
-        )
+    def requirement_decl(self, tree):
+        rd_name = tree.children[0].children[0].value
+        if rd_name in self._seen:
+            return
+
+        self._seen.add(rd_name)
+
+        loc = Location.FromTree(tree, stream=self._stream)
+        self._decls.append(RequirementDecl(loc, rd_name))
 
 
 class ModuleLoader:
 
     @staticmethod
     def get_module_declarations_from_streams(streams):
-        module_declarations = []
+        mod_decls = []
         for s in streams:
-            ms = ModuleScanner(s)
-            parse_with_listener(s, ms)
-            module_declarations.extend(ms.module_declarations)
-        return module_declarations
+            ModuleDeclVisitor(s, mod_decls).visit(Parser().parse(s.data))
+        return mod_decls
 
     @staticmethod
     def gather_requirements_from_streams(streams):
-        requirement_declarations = []
+        req_decls = []
         for s in streams:
-            rs = RequirementScanner(s)
-            parse_with_listener(s, rs)
-            requirement_declarations.extend(rs.requirement_declarations)
-        seen = set()
-        return [
-            req for req in requirement_declarations
-            if not req.name in seen and not seen.add(req.name)
-        ]
+            RequirementDeclVisitor(s, req_decls).visit(Parser().parse(s.data))
+        return req_decls
 
     @staticmethod
     def load_from_streams(program, input_streams):
@@ -83,12 +74,11 @@ class ModuleLoader:
             )
 
             if next_loc and s == next_loc.stream:
-                data = str(s)[loc.index:next_loc.index]
+                data = s.data[loc.index:next_loc.index]
             else:
-                data = str(s)[loc.index:]
+                data = s.data[loc.index:]
 
-            stream = InputStream(data + '\n')
-            stream.name = loc.stream_name
+            stream = Stream(name=loc.stream_name, data=data + '\n')
             names_to_streams[md.name].append(stream)
 
         return [

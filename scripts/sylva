@@ -5,11 +5,10 @@ import traceback
 
 from pathlib import Path
 
-from antlr4 import FileStream
-
 # pylint: disable=import-self, no-name-in-module
 from sylva import errors, debug
 from sylva.program import Program
+from sylva.stream import Stream
 
 
 def print_bar(msg):
@@ -29,7 +28,7 @@ def print_bar(msg):
 
 
 def _load_program(file_paths, stdlib=None, target_triple=None):
-    s = [FileStream(str(file_path)) for file_path in file_paths]
+    s = [Stream.FromFile(str(file_path)) for file_path in file_paths]
     try:
         return Program(s, stdlib_path=stdlib, target_triple=target_triple)
     except errors.SylvaError as error:

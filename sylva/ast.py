@@ -16,20 +16,7 @@ from .operator import Operator
 
 @define(eq=False, slots=True)
 class ASTNode:
-
-    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
-    def lookup(self, location, field):
-        # raise errors.ImpossibleLookup(location)
-        raise errors.ImpossibleCompileTimeEvaluation(location)
-
-    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
-    def reflect(self, location, field):
-        raise errors.ImpossibleCompileTimeEvaluation(location)
-        # if field == 'type':
-        #     return self.type
-        # if field == 'bytes':
-        #     pass
-        # raise NotImplementedError()
+    pass
 
 
 @define(eq=False, slots=True)
@@ -554,16 +541,12 @@ class CPtrType(BasePointerType):
     referenced_type_is_exclusive: bool
 
     def get_value(self, location: Location, name: str):
-        return CPointerExpr(location=location, type=self, name=name)
+        return CPointerCastExpr(location=location, type=self, name=name)
 
 
 @define(eq=False, slots=True)
 class ModuleType(SylvaType):
     value: typing.Any # Module, but we can't because it would be circular
-
-    # pylint: disable=redefined-outer-name
-    def lookup(self, location, field):
-        return self.value.lookup(location, field)
 
 
 @define(eq=False, slots=True)
@@ -642,8 +625,8 @@ class Expr(ASTNode):
     type: SylvaType
 
     # pylint: disable=no-self-use
-    def eval(self, location):
-        raise errors.ImpossibleCompileTimeEvaluation(location)
+    def eval(self, scope):
+        raise errors.ImpossibleCompileTimeEvaluation(self.location)
 
 
 @define(eq=False, slots=True)
@@ -653,10 +636,6 @@ class ValueExpr(Expr):
 
 @define(eq=False, slots=True)
 class ConstExpr(Expr):
-    value: typing.Any
-
-    def eval(self, location):
-        return self.value
 
     # pylint: disable=unused-argument,no-self-use,redefined-outer-name
     def lookup(self, location, field):
@@ -686,6 +665,10 @@ class ConstExpr(Expr):
 
 @define(eq=False, slots=True)
 class LiteralExpr(ConstExpr):
+    value: typing.Any
+
+    def eval(self, scope):
+        return self.value
 
     @cache
     def get_llvm_value(self, module):
@@ -789,14 +772,6 @@ class IntegerLiteralExpr(NumericLiteralExpr):
     type: IntegerType
 
     @classmethod
-    def Build(cls, location, size, signed, value):
-        return cls(
-            location=location,
-            type=IntegerType(size, signed=signed),
-            value=value
-        )
-
-    @classmethod
     def Platform(cls, location, signed, value):
         return cls(
             location,
@@ -806,8 +781,8 @@ class IntegerLiteralExpr(NumericLiteralExpr):
 
     @classmethod
     def SmallestThatHolds(cls, location, value):
-        size = utils.smallest_uint(value)
-        return cls.Build(location, size, signed=False, value=value)
+        type = IntegerType(size=utils.smallest_uint(value), signed=False)
+        return cls(location=location, type=type, value=value)
 
     @classmethod
     def FromRawValue(cls, location, raw_value):
@@ -868,18 +843,10 @@ class IntegerLiteralExpr(NumericLiteralExpr):
 class IntegerExpr(ValueExpr):
     type: IntegerType
 
-    @classmethod
-    def Build(cls, location: Location, size: int, signed: bool, name: str):
-        return cls(location, type=IntegerType(size, signed=signed), name=name)
-
 
 @define(eq=False, slots=True)
 class FloatLiteralExpr(NumericLiteralExpr):
     type: FloatType
-
-    @classmethod
-    def Build(cls, location, size, value):
-        super().__init__(location, FloatType(size), value)
 
     @classmethod
     def FromRawValue(cls, location, raw_value):
@@ -902,18 +869,10 @@ class FloatLiteralExpr(NumericLiteralExpr):
 class FloatExpr(ValueExpr):
     type: FloatType
 
-    @classmethod
-    def Build(cls, location: Location, size: int, name: str):
-        cls(location, type=FloatType(size), name=name)
-
 
 @define(eq=False, slots=True)
 class ComplexLiteralExpr(NumericLiteralExpr):
     type: ComplexType
-
-    @classmethod
-    def Build(cls, location, size, value):
-        super().__init__(location, ComplexType(size), value)
 
     @classmethod
     def FromRawValue(cls, location, raw_value):
@@ -936,10 +895,6 @@ class ComplexLiteralExpr(NumericLiteralExpr):
 class ComplexExpr(ValueExpr):
     type: ComplexType
 
-    @classmethod
-    def Build(cls, location: Location, size: int, name: str):
-        cls(location, type=ComplexType(size), name=name)
-
 
 @define(eq=False, slots=True)
 class DecimalLiteralExpr(NumericLiteralExpr):
@@ -953,6 +908,59 @@ class DecimalLiteralExpr(NumericLiteralExpr):
 @define(eq=False, slots=True)
 class DecimalExpr(ValueExpr):
     type: DecimalType = DecimalType()
+
+
+@define(eq=False, slots=True)
+class LookupExpr(ConstExpr):
+    name: str
+
+    def eval(self, scope):
+        value = scope.lookup(self.name)
+        if value is None:
+            raise errors.UndefinedSymbol(self.location, self.name)
+        return value
+
+
+@define(eq=False, slots=True)
+class LLVMExpr(Expr):
+
+    def eval(self, scope, builder, name=None):
+        raise NotImplementedError()
+
+
+@define(eq=False, slots=True)
+class FieldNameLookupExpr(LLVMExpr):
+    expr: Expr
+    name: str
+
+
+@define(eq=False, slots=True)
+class FieldIndexLookupExpr(LLVMExpr):
+    expr: Expr
+    index: int
+
+    def emit(self, builder, name=None):
+        indices = [self.index]
+        expr = self.expr # struct, cstruct... array?
+        while isinstance(expr, FieldIndexLookupExpr):
+            expr = expr.expr
+            indices.insert(0, expr.index)
+
+        return builder.gep(
+            self.expr.eval(scope), indices, inbounds=True, name=name
+        )
+
+
+@define(eq=False, slots=True)
+class ReflectionLookupExpr(Expr):
+    object: ASTNode
+    name: str
+
+
+@define(eq=False, slots=True)
+class MoveExpr(ConstExpr):
+    type: OwnedPointerType
+    value: Expr
 
 
 @define(eq=False, slots=True)
@@ -986,46 +994,6 @@ class BinaryExpr(Expr):
 
 
 @define(eq=False, slots=True)
-class LookupExpr(Expr):
-    name: str
-
-    # [FIXME] This causes a problem with Module.lookup because lookups are
-    #         supposed to return LookupExprs, not actual things.
-
-    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
-    def lookup(self, location, field):
-        return self.type.lookup(location, field)
-
-    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
-    def reflect(self, location, field):
-        return self.type.reflect(location, field)
-
-
-@define(eq=False, slots=True)
-class FieldNameLookupExpr(Expr):
-    object: ASTNode
-    name: str
-
-
-@define(eq=False, slots=True)
-class FieldIndexLookupExpr(Expr):
-    object: ASTNode
-    index: int
-
-
-@define(eq=False, slots=True)
-class ReflectionLookupExpr(Expr):
-    object: ASTNode
-    name: str
-
-
-@define(eq=False, slots=True)
-class MoveExpr(ConstExpr):
-    type: OwnedPointerType
-    value: Expr
-
-
-@define(eq=False, slots=True)
 class BasePointerExpr(ValueExpr):
 
     @property
@@ -1036,21 +1004,9 @@ class BasePointerExpr(ValueExpr):
     def is_exclusive(self):
         return self.type.is_exclusive
 
-    @cache
-    def deref(self, location, name):
-        return self.referenced_type.get_value(location, name)
-
 
 class ReferencePointerExpr(BasePointerExpr):
     type: ReferencePointerType
-
-    @classmethod
-    def Build(cls, location, referenced_type, is_exclusive, name):
-        return cls(
-            location,
-            ReferencePointerType(location, referenced_type, is_exclusive),
-            name
-        )
 
 
 @define(eq=False, slots=True)
@@ -1059,28 +1015,9 @@ class OwnedPointerExpr(BasePointerExpr):
 
 
 @define(eq=False, slots=True)
-class CPointerExpr(BasePointerExpr):
+class CPointerCastExpr(BasePointerExpr):
     type: CPtrType
-
-    @classmethod
-    def Build(
-        cls,
-        location,
-        referenced_type,
-        referenced_type_is_exclusive,
-        is_exclusive,
-        name
-    ):
-        return cls(
-            location,
-            CPtrType(
-                location,
-                referenced_type,
-                referenced_type_is_exclusive,
-                is_exclusive
-            ),
-            name
-        )
+    value: Expr
 
 
 @define(eq=False, slots=True)
@@ -1129,14 +1066,6 @@ class Def(ASTNode):
     location: Location
     name: str
 
-    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
-    def lookup(self, location: Location, field: str):
-        raise errors.ImpossibleLookup(location)
-
-    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
-    def reflect(self, location, field):
-        raise errors.ImpossibleReflection(location)
-
 
 @define(eq=False, slots=True)
 class AliasDef(Def):
@@ -1152,14 +1081,6 @@ class AliasDef(Def):
 @define(eq=False, slots=True)
 class ConstDef(Def):
     value: ConstExpr
-
-    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
-    def lookup(self, location: Location, field: str):
-        return self.value.lookup(location, field)
-
-    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
-    def reflect(self, location, field):
-        return self.value.reflect(location, field)
 
 
 @define(eq=False, slots=True)
