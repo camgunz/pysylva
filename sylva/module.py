@@ -29,8 +29,9 @@ class Module:
         self._llvm_symbols = {}
 
         self.vars = {}
+        self.vars.update(ast.BUILTIN_TYPES)
         self.requirements = set()
-        self.type = ast.ModuleType(self)
+        self.type = ast.ModuleType(Location.Generate(), self)
 
     @property
     def name(self):
@@ -69,6 +70,7 @@ class Module:
                     requirement_statement.location, requirement_statement.name
                 )
             self.requirements.add(module)
+            self.vars[module.name] = module
         for requirement in self.requirements:
             requirement.resolve_requirements(seen)
 
@@ -420,7 +422,7 @@ class Module:
         return self._program.get_module(name)
 
     # pylint: disable=unused-argument
-    def lookup(self, location, field, local_vars=None):
+    def old_lookup(self, location, field, local_vars=None):
         debug('lookup', f'Module {self.name} looking up {field}')
         # lookup('libc')
         # lookup('Person')
@@ -454,39 +456,57 @@ class Module:
             debug('lookup', f'Found builtin {module}')
             return builtin
 
-    # pylint: disable=no-self-use
-    def reflect(self, location, field):
-        raise errors.ImpossibleReflection(location)
-
-    def _check_definition(self, definition):
+    def _check_definition(self, definition: ast.Def):
         existing_alias = self._aliases.get(definition.name)
         if existing_alias:
             raise errors.DuplicateAlias(
                 definition.location, existing_alias.location, definition.name
             )
 
-        existing_def = self.vars.get(definition.name)
-        if existing_def:
+        existing_definition = self.vars.get(definition.name)
+        if existing_definition:
             raise errors.DuplicateDefinition(
-                definition.location, existing_def.location
+                definition,
+                existing_definition.location,
             )
 
         if definition.name in ast.BUILTIN_TYPES:
-            raise errors.RedefinedBuiltIn(definition.location, definition.name)
+            raise errors.RedefinedBuiltIn(definition)
 
-    # [NOTE] I think what I want here is:
-    #        - define_alias
-    #        - define_constant
-    #        - define_function
-    #        - define_type
-    #        - declare_c_function (?)
+    # pylint: disable=no-self-use
+    def reflect(self, location, name):
+        return None
 
-    def add_alias(self, definition: ast.AliasDef):
-        debug('lookup', f'Alias {definition.name} -> {definition}')
+    def lookup(self, location, name):
+        debug('lookup', f'Looking up {name}')
+        aliased_value = self._aliases.get(name)
+        if aliased_value is not None:
+            return aliased_value.value
+
+        fields = _IDENTIFIER_DELIMITERS.split(name)
+        first_name = fields.pop(0)
+
+        value = self.vars.get(first_name)
+
+        while value is not None and len(fields) > 0:
+            reflection = fields.pop(0) == '::'
+            field = fields.pop(0)
+
+            if reflection:
+                value = value.reflect(location, field)
+            else:
+                value = value.lookup(location, field)
+
+            if not value:
+                raise errors.NoSuchField(location, field)
+
+        return value
+
+    def define(self, definition: ast.Def):
         self._check_definition(definition)
-        self._aliases[definition.name] = definition
-
-    def add_definition(self, definition: ast.Def):
-        debug('lookup', f'Define {definition.name} -> {definition}')
-        self._check_definition(definition)
-        self.vars[definition.name] = definition
+        if isinstance(definition, ast.AliasDef):
+            debug('lookup', f'Alias {definition.name} -> {definition}')
+            self._aliases[definition.name] = definition
+        else:
+            debug('lookup', f'Define {definition.name} -> {definition}')
+            self.vars[definition.name] = definition

@@ -8,7 +8,7 @@ class Location:
     stream: Stream | None = None
     index: int = 0
     line: int = 1
-    column: int = 0
+    column: int = 1
 
     @classmethod
     def FromToken(cls, token, stream=None):
@@ -20,7 +20,7 @@ class Location:
 
     @classmethod
     def FromTree(cls, tree, stream=None):
-        md = tree.data
+        md = tree.meta
         return cls(stream, md.start_pos, md.line, md.column)
 
     @classmethod
@@ -68,7 +68,12 @@ class Location:
         if not line_indices:
             line_indices = [0]
 
-        lines = str(self.stream).splitlines()
+        lines = self.stream.data.splitlines()
 
-        return '\n'.join([lines[i] for i in line_indices if lines[i]] +
-                         [('-' * self.column) + '^'])
+        try:
+            return '\n'.join([lines[i] for i in line_indices if lines[i]] +
+                             [('-' * (self.column - 1)) + '^'])
+        except IndexError:
+            import pdb
+            pdb.set_trace()
+            raise

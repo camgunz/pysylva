@@ -1,10 +1,10 @@
 class Scope:
 
     def __init__(self):
-        self._scopes = [{}]
+        self._scopes = []
 
-    def push(self):
-        self._scopes.append({})
+    def push(self, scope):
+        self._scopes.append(scope)
 
     def pop(self):
         if not self._scopes:

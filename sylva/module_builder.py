@@ -6,7 +6,7 @@ import lark
 from . import ast, debug, errors
 
 from .location import Location
-from .parser import Lark_StandAlone as Parser
+from .parser import Token, Lark_StandAlone as Parser
 
 
 class TypeModifier(enum.Enum):
@@ -104,7 +104,7 @@ class ModuleBuilder(lark.Visitor):
 
             return ast.CPointerCastExpr(
                 location=location,
-                type=ast.CPtrType(
+                type=ast.CPointerType(
                     location=location,
                     referenced_type=referenced_value.type,
                     is_exclusive=is_exclusive,
@@ -386,7 +386,7 @@ class ModuleBuilder(lark.Visitor):
                 if hasattr(carray, 'intDecimalLiteral') else None
             )
             if element_count is None:
-                return ast.CPtrType(
+                return ast.CPointerType(
                     location=location,
                     referenced_type=self.get_or_create_type(
                         Location.FromContext(
@@ -457,7 +457,7 @@ class ModuleBuilder(lark.Visitor):
             if text.endswith('!'):
                 referenced_type_is_exclusive = True
 
-            return ast.CPtrType(
+            return ast.CPointerType(
                 location=location,
                 referenced_type=self.get_or_create_type(
                     Location.FromContext(
@@ -566,14 +566,6 @@ class ModuleBuilder(lark.Visitor):
             )
         elif literal.structConstLiteral():
             pass
-
-    def lookup_identifier(self, identifier):
-        location = Location.FromContext(identifier, self.stream)
-        name = identifier.getText()
-        value = self.module.lookup(location, name)
-        if value is None:
-            raise errors.UndefinedSymbol(location, name)
-        return value
 
     def exitAliasDef(self, ctx):
         if ctx.identifier():
@@ -696,7 +688,7 @@ class ModuleBuilder(lark.Visitor):
         cstruct = ast.CStructType(location=location, name=name, fields=fields)
 
         for field_type in cstruct.fields.values():
-            if not isinstance(field_type, ast.CPtrType):
+            if not isinstance(field_type, ast.CPointerType):
                 continue
             if not isinstance(field_type.referenced_type,
                               ast.DeferredTypeLookup):
@@ -711,30 +703,209 @@ class ModuleBuilder(lark.Visitor):
             ast.CStructDef(location=location, name=name, type=cstruct)
         )
 
-    def _lookup_type(self, location, type_name):
-        res = self._module.lookup_type(type_name)
-        if res is None:
+    def _lookup(self, location, type_name, deferrable=False):
+        # [NOTE] Maybe it's a good idea to have an `UndefinedSymbol` ASTNode?
+        #        Or, this could be a general semantic error reporting strategy
+        #        where we use the tree to hold errors and report them as we
+        #        walk it.
+        value = self._module.lookup(location, type_name)
+        if value is None:
+            if deferrable:
+                return ast.DeferredTypeLookup(location, type_name)
             raise errors.UndefinedSymbol(location, type_name)
-        return res
+        return value
 
-    def _get_type(self, type_obj):
-        if isinstance(type_obj, lark.Token):
+    def _get_type(self, type_obj, deferrable=False):
+        if isinstance(type_obj, Token):
             loc = Location.FromToken(type_obj, self._stream)
-            self._lookup_type(loc, type_obj.value)
-        elif type_obj.data.value == 'c_pointer_type_expr':
-            return ast.CPointer(
+            return self._lookup(loc, type_obj.value, deferrable=deferrable)
+
+        if type_obj.data == 'c_array_type_expr':
+            if len(type_obj.children[0].children) == 3:
+                element_count = int(type_obj.children[0].children[2])
+            else:
+                element_count = None
+            return ast.CArrayType(
                 location=Location.FromTree(type_obj, self._stream),
-                referenced_type=self._get_type(type_obj.children[0]),
+                element_type=self._get_type(
+                    type_obj.children[0].children[0], deferrable=deferrable
+                ),
+                element_count=None
             )
+
+        if type_obj.data == 'c_bit_field_type_expr':
+            field_type, field_bit_size = type_obj.children
+            return ast.CBitFieldType(
+                Location.FromTree(type_obj, self._stream),
+                field_type,
+                field_type.startswith('i'),
+                int(field_bit_size)
+            )
+
+        if type_obj.data in ('c_function_type_type_expr',
+                             'c_block_function_type_type_expr'):
+            parameters = []
+            for param_obj in type_obj.children[0].children[:-1]:
+                name_token, param_type_obj = param_obj.children
+                parameters.append(
+                    ast.Parameter(
+                        location=Location.FromToken(name_token, self._stream),
+                        name=name_token.value,
+                        type=self._get_type(
+                            param_type_obj, deferrable=deferrable
+                        )
+                    )
+                )
+
+            if type_obj.children[0].children[-1] is not None:
+                return_type = self._get_type(
+                    type_obj.children[0].children[-1].children[0],
+                    deferrable=deferrable
+                )
+            else:
+                return_type = None
+
+            if type_obj.data == 'c_function_type_type_expr':
+                return ast.CFunctionPointerType(
+                    location=Location.FromTree(type_obj, self._stream),
+                    parameters=parameters,
+                    return_type=return_type,
+                )
+            return ast.CBlockFunctionPointerType(
+                location=Location.FromTree(type_obj, self._stream),
+                parameters=parameters,
+                return_type=return_type,
+            )
+
+        if type_obj.data == 'c_pointer_type_expr':
+            referenced_type_is_exclusive = (
+                len(type_obj.children) >= 2 and type_obj.children[1] == '!'
+            )
+            is_exclusive = (
+                len(type_obj.children) >= 3 and type_obj.children[2] == '!'
+            )
+
+            return ast.CPointerType(
+                location=Location.FromTree(type_obj, self._stream),
+                referenced_type=self._get_type(
+                    type_obj.children[0], deferrable=deferrable
+                ),
+                referenced_type_is_exclusive=referenced_type_is_exclusive,
+                is_exclusive=is_exclusive
+            )
+
+        if type_obj.data == 'c_void_type_expr':
+            loc = Location.FromTree(type_obj, self._stream)
+            return self._lookup(loc, 'cvoid', deferrable=deferrable)
+
+        if type_obj.data == 'function_type_expr':
+            parameters = []
+            for param_obj in type_obj.children[:-1]:
+                name_token, param_type_obj = param_obj.children
+                parameters.append(
+                    ast.Parameter(
+                        location=Location.FromToken(name_token, self._stream),
+                        name=name_token.value,
+                        type=self._get_type(
+                            param_type_obj, deferrable=deferrable
+                        )
+                    )
+                )
+
+            if type_obj.children[-1] is not None:
+                return_type = self._get_type(
+                    type_obj.children[-1], deferrable=deferrable
+                )
+            else:
+                return_type = None
+
+            return ast.FunctionType(
+                location=Location.FromTree(type_obj, self._stream),
+                parameters=parameters,
+                return_type=return_type,
+            )
+
+        if type_obj.data == 'identifier':
+            loc = Location.FromTree(type_obj, self._stream)
+            name = type_obj.children[0]
+            return self._lookup(loc, name, deferrable=deferrable)
+
+        if type_obj.data == 'c_function_type_type_expr':
+            parameters = []
+            for param_obj in type_obj.children[:-1]:
+                name_token, param_type_obj = param_obj.children
+                parameters.append(
+                    ast.Parameter(
+                        location=Location.FromToken(name_token, self._stream),
+                        name=name_token.value,
+                        type=self._get_type(
+                            param_type_obj, deferrable=deferrable
+                        )
+                    )
+                )
+
+            if type_obj.children[-1] is not None:
+                return_type = self._get_type(
+                    type_obj.children[-1], deferrable=deferrable
+                )
+            else:
+                return_type = None
+
+            return ast.CFunctionType(
+                location=Location.FromTree(type_obj, self._stream),
+                parameters=parameters,
+                return_type=return_type,
+            )
+
+        print(type(type_obj), type_obj.data)
         raise NotImplementedError
 
+    def alias_def(self, tree):
+        self._module.define(
+            ast.AliasDef(
+                location=Location.FromTree(tree, self._stream),
+                name=tree.children[0].value,
+                value=self._get_type(tree.children[1])
+            )
+        )
+
+    def c_array_type_def(self, tree):
+        if tree.children[1].children[1].value == '*':
+            self._module.define(
+                ast.CArrayDef(
+                    location=Location.FromTree(tree, self._stream),
+                    name=tree.children[0].value,
+                    type=ast.CArrayType(
+                        location=Location.FromTree(tree, self._stream),
+                        element_type=self._get_type(
+                            tree.children[1].children[0], deferrable=True
+                        ),
+                        element_count=int(tree.children[1].children[2])
+                    )
+                )
+            )
+        else:
+            self._module.define(
+                ast.CArrayDef(
+                    location=Location.FromTree(tree, self._stream),
+                    name=tree.children[0].value,
+                    type=ast.CArrayType(
+                        location=Location.FromTree(tree, self._stream),
+                        element_type=self._get_type(
+                            tree.children[1].children[0], deferrable=True
+                        ),
+                        element_count=None
+                    )
+                )
+            )
+
     def c_function_type_def(self, tree):
-        name = tree.children[0].value
         param_objs = tree.children[1].children[:-1]
         return_type_obj = tree.children[1].children[-1]
-        params = []
-        for name_token, param_type_obj in param_objs.children:
-            params.append(
+        parameters = []
+        for param_obj in param_objs:
+            name_token, param_type_obj = param_obj.children
+            parameters.append(
                 ast.Parameter(
                     location=Location.FromToken(name_token, self._stream),
                     name=name_token.value,
@@ -742,19 +913,70 @@ class ModuleBuilder(lark.Visitor):
                 )
             )
         if return_type_obj is not None:
-            return_type = self._get_type(return_type_obj)
+            return_type = self._get_type(return_type_obj.children[0])
         else:
             return_type = None
 
-        self._module.add_definition(
-            ast.CFunction(
+        self._module.define(
+            ast.CFunctionDef(
                 location=Location.FromTree(tree, self._stream),
                 name=tree.children[0].value,
-                params=params,
-                return_type=return_type
+                type=ast.CFunctionType(
+                    location=Location.FromTree(tree, self._stream),
+                    parameters=parameters,
+                    return_type=return_type
+                )
+            )
+        )
+
+    def c_struct_type_def(self, tree):
+        fields = []
+        for field_obj in tree.children[1:]:
+            name_token, field_type_obj = field_obj.children
+            fields.append(
+                ast.Field(
+                    location=Location.FromToken(name_token, self._stream),
+                    name=name_token.value,
+                    type=self._get_type(field_type_obj, deferrable=True)
+                )
+            )
+        self._module.define(
+            ast.CStructDef(
+                location=Location.FromTree(tree, self._stream),
+                name=tree.children[0].value,
+                type=ast.CStructType(
+                    location=Location.FromTree(tree, self._stream),
+                    name=tree.children[0].value,
+                    fields=fields
+                )
+            )
+        )
+
+    def c_union_type_def(self, tree):
+        fields = []
+        for field_obj in tree.children[1:]:
+            name_token, field_type_obj = field_obj.children
+            fields.append(
+                ast.Field(
+                    location=Location.FromToken(name_token, self._stream),
+                    name=name_token.value,
+                    type=self._get_type(field_type_obj, deferrable=True)
+                )
+            )
+        self._module.define(
+            ast.CUnionDef(
+                location=Location.FromTree(tree, self._stream),
+                name=tree.children[0].value,
+                type=ast.CUnionType(
+                    location=Location.FromTree(tree, self._stream),
+                    fields=fields
+                )
             )
         )
 
     def function_def(self, tree):
+        print(tree.pretty())
+        from pprint import pprint
         import pdb
         pdb.set_trace()
+        raise NotImplementedError

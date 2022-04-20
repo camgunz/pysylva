@@ -14,14 +14,16 @@ from .location import Location
 from .operator import Operator
 
 
+_SIZE_SIZE = ctypes.sizeof(ctypes.c_size_t) * 8
+
+
 @define(eq=False, slots=True)
 class ASTNode:
-    pass
+    location: Location
 
 
 @define(eq=False, slots=True)
 class Decl(ASTNode):
-    location: Location
     name: str
 
 
@@ -48,12 +50,11 @@ class SylvaType(ASTNode):
 
 @define(eq=False, slots=True)
 class ParamSylvaType(SylvaType):
-    location: Location
+    pass
 
 
 @define(eq=False, slots=True)
 class MetaSylvaType(SylvaType):
-    location: Location
 
     @property
     def names(self):
@@ -161,13 +162,6 @@ class SizedNumericType(NumericType):
 
 
 @define(eq=False, slots=True)
-class DecimalType(NumericType):
-
-    def get_value(self, location: Location, name: str):
-        return DecimalExpr(location, name)
-
-
-@define(eq=False, slots=True)
 class ComplexType(SizedNumericType):
 
     @cache
@@ -220,7 +214,7 @@ class IntegerType(SizedNumericType):
 
     @classmethod
     def Platform(cls, signed):
-        return cls(bits=ctypes.sizeof(ctypes.c_size_t) * 8, signed=signed)
+        return cls(bits=_SIZE_SIZE, signed=signed)
 
     @cache
     def get_llvm_type(self, module):
@@ -413,13 +407,15 @@ class ParamStructType(ParamSylvaType):
 
 @define(eq=False, slots=True)
 class StringType(StructType):
-    location: Location = Location.Generate() # Hmmm...
     fields: typing.Mapping[str, SylvaType] = {
         'size': IntegerType( # yapf: disable
-            bits=ctypes.sizeof(ctypes.c_size_t * 8),
-            signed=False
+            location=Location.Generate(), bits=_SIZE_SIZE, signed=False
         ),
-        'data': ArrayType(location, IntegerType(8, signed=True), None)
+        'data': ArrayType( # yapf: disable
+            Location.Generate(),
+            IntegerType(Location.Generate(), 8, signed=True),
+            None
+        )
     }
 
     def get_value(self, location: Location, name: str):
@@ -537,7 +533,7 @@ class OwnedPointerType(BasePointerType):
 
 
 @define(eq=False, slots=True)
-class CPtrType(BasePointerType):
+class CPointerType(BasePointerType):
     referenced_type_is_exclusive: bool
 
     def get_value(self, location: Location, name: str):
@@ -579,7 +575,7 @@ class CStringType(ScalarType):
 
 @define(eq=False, slots=True)
 class CArrayType(BaseArrayType):
-    element_count: int = field()
+    element_count: int | None = field()
 
 
 @define(eq=False, slots=True)
@@ -621,7 +617,6 @@ class CUnionType(BaseUnionType):
 
 @define(eq=False, slots=True)
 class Expr(ASTNode):
-    location: Location
     type: SylvaType
 
     # pylint: disable=no-self-use
@@ -677,12 +672,12 @@ class LiteralExpr(ConstExpr):
 
 @define(eq=False, slots=True)
 class CVoidCastExpr(ConstExpr):
-    type: IntegerType = IntegerType(bits=8, signed=True)
+    type: IntegerType = IntegerType(Location.Generate(), bits=8, signed=True)
 
 
 @define(eq=False, slots=True)
 class BooleanLiteralExpr(LiteralExpr):
-    type: BooleanType = BooleanType()
+    type: BooleanType = BooleanType(Location.Generate())
 
     @classmethod
     def FromRawValue(cls, location, raw_value):
@@ -695,12 +690,12 @@ class BooleanLiteralExpr(LiteralExpr):
 
 @define(eq=False, slots=True)
 class BooleanExpr(ValueExpr):
-    type: BooleanType = BooleanType()
+    type: BooleanType = BooleanType(Location.Generate())
 
 
 @define(eq=False, slots=True)
 class RuneLiteralExpr(LiteralExpr):
-    type: RuneType = RuneType()
+    type: RuneType = RuneType(Location.Generate())
 
     @classmethod
     def FromRawValue(cls, location, raw_value):
@@ -709,7 +704,7 @@ class RuneLiteralExpr(LiteralExpr):
 
 @define(eq=False, slots=True)
 class RuneExpr(ValueExpr):
-    type: RuneType = RuneType()
+    type: RuneType = RuneType(Location.Generate())
 
 
 @define(eq=False, slots=True)
@@ -749,7 +744,7 @@ class StringLiteralExpr(LiteralExpr):
 
 @define(eq=False, slots=True)
 class StringExpr(ValueExpr):
-    type: StringType = StringType(name='str')
+    type: StringType = StringType(Location.Generate(), name='str')
 
     # pylint: disable=redefined-outer-name
     def reflect(self, location, field):
@@ -773,11 +768,7 @@ class IntegerLiteralExpr(NumericLiteralExpr):
 
     @classmethod
     def Platform(cls, location, signed, value):
-        return cls(
-            location,
-            IntegerType(ctypes.sizeof(ctypes.c_size_t) * 8, signed=signed),
-            value
-        )
+        return cls(location, IntegerType(_SIZE_SIZE, signed=signed), value)
 
     @classmethod
     def SmallestThatHolds(cls, location, value):
@@ -822,11 +813,9 @@ class IntegerLiteralExpr(NumericLiteralExpr):
         else: # [NOTE] Warn here?
             signed, size = False, None
 
-        size = size or ctypes.sizeof(ctypes.c_size_t) * 8
-
         return cls(
             location=location,
-            type=IntegerType(size, signed=signed),
+            type=IntegerType(size or _SIZE_SIZE, signed=signed),
             value=value
         )
 
@@ -894,20 +883,6 @@ class ComplexLiteralExpr(NumericLiteralExpr):
 @define(eq=False, slots=True)
 class ComplexExpr(ValueExpr):
     type: ComplexType
-
-
-@define(eq=False, slots=True)
-class DecimalLiteralExpr(NumericLiteralExpr):
-    type: DecimalType = DecimalType()
-
-    @classmethod
-    def FromRawValue(cls, location, raw_value):
-        return cls(location, value=decimal.Decimal(raw_value))
-
-
-@define(eq=False, slots=True)
-class DecimalExpr(ValueExpr):
-    type: DecimalType = DecimalType()
 
 
 @define(eq=False, slots=True)
@@ -1016,13 +991,13 @@ class OwnedPointerExpr(BasePointerExpr):
 
 @define(eq=False, slots=True)
 class CPointerCastExpr(BasePointerExpr):
-    type: CPtrType
+    type: CPointerType
     value: Expr
 
 
 @define(eq=False, slots=True)
 class Stmt(ASTNode):
-    location: Location
+    pass
 
 
 @define(eq=False, slots=True)
@@ -1062,8 +1037,23 @@ class While(StmtBlock):
 
 
 @define(eq=False, slots=True)
+class BaseTypeMapping(ASTNode):
+    name: str
+    type: SylvaType
+
+
+@define(eq=False, slots=True)
+class Parameter(BaseTypeMapping):
+    pass
+
+
+@define(eq=False, slots=True)
+class Field(BaseTypeMapping):
+    pass
+
+
+@define(eq=False, slots=True)
 class Def(ASTNode):
-    location: Location
     name: str
 
 
@@ -1101,7 +1091,7 @@ class TypeDef(Def):
 
 @define(eq=False, slots=True)
 class IndexedFieldsTypeDef(TypeDef):
-    type: StructType | CStructType
+    type: StructType | CStructType | ArrayType | CArrayType
 
     # pylint: disable=unused-argument,no-self-use,redefined-outer-name
     def lookup(self, location: Location, field: str):
@@ -1111,6 +1101,11 @@ class IndexedFieldsTypeDef(TypeDef):
     # pylint: disable=unused-argument,no-self-use,redefined-outer-name
     # def reflect(self, location, field):
     #     return self.value.reflect(location, field)
+
+
+@define(eq=False, slots=True)
+class CArrayDef(IndexedFieldsTypeDef):
+    pass
 
 
 @define(eq=False, slots=True)
@@ -1124,8 +1119,7 @@ class CStructDef(IndexedFieldsTypeDef):
 
 
 @define(eq=False, slots=True)
-class DeferredTypeLookup:
-    location: Location
+class DeferredTypeLookup(ASTNode):
     value: str
 
 
@@ -1143,7 +1137,6 @@ class InterfaceType(MetaSylvaType):
 
 @define(eq=False, slots=True)
 class Implementation(ASTNode):
-    location: Location
     interface: InterfaceType
     implementing_type: SylvaType
     funcs: list[FunctionExpr]
@@ -1230,31 +1223,30 @@ BUILTIN_TYPES = {
     # 'cfntype': CFunctionType(), # meta
     # 'cblockfntype': CBlockFunctionType(), # meta
     # 'cfn': CFunction(), # meta
-    # 'cptr': CPtr(), # meta
-    'cvoid': IntegerType(8, signed=True),
-    'bool': BooleanType(),
-    'c16': ComplexType(16),
-    'c32': ComplexType(32),
-    'c64': ComplexType(64),
-    'c128': ComplexType(128),
-    'cstr': CStringType(),
-    'dec': DecimalType(),
-    'f16': FloatType(16),
-    'f32': FloatType(32),
-    'f64': FloatType(64),
-    'f128': FloatType(128),
-    'int': IntegerType(ctypes.sizeof(ctypes.c_size_t) * 8, signed=True),
-    'i8': IntegerType(8, signed=True),
-    'i16': IntegerType(16, signed=True),
-    'i32': IntegerType(32, signed=True),
-    'i64': IntegerType(64, signed=True),
-    'i128': IntegerType(128, signed=True),
-    'rune': RuneType(),
-    'str': StringType(name='str'),
-    'uint': IntegerType(ctypes.sizeof(ctypes.c_size_t) * 8, signed=False),
-    'u8': IntegerType(8, signed=False),
-    'u16': IntegerType(16, signed=False),
-    'u32': IntegerType(32, signed=False),
-    'u64': IntegerType(64, signed=False),
-    'u128': IntegerType(128, signed=False),
+    # 'cptr': CPointer(), # meta
+    'cvoid': IntegerType(Location.Generate(), 8, signed=True),
+    'bool': BooleanType(Location.Generate()),
+    'c16': ComplexType(Location.Generate(), 16),
+    'c32': ComplexType(Location.Generate(), 32),
+    'c64': ComplexType(Location.Generate(), 64),
+    'c128': ComplexType(Location.Generate(), 128),
+    'cstr': CStringType(Location.Generate()),
+    'f16': FloatType(Location.Generate(), 16),
+    'f32': FloatType(Location.Generate(), 32),
+    'f64': FloatType(Location.Generate(), 64),
+    'f128': FloatType(Location.Generate(), 128),
+    'int': IntegerType(Location.Generate(), _SIZE_SIZE, signed=True),
+    'i8': IntegerType(Location.Generate(), 8, signed=True),
+    'i16': IntegerType(Location.Generate(), 16, signed=True),
+    'i32': IntegerType(Location.Generate(), 32, signed=True),
+    'i64': IntegerType(Location.Generate(), 64, signed=True),
+    'i128': IntegerType(Location.Generate(), 128, signed=True),
+    'rune': RuneType(Location.Generate()),
+    'str': StringType(Location.Generate(), name='str'),
+    'uint': IntegerType(Location.Generate(), _SIZE_SIZE, signed=False),
+    'u8': IntegerType(Location.Generate(), 8, signed=False),
+    'u16': IntegerType(Location.Generate(), 16, signed=False),
+    'u32': IntegerType(Location.Generate(), 32, signed=False),
+    'u64': IntegerType(Location.Generate(), 64, signed=False),
+    'u128': IntegerType(Location.Generate(), 128, signed=False),
 }

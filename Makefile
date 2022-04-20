@@ -37,6 +37,11 @@ utest: install ## Run unit tests
 docs: ## Build documentation
 	@dox doc
 
+.PHONY: parser
+
+parser: ## Build parser
+	@cd lark && make clean && make install
+
 .PHONY: help
 
 help:  ## Display this help

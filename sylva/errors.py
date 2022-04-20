@@ -130,10 +130,20 @@ class NoSuchField(LocationError):
 
 class DuplicateDefinition(LocationError):
 
-    def __init__(self, location, existing_location):
+    def __init__(self, definition, existing_location):
+        name = definition.name
         super().__init__(
-            location,
-            f'Variable already defined: [{existing_location.shorthand}]'
+            definition.location,
+            f'"{name}" already defined: [{existing_location.shorthand}]'
+        )
+
+
+class RedefinedBuiltIn(LocationError):
+
+    def __init__(self, definition):
+        super().__init__(
+            definition.location,
+            f'Cannot redefine builtin "{definition.name}"'
         )
 
 
@@ -143,12 +153,6 @@ class DefinitionViolation(LocationError):
         super().__init__(
             location, f'Cannot define "{name}" in external module'
         )
-
-
-class RedefinedBuiltIn(LocationError):
-
-    def __init__(self, location, name):
-        super().__init__(location, f'Cannot redefine builtin "{name}"')
 
 
 class NoSuchModule(LocationError):

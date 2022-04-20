@@ -35,6 +35,42 @@ Multiple modules can exist in a single file, and modules can exist across
 files. This allows the programmer to organize code as they see fit, without
 worrying about filesystem-related concerns.
 
+## Submodules
+
+Contrary to their appearance, submodules aren't specifically connected to their
+parent module.
+
+```sylva
+mod pets
+
+iface Pet {
+  greet: fn(): *str
+}
+
+mod pets.dog
+
+req pets # `pets.dog` doesn't automatically pull in definitions from `pets`
+
+struct Dog {
+  name: *str
+}
+
+impl Pet(Dog) {
+  greet: fn(self: &Dog): *str {
+    return *"Woof!"
+  }
+}
+
+mod main
+
+req pets.dog # Only pulls in `pets` as a result of the `req` in `pets.dog`
+
+fn main() {
+  let dog: Dog{"Rover"}
+  dog.greet()
+}
+```
+
 ## Constants
 
 Modules can contain constants:
