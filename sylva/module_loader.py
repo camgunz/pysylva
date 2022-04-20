@@ -17,7 +17,7 @@ class ModuleDeclVisitor(lark.Visitor):
 
     def module_decl(self, tree):
         loc = Location.FromTree(tree, stream=self._stream)
-        self._decls.append(ModuleDecl(loc, tree.children[0].children[0].value))
+        self._decls.append(ModuleDecl(loc, tree.children[0].value))
 
 
 class RequirementDeclVisitor(lark.Visitor):
@@ -28,7 +28,7 @@ class RequirementDeclVisitor(lark.Visitor):
         self._seen = set()
 
     def requirement_decl(self, tree):
-        rd_name = tree.children[0].children[0].value
+        rd_name = tree.children[0].value
         if rd_name in self._seen:
             return
 
