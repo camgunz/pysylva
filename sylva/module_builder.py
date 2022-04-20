@@ -9,6 +9,42 @@ from .location import Location
 from .parser import Token, Lark_StandAlone as Parser
 
 
+_EXPR_NODE_NAMES = [
+    'or_expr',
+    'and_expr',
+    'cmp_expr',
+    'bor_expr',
+    'bxor_expr',
+    'band_expr',
+    'shift_expr',
+    'arith_expr',
+    'mul_expr',
+    'inc_dec_expr',
+    'unary_expr',
+    'power_expr',
+    'call_expr',
+    'index_expr',
+    'move_expr',
+    'ref_expr',
+    'exref_expr',
+    'bool_expr',
+    'complex_expr',
+    'float_expr',
+    'int_expr',
+    'frange_expr',
+    'irange_expr',
+    'rune_expr',
+    'array_expr',
+    'function_expr',
+    'string_expr',
+    'struct_expr',
+    'carray_expr',
+    'cstruct_expr',
+    'cunion_expr',
+    'lookup_expr'
+]
+
+
 class TypeModifier(enum.Enum):
     Raw = enum.auto()
     Pointer = enum.auto()
@@ -703,6 +739,24 @@ class ModuleBuilder(lark.Visitor):
             ast.CStructDef(location=location, name=name, type=cstruct)
         )
 
+    def _handle_expr(self, expr):
+        return None
+
+    def _handle_stmt(self, stmt):
+        return None
+
+    def _process_code_block(self, code_block):
+        print(code_block.pretty())
+        code = []
+
+        for expr_or_stmt in code_block.children:
+            if expr_or_stmt.data in _EXPR_NODE_NAMES:
+                code.append(self._handle_expr(expr_or_stmt))
+            else:
+                code.append(self._handle_stmt(expr_or_stmt))
+
+        return code
+
     def _lookup(self, location, type_name, deferrable=False):
         # [NOTE] Maybe it's a good idea to have an `UndefinedSymbol` ASTNode?
         #        Or, this could be a general semantic error reporting strategy
@@ -720,26 +774,28 @@ class ModuleBuilder(lark.Visitor):
             loc = Location.FromToken(type_obj, self._stream)
             return self._lookup(loc, type_obj.value, deferrable=deferrable)
 
+        location = Location.FromTree(type_obj, self._stream)
+
         if type_obj.data == 'c_array_type_expr':
             if len(type_obj.children[0].children) == 3:
                 element_count = int(type_obj.children[0].children[2])
             else:
                 element_count = None
             return ast.CArrayType(
-                location=Location.FromTree(type_obj, self._stream),
+                location=location,
                 element_type=self._get_type(
                     type_obj.children[0].children[0], deferrable=deferrable
                 ),
-                element_count=None
+                element_count=element_count
             )
 
         if type_obj.data == 'c_bit_field_type_expr':
             field_type, field_bit_size = type_obj.children
             return ast.CBitFieldType(
-                Location.FromTree(type_obj, self._stream),
-                field_type,
-                field_type.startswith('i'),
-                int(field_bit_size)
+                location=location,
+                bits=self._get_type(field_type).bits,
+                signed=field_type.startswith('i'),
+                field_size=int(field_bit_size)
             )
 
         if type_obj.data in ('c_function_type_type_expr',
@@ -767,12 +823,12 @@ class ModuleBuilder(lark.Visitor):
 
             if type_obj.data == 'c_function_type_type_expr':
                 return ast.CFunctionPointerType(
-                    location=Location.FromTree(type_obj, self._stream),
+                    location=location,
                     parameters=parameters,
                     return_type=return_type,
                 )
             return ast.CBlockFunctionPointerType(
-                location=Location.FromTree(type_obj, self._stream),
+                location=location,
                 parameters=parameters,
                 return_type=return_type,
             )
@@ -786,7 +842,7 @@ class ModuleBuilder(lark.Visitor):
             )
 
             return ast.CPointerType(
-                location=Location.FromTree(type_obj, self._stream),
+                location=location,
                 referenced_type=self._get_type(
                     type_obj.children[0], deferrable=deferrable
                 ),
@@ -795,8 +851,7 @@ class ModuleBuilder(lark.Visitor):
             )
 
         if type_obj.data == 'c_void_type_expr':
-            loc = Location.FromTree(type_obj, self._stream)
-            return self._lookup(loc, 'cvoid', deferrable=deferrable)
+            return self._lookup(location, 'cvoid', deferrable=deferrable)
 
         if type_obj.data == 'function_type_expr':
             parameters = []
@@ -820,15 +875,14 @@ class ModuleBuilder(lark.Visitor):
                 return_type = None
 
             return ast.FunctionType(
-                location=Location.FromTree(type_obj, self._stream),
+                location=location,
                 parameters=parameters,
                 return_type=return_type,
             )
 
         if type_obj.data == 'identifier':
-            loc = Location.FromTree(type_obj, self._stream)
             name = type_obj.children[0]
-            return self._lookup(loc, name, deferrable=deferrable)
+            return self._lookup(location, name, deferrable=deferrable)
 
         if type_obj.data == 'c_function_type_type_expr':
             parameters = []
@@ -852,11 +906,38 @@ class ModuleBuilder(lark.Visitor):
                 return_type = None
 
             return ast.CFunctionType(
-                location=Location.FromTree(type_obj, self._stream),
+                location=location,
                 parameters=parameters,
                 return_type=return_type,
             )
 
+        if type_obj.data == 'moveparam':
+            return ast.OwnedPointerType(
+                location=location,
+                referenced_type=self._get_type(
+                    type_obj.children[0], deferrable=deferrable
+                ),
+            )
+
+        if type_obj.data == 'refparam':
+            return ast.ReferencePointerType(
+                location=location,
+                referenced_type=self._get_type(
+                    type_obj.children[0], deferrable=deferrable
+                ),
+                is_exclusive=False
+            )
+
+        if type_obj.data == 'exrefparam':
+            return ast.ReferencePointerType(
+                location=location,
+                referenced_type=self._get_type(
+                    type_obj.children[0], deferrable=deferrable
+                ),
+                is_exclusive=True
+            )
+
+        print(type_obj.pretty())
         print(type(type_obj), type_obj.data)
         raise NotImplementedError
 
@@ -975,8 +1056,35 @@ class ModuleBuilder(lark.Visitor):
         )
 
     def function_def(self, tree):
-        print(tree.pretty())
-        from pprint import pprint
-        import pdb
-        pdb.set_trace()
-        raise NotImplementedError
+        function_type_def, code_block = tree.children
+        param_objs = function_type_def.children[1].children[:-1]
+        return_type_obj = function_type_def.children[1].children[-1]
+        parameters = []
+        for param_obj in param_objs:
+            name_token, param_type_obj = param_obj.children
+            parameters.append(
+                ast.Parameter(
+                    location=Location.FromToken(name_token, self._stream),
+                    name=name_token.value,
+                    type=self._get_type(param_type_obj)
+                )
+            )
+        if return_type_obj is not None:
+            return_type = self._get_type(return_type_obj.children[0])
+        else:
+            return_type = None
+
+        code = self._process_code_block(code_block)
+
+        self._module.define(
+            ast.FunctionDef(
+                location=Location.FromTree(tree, self._stream),
+                name=function_type_def.children[0].value,
+                type=ast.FunctionType(
+                    location=Location.FromTree(tree, self._stream),
+                    parameters=parameters,
+                    return_type=return_type
+                ),
+                code=code
+            )
+        )
