@@ -1,4 +1,6 @@
+# pylint: disable=too-many-lines
 import enum
+import pprint
 
 import lark
 
@@ -31,8 +33,6 @@ _EXPR_NODE_NAMES = [
     'complex_expr',
     'float_expr',
     'int_expr',
-    'frange_expr',
-    'irange_expr',
     'rune_expr',
     'array_expr',
     'function_expr',
@@ -74,705 +74,236 @@ class ModuleBuilder(lark.Visitor):
         self._module = module
         self._stream = stream
 
-    # pylint: disable=too-many-locals
-    def build_expr(self, location, expr, local_type_lookup):
-        debug('build_expr', f'build_expr {expr.getText()}')
-        if isinstance(expr, SylvaParser.LiteralExprContext):
-            literal = expr.literal()
-            if literal.arrayConstLiteral():
-                pass
-            elif literal.functionLiteral():
-                pass
-            elif literal.rangeConstLiteral():
-                pass
-            elif literal.structConstLiteral():
-                pass
-            elif literal.booleanLiteral():
-                return ast.BooleanLiteralExpr.FromRawValue(
-                    location, literal.getText()
-                )
-            elif literal.decimalLiteral():
-                return ast.DecimalLiteralExpr.FromRawValue(
-                    location, literal.getText()
-                )
-            elif literal.floatLiteral():
-                return ast.FloatLiteralExpr.FromRawValue(
-                    location, literal.getText()
-                )
-            elif literal.integerLiteral():
-                return ast.IntegerLiteralExpr.FromRawValue(
-                    location, literal.getText()
-                )
-            elif literal.runeLiteral():
-                return ast.RuneLiteralExpr.FromRawValue(
-                    location, literal.getText()
-                )
-            elif literal.stringLiteral():
-                return ast.StringLiteralExpr.FromRawValue(
-                    location, literal.getText()
-                )
-            else:
-                raise Exception(
-                    f'Unknown literal {literal} {literal.getText()}'
-                )
-        elif isinstance(expr, SylvaParser.ParenExprContext):
+    def _handle_expr(self, expr, extra_scope=None):
+        debug('_handle_expr', f'{expr}')
+        location = Location.FromTree(expr, self._stream)
+
+        if expr.data == 'or_expr':
             pass
-        elif isinstance(expr, SylvaParser.ArrayExprContext):
+
+        if expr.data == 'and_expr':
             pass
-        elif isinstance(expr, SylvaParser.CArrayLiteralExprContext):
+
+        if expr.data == 'cmp_expr':
             pass
-        elif isinstance(expr, SylvaParser.CPointerLiteralExprContext):
-            is_exclusive = expr.children[-1].getText() == '!'
 
-            reference_expr = expr.expr()
-            referenced_type_is_exclusive = (
-                reference_expr.children[-1].getText() == '!'
-            )
-
-            referenced_value = self.build_expr(
-                Location.FromContext(reference_expr, self.stream),
-                reference_expr,
-                local_type_lookup,
-            )
-
-            if isinstance(referenced_value, ast.ReferencePointerExpr):
-                referenced_value = referenced_value.referenced_value
-
-            return ast.CPointerCastExpr(
-                location=location,
-                type=ast.CPointerType(
-                    location=location,
-                    referenced_type=referenced_value.type,
-                    is_exclusive=is_exclusive,
-                    referenced_type_is_exclusive=referenced_type_is_exclusive
-                ),
-                name=None,
-                value=referenced_value
-            )
-        elif isinstance(expr, SylvaParser.CStructLiteralExprContext):
+        if expr.data == 'bor_expr':
             pass
-        elif isinstance(expr, SylvaParser.CUnionLiteralExprContext):
+
+        if expr.data == 'bxor_expr':
             pass
-        elif isinstance(expr, SylvaParser.CVoidLiteralExprContext):
-            location = Location.FromContext(expr.expr(), self.stream)
-            return ast.CVoidCastExpr(
-                location=location,
-                value=self.build_expr(
-                    location, expr.expr(), local_type_lookup
-                )
-            )
-        elif isinstance(expr, SylvaParser.SingleLookupExprContext):
-            full_name = expr.getText()
-            debug('lookup', f'SLookup: {full_name}')
-            name = expr.singleIdentifier().getText()
 
-            type = local_type_lookup.get(name)
+        if expr.data == 'band_expr':
+            pass
 
-            if type is None:
-                value = self.module.lookup(location, name)
-                if value is not None:
-                    type = value.type
+        if expr.data == 'shift_expr':
+            pass
 
-            if type is None:
-                raise errors.UndefinedSymbol(location, name)
+        if expr.data == 'arith_expr':
+            pass
 
-            lexpr = ast.LookupExpr(location, type, name)
+        if expr.data == 'mul_expr':
+            pass
 
-            debug('lookup', f'SLookup: Got {lexpr}) from {full_name}')
+        if expr.data == 'inc_dec_expr':
+            pass
 
-            return lexpr
+        if expr.data == 'unary_expr':
+            pass
 
-        elif isinstance(expr, SylvaParser.LookupExprContext):
-            full_name = expr.getText()
-            debug('lookup', f'Lookup: {full_name}')
-            first_child = expr.children.pop(0)
+        if expr.data == 'power_expr':
+            pass
 
-            lexpr = self.build_expr(
-                Location.FromContext(first_child, self.stream),
-                first_child,
-                local_type_lookup
-            )
-
-            # OK so this might be:
-            # Dotting into a module
-            # Dotting into a struct
-            # Dotting into a cstruct
-            # Dotting into a variant
-            # Dotting into a cunion
-            # Dotting into an enum
-            # Dotting into an interface
-            # Reflecting into a type
-            # Reflecting into an instance
-
-            debug(
-                'lookup',
-                f'Lookup: First child: {lexpr} (from {first_child.getText()})'
-            )
-
-            while expr.children:
-                reflection = expr.children.pop(0).getText() == '::'
-                field_name = expr.children.pop(0).getText()
-
-                while isinstance(lexpr.type, ast.ConstDef):
-                    debug('lookup', 'Following const def')
-                    lexpr = lexpr.value
-
-                if reflection:
-                    debug('lookup', f'  Reflecting on {field_name} in {lexpr}')
-                    field_type = lexpr.type.get_reflection_field_info(
-                        field_name
-                    )
-
-                    if field_type is None:
-                        raise errors.NoSuchField(location, field_name)
-
-                    lexpr = ast.ReflectionLookupExpr(
-                        location=location,
-                        type=field_type,
-                        object=lexpr,
-                        name=field_name
-                    )
-                elif isinstance(lexpr, ast.IndexedFieldsTypeDef):
-                    debug('lookup', f'  Looking up {field_name} in {lexpr}')
-                    res = lexpr.type.get_field_info(field_name)
-
-                    if res is None:
-                        raise errors.NoSuchField(location, field_name)
-
-                    field_index, field_type = res
-
-                    lexpr = ast.FieldIndexLookupExpr(
-                        location, field_type, lexpr.type, field_index
-                    )
-                elif isinstance(lexpr, ast.NamedFieldsTypeDef):
-                    res = lexpr.type.get_field_info(field_name)
-
-                    if res is None:
-                        raise errors.NoSuchField(location, field_name)
-
-                    _, field_type = res
-
-                    lexpr = ast.FieldNameLookupExpr(
-                        location, field_type, lexpr.type, field_name
-                    )
-                elif isinstance(lexpr, ast.LookupExpr):
-                    value = self.module.lookup(location, field_name)
-                    if value is None:
-                        raise errors.NoSuchField(location, field_name)
-
-                    while isinstance(value, ast.ConstDef):
-                        debug('lookup', '  Following const def')
-                        value = value.value
-
-                    lexpr = ast.FieldNameLookupExpr(
-                        location, value.type, lexpr.type, field_name
-                    )
-                else:
-                    raise NotImplementedError()
-
-                debug('lookup', f'  Got {lexpr} from {field_name}')
-
-            debug('lookup', f'Lookup: Got {lexpr} from {full_name}')
-
-            return lexpr
-
-        elif isinstance(expr, SylvaParser.IndexExprContext):
-            indexable_expr, index_expr = expr.expr()
-            indexable = self.build_expr(
-                Location.FromContext(indexable_expr, self.stream),
-                indexable_expr,
-                local_type_lookup
-            )
-            return ast.IndexExpr(
-                location,
-                indexable.element_type,
-                indexable,
-                self.build_expr(
-                    Location.FromContext(index_expr, self.stream),
-                    index_expr,
-                    local_type_lookup
-                )
-            )
-        elif isinstance(expr, SylvaParser.FunctionCallExprContext):
-            function = self.build_expr(
-                Location.FromContext(expr.expr(), self.stream),
-                expr.expr(),
-                local_type_lookup
-            )
+        if expr.data == 'call_expr':
+            func = expr.children[0]
+            args = filter(None, expr.children[1:])
+            func_expr = self._handle_expr(func, extra_scope=extra_scope)
+            debug('call_expr', f'func_expr: {func_expr}')
             return ast.CallExpr(
                 location=location,
-                type=function.type.return_type,
-                function=function,
+                type=func_expr,
+                function=func_expr,
                 arguments=[
-                    self.build_expr(
-                        Location.FromContext(px, self.stream),
-                        px,
-                        local_type_lookup
-                    ) for px in expr.exprList().expr()
+                    self._handle_expr(arg, extra_scope=extra_scope)
+                    for arg in args
                 ]
             )
-        elif isinstance(expr, SylvaParser.ParamFunctionCallExprContext):
+
+        if expr.data == 'index_expr':
             pass
-        elif isinstance(expr, SylvaParser.IncDecExprContext):
-            pass
-        elif isinstance(expr, SylvaParser.UnaryExprContext):
-            pass
-        elif isinstance(expr, SylvaParser.PowerExprContext):
-            pass
-        elif isinstance(expr, SylvaParser.MulDivModExprContext):
-            pass
-        elif isinstance(expr, SylvaParser.AddSubExprContext):
-            pass
-        elif isinstance(expr, SylvaParser.ShiftExprContext):
-            pass
-        elif isinstance(expr, SylvaParser.CmpExprContext):
-            pass
-        elif isinstance(expr, SylvaParser.BandExprContext):
-            pass
-        elif isinstance(expr, SylvaParser.BxorExprContext):
-            pass
-        elif isinstance(expr, SylvaParser.BorExprContext):
-            pass
-        elif isinstance(expr, SylvaParser.AndExprContext):
-            pass
-        elif isinstance(expr, SylvaParser.OrExprContext):
-            pass
-        elif isinstance(expr, SylvaParser.OwnedPointerExprContext):
-            return ast.MoveExpr(
-                location,
-                self.build_expr(
-                    Location.FromContext(expr.expr()),
-                    expr.expr(),
-                    local_type_lookup
+
+        if expr.data == 'move_expr':
+            return ast.MovePointerExpr(
+                location=location,
+                type=ast.OwnedPointerType(
+                    referenced_type=self._get_type(
+                        expr.children[0], extra_scope=extra_scope
+                    ),
                 ),
+                expr=self._handle_expr(
+                    expr.children[0], extra_scope=extra_scope
+                )
             )
-        elif isinstance(expr, SylvaParser.ReferenceExprContext):
+
+        if expr.data == 'ref_expr':
             return ast.ReferencePointerExpr(
                 location=location,
                 type=ast.ReferencePointerType(
-                    location=location,
-                    referenced_type=self.build_expr(
-                        Location.FromContext(expr.expr()),
-                        expr.expr(),
-                        local_type_lookup
+                    referenced_type=self._get_type(
+                        expr.children[0], extra_scope=extra_scope
                     ),
-                    is_exclusive=expr.children[-1].getText() == '!'
+                    is_exclusive=False
                 ),
-                name=None
-            )
-        else:
-            raise Exception(
-                f'Unknown expr type {type(expr)} ({expr.getText()})'
+                expr=self._handle_expr(
+                    expr.children[0], extra_scope=extra_scope
+                )
             )
 
-    # pylint: disable=unused-argument
-    def build_code_block(self, location, code_block, local_type_lookup):
-        code = []
-        for c in code_block.children[1:-1]:
-            if code_block.ifBlock():
-                pass
-            elif code_block.switchBlock():
-                pass
-            elif code_block.matchBlock():
-                pass
-            elif code_block.forBlock():
-                pass
-            elif code_block.whileBlock():
-                pass
-            elif code_block.loopBlock():
-                pass
-            elif code_block.letStmt():
-                pass
-            elif code_block.assignStmt():
-                pass
-            elif code_block.returnStmt():
-                pass
-            elif code_block.breakStmt():
-                pass
-            elif code_block.continueStmt():
-                pass
-            elif code_block.expr():
-                for x in code_block.expr():
-                    code.append(
-                        self.build_expr(
-                            Location.FromContext(x, self.stream),
-                            x,
-                            local_type_lookup
-                        )
-                    )
-            else:
-                raise Exception(f'Unknown code block child {c.getText()}')
-        return code
-
-    def build_param_list_from_type_literal_pairs(self, pairs):
-        location = Location.FromContext(pairs, self.stream)
-
-        return { # yapf: disable
-            pn.getText(): self.get_or_create_type(location, tl)
-            for pn, tl in zip(pairs.singleIdentifier(), pairs.typeLiteral())
-        }
-
-    def get_or_create_type(
-        self, location, literal, deferrable=False, modifier=TypeModifier.Raw
-    ):
-        if literal.carrayTypeLiteral():
-            carray = literal.carrayTypeLiteral()
-            element_count = (
-                carray.intDecimalLiteral()
-                if hasattr(carray, 'intDecimalLiteral') else None
-            )
-            if element_count is None:
-                return ast.CPointerType(
-                    location=location,
-                    referenced_type=self.get_or_create_type(
-                        Location.FromContext(
-                            carray.typeLiteral(), self.stream
-                        ),
-                        carray.typeLiteral()
+        if expr.data == 'exref_expr':
+            return ast.ReferencePointerExpr(
+                location=location,
+                type=ast.ReferencePointerType(
+                    referenced_type=self._get_type(
+                        expr.children[0], extra_scope=extra_scope
                     ),
-                    referenced_type_is_exclusive=True,
-                    is_exclusive=True,
+                    is_exclusive=True
+                ),
+                expr=self._handle_expr(
+                    expr.children[0], extra_scope=extra_scope
                 )
-            return ast.CArrayType(
-                location=location,
-                element_type=self.get_or_create_type(
-                    Location.FromContext(carray.typeLiteral(), self.stream),
-                    carray.typeLiteral()
-                ),
-                element_count=int(element_count.getText())
             )
-        if literal.cbitfieldTypeLiteral():
-            cbitfield = literal.cbitfieldTypeLiteral()
-            return ast.CBitFieldType(
-                int(cbitfield.INT_TYPE().getText()[1:]),
-                cbitfield.INT_TYPE().getText().startswith('i'),
-                int(cbitfield.intDecimalLiteral().getText())
-            )
-        if literal.cblockfunctionTypeLiteral():
-            cblockfntype = (
-                literal.cblockfunctionTypeLiteral().functionTypeLiteral()
-            )
-            return ast.CBlockFunctionPointerType(
-                location=location,
-                parameters=self.build_param_list_from_type_literal_pairs(
-                    cblockfntype.typeLiteralPairList()
-                ),
-                return_type=self.get_or_create_type(
-                    Location
-                    .FromContext(cblockfntype.typeLiteral(), self.stream),
-                    cblockfntype.typeLiteral()
-                ) if (
-                    hasattr(cblockfntype, 'typeLiteral') and
-                    cblockfntype.typeLiteral()
-                ) else None
-            )
-        if literal.cfunctionTypeLiteral():
-            cfntype = literal.cfunctionTypeLiteral().functionTypeLiteral()
-            return ast.CFunctionPointerType(
-                location=location,
-                parameters=self.build_param_list_from_type_literal_pairs(
-                    cfntype.typeLiteralPairList()
-                ),
-                return_type=self.get_or_create_type( # yapf: disable
-                    Location.FromContext(cfntype.typeLiteral(), self.stream),
-                    cfntype.typeLiteral()
-                ) if (hasattr(cfntype, 'typeLiteral') and
-                     cfntype.typeLiteral()) else None
-            )
-        if literal.cpointerTypeLiteral():
-            text = literal.getText()
-            referenced_type_is_exclusive = False
-            is_exclusive = False
 
-            if text.endswith('!'):
-                is_exclusive = True
-                text = text[:-1]
+        if expr.data == 'bool_expr':
+            raw_value = expr.children[0].value
+            return ast.BooleanLiteralExpr.FromRawValue(location, raw_value)
 
-            text = text[5:-1]
+        if expr.data == 'complex_expr':
+            raw_value = expr.children[0].value
+            return ast.ComplexLiteralExpr.FromRawValue(location, raw_value)
 
-            if text.endswith('!'):
-                referenced_type_is_exclusive = True
+        if expr.data == 'float_expr':
+            raw_value = expr.children[0].value
+            return ast.FloatLiteralExpr.FromRawValue(location, raw_value)
 
-            return ast.CPointerType(
-                location=location,
-                referenced_type=self.get_or_create_type(
-                    Location.FromContext(
-                        literal.cpointerTypeLiteral().typeLiteral(),
-                        self.stream
-                    ),
-                    literal.cpointerTypeLiteral().typeLiteral(),
-                    deferrable=True
-                ),
-                referenced_type_is_exclusive=referenced_type_is_exclusive,
-                is_exclusive=is_exclusive
-            )
-        if literal.cstructTypeLiteral():
+        if expr.data == 'int_expr':
+            raw_value = expr.children[0].value
+            return ast.IntegerLiteralExpr.FromRawValue(location, raw_value)
+
+        if expr.data == 'rune_expr':
+            raw_value = expr.children[0].value
+            return ast.RuneLiteralExpr.FromRawValue(location, raw_value)
+
+        if expr.data == 'string_expr':
+            raw_value = expr.children[0].value
+            return ast.StringLiteralExpr.FromRawValue(location, raw_value)
+
+        if expr.data == 'array_expr':
             pass
-        if literal.cunionTypeLiteral():
+
+        if expr.data == 'function_expr':
             pass
-        if literal.cvoidTypeLiteral():
-            return self.module.lookup(location, 'cvoid')
-        if literal.arrayTypeLiteral():
-            modifier = TypeModifier.FromTypeLiteral(literal)
-        if literal.functionTypeLiteral():
-            modifier = TypeModifier.FromTypeLiteral(literal)
-        if literal.paramTypeLiteral():
-            modifier = TypeModifier.FromTypeLiteral(literal)
-        if literal.rangeTypeLiteral():
-            modifier = TypeModifier.FromTypeLiteral(literal)
-        if literal.structTypeLiteral():
-            modifier = TypeModifier.FromTypeLiteral(literal)
-        if literal.identifier():
-            name = literal.getText()
-            modifier = TypeModifier.FromTypeLiteral(literal)
 
-            if modifier == TypeModifier.Pointer:
-                name = name[1:]
-            elif modifier == TypeModifier.Reference:
-                name = name[1:]
-            elif modifier == TypeModifier.ExclusiveReference:
-                name = name[1:-1]
+        if expr.data == 'struct_expr':
+            pass
 
-            # [TODO] Handle multiple dots/reflections
+        if expr.data == 'carray_expr':
+            pass
 
-            type = self.module.lookup(location, name)
+        if expr.data == 'cstruct_expr':
+            pass
 
-            debug('lookup', f'Got {type} from {name}')
+        if expr.data == 'cunion_expr':
+            pass
 
-            if type is None:
-                if not deferrable:
-                    raise errors.UndefinedSymbol(location, name)
+        if expr.data == 'lookup_expr':
+            name = expr.children.pop(0).value
+            value = self._lookup_type(location, name, extra_scope=extra_scope)
+            if value is None:
+                raise errors.UndefinedSymbol(location, name)
 
-                # [FIXME] This drops modifiers
-                return ast.DeferredTypeLookup(
-                    Location.FromContext(literal, self.stream), name
-                )
+            lookup_expr = ast.LookupExpr(
+                location=location, type=value, name=name
+            )
 
-            if isinstance(type, ast.TypeDef): # Already defined it
-                type = type.type
+            while expr.children:
+                debug('lookup', f'_handle_expr expr children: {expr.children}')
+                connector_field = expr.children.pop(0)
+                reflection = connector_field.value == '::'
+                field = expr.children.pop(0)
 
-            if isinstance(type, ast.SylvaType): # Already built it
-                if modifier == TypeModifier.Pointer:
-                    return ast.OwnedPointerType(location, type)
-                if modifier == TypeModifier.Reference:
-                    return ast.ReferencePointerType(
-                        location, type, is_exclusive=False
+                if reflection:
+                    value = value.reflect(location, field.value)
+                    if not value:
+                        raise errors.NoSuchField(location, field.value)
+                    lookup_expr = ast.ReflectionLookupExpr(
+                        location=Location.FromToken(field, self._stream),
+                        type=value.type,
+                        expr=lookup_expr,
+                        name=field.value
                     )
-                if modifier == TypeModifier.ExclusiveReference:
-                    return ast.ReferencePointerType(
-                        location, type, is_exclusive=True
+                else:
+                    value = value.lookup(location, field.value)
+                    if not value:
+                        raise errors.NoSuchField(location, field.value)
+                    debug(
+                        'lookup',
+                        f'_handle_expr: got {value} from {field.value}'
                     )
-                return type
-
-            raise Exception(f'Unknown thing {type}')
-
-        raise Exception(f'Unknown type literal {literal.getText()}')
-
-    # pylint: disable=no-self-use
-    def eval_const_literal(self, location, literal):
-        if literal.arrayConstLiteral():
-            pass
-        elif literal.booleanLiteral():
-            return ast.BooleanLiteralExpr.FromRawValue(
-                location, literal.getText()
-            )
-        elif literal.decimalLiteral():
-            return ast.DecimalLiteralExpr.FromRawValue(
-                location, literal.getText()
-            )
-        elif literal.floatLiteral():
-            return ast.FloatLiteralExpr.FromRawValue(
-                location, literal.getText()
-            )
-        elif literal.functionLiteral():
-            pass
-        elif literal.integerLiteral():
-            return ast.IntegerLiteralExpr.FromRawValue(
-                location, literal.getText()
-            )
-        elif literal.rangeConstLiteral():
-            pass
-        elif literal.runeLiteral():
-            return ast.RuneLiteralExpr.FromRawValue(
-                location, literal.getText()
-            )
-        elif literal.stringLiteral():
-            return ast.StringLiteralExpr.FromRawValue(
-                location, literal.getText()
-            )
-        elif literal.structConstLiteral():
-            pass
-
-    def exitAliasDef(self, ctx):
-        if ctx.identifier():
-            value = self.lookup_identifier(ctx.identifier())
-        elif ctx.typeLiteral():
-            value = self.get_or_create_type(
-                Location.FromContext(ctx.typeLiteral(), self.stream),
-                ctx.typeLiteral()
-            )
-        else:
-            raise Exception(f'Malformed alias def: {ctx.getText()}')
-
-        self.module.add_alias(
-            ast.AliasDef(
-                location=Location.FromContext(ctx, self.stream),
-                name=ctx.singleIdentifier().getText(),
-                value=value
-            )
-        )
-
-    def exitConstDef(self, ctx):
-        const_expr = ctx.constExpr()
-        if const_expr.identifier():
-            value = self.eval_const_literal(
-                Location.FromContext(const_expr.identifier(), self.stream),
-                self.lookup_identifier(const_expr.identifier())
-            )
-        elif const_expr.literal():
-            value = self.eval_const_literal(
-                Location.FromContext(const_expr.literal(), self.stream),
-                const_expr.literal()
-            )
-        else:
-            raise Exception(f'Malformed const def: {ctx.getText()}')
-
-        # while isinstance(value, ast.ConstExpr):
-        #     value = value.eval(location)
-
-        self.module.add_definition(
-            ast.ConstDef(
-                location=Location.FromContext(ctx, self.stream),
-                name=ctx.singleIdentifier().getText(),
-                value=value
-            )
-        )
-
-    def exitFunctionDef(self, ctx):
-        func = ctx.functionLiteral()
-        location = Location.FromContext(ctx, self.stream)
-        name = ctx.singleIdentifier().getText()
-        params = self.build_param_list_from_type_literal_pairs(
-            func.typeLiteralPairList()
-        )
-        return_type = self.get_or_create_type( # yapf: disable
-            Location.FromContext(func.typeLiteral(), self.stream),
-            func.typeLiteral()
-        ) if (hasattr(func, 'typeLiteral') and func.typeLiteral()) else None
-
-        self.module.add_definition(
-            ast.FunctionDef(
-                location=location,
-                name=name,
-                type=ast.FunctionType(
-                    location=location,
-                    parameters=params,
-                    return_type=return_type
-                ),
-                code=self.build_code_block(
-                    Location.FromContext(func.codeBlock(), self.stream),
-                    func.codeBlock(),
-                    params
-                )
-            )
-        )
-
-    def exitCfunctionTypeDef(self, ctx):
-        cfunc = ctx.functionTypeLiteral()
-        name = ctx.singleIdentifier().getText()
-        params = self.build_param_list_from_type_literal_pairs(
-            cfunc.typeLiteralPairList()
-        )
-        return_type = self.get_or_create_type( # yapf: disable
-            Location.FromContext(cfunc.typeLiteral(), self.stream),
-            cfunc.typeLiteral()
-        ) if (hasattr(cfunc, 'typeLiteral') and cfunc.typeLiteral()) else None
-
-        location = Location.FromContext(ctx, self.stream)
-        self.module.add_definition(
-            ast.CFunctionDef(
-                location=location,
-                name=name,
-                type=ast.CFunctionType(
-                    location=location,
-                    parameters=params,
-                    return_type=return_type
-                )
-            )
-        )
-
-    def exitCunionTypeDef(self, ctx):
-        location = Location.FromContext(ctx, self.stream)
-        self.module.add_definition(
-            ast.CUnionDef(
-                location=location,
-                name=ctx.singleIdentifier().getText(),
-                type=ast.CUnionType(
-                    location=location,
-                    fields=self.build_param_list_from_type_literal_pairs(
-                        ctx.typeLiteralPairList()
+                    lookup_expr = ast.FieldNameLookupExpr(
+                        location=Location.FromToken(field, self._stream),
+                        type=value.type,
+                        expr=lookup_expr,
+                        name=field.value
                     )
-                )
-            )
-        )
 
-    def exitCstructTypeDef(self, ctx):
-        location = Location.FromContext(ctx, self.stream)
-        name = ctx.singleIdentifier().getText()
-        pairs = ctx.typeLiteralPairList()
-        fields = self.build_param_list_from_type_literal_pairs(pairs)
-        cstruct = ast.CStructType(location=location, name=name, fields=fields)
-
-        for field_type in cstruct.fields.values():
-            if not isinstance(field_type, ast.CPointerType):
-                continue
-            if not isinstance(field_type.referenced_type,
-                              ast.DeferredTypeLookup):
-                continue
-            if not field_type.referenced_type.value == name:
-                raise errors.UndefinedSymbol(
-                    field_type.location, field_type.referenced_type.value
-                )
-            field_type.referenced_type = cstruct
-
-        self.module.add_definition(
-            ast.CStructDef(location=location, name=name, type=cstruct)
-        )
-
-    def _handle_expr(self, expr):
-        return None
+            return lookup_expr
 
     def _handle_stmt(self, stmt):
         return None
 
-    def _process_code_block(self, code_block):
-        print(code_block.pretty())
+    def _process_code_block(self, code_block, extra_scope=None):
         code = []
+        extra_scope = extra_scope or {}
 
         for expr_or_stmt in code_block.children:
             if expr_or_stmt.data in _EXPR_NODE_NAMES:
-                code.append(self._handle_expr(expr_or_stmt))
+                code.append(self._handle_expr(expr_or_stmt, extra_scope))
             else:
                 code.append(self._handle_stmt(expr_or_stmt))
 
         return code
 
-    def _lookup(self, location, type_name, deferrable=False):
+    def _lookup_type(
+        self, location, type_name, extra_scope=None, deferrable=False
+    ):
         # [NOTE] Maybe it's a good idea to have an `UndefinedSymbol` ASTNode?
         #        Or, this could be a general semantic error reporting strategy
         #        where we use the tree to hold errors and report them as we
         #        walk it.
-        value = self._module.lookup(location, type_name)
+        debug('lookup', f'_lookup looking up {type_name}')
+        if extra_scope:
+            extra_value = extra_scope.get(type_name)
+            if extra_value is not None:
+                debug('lookup', f'_lookup returning local {extra_value}')
+                return extra_value
+
+        value = self._module.lookup_type(location, type_name)
         if value is None:
             if deferrable:
                 return ast.DeferredTypeLookup(location, type_name)
             raise errors.UndefinedSymbol(location, type_name)
+        debug('lookup', f'_lookup returning {value}')
         return value
 
-    def _get_type(self, type_obj, deferrable=False):
+    def _get_type(self, type_obj, extra_scope=None, deferrable=False):
         if isinstance(type_obj, Token):
             loc = Location.FromToken(type_obj, self._stream)
-            return self._lookup(loc, type_obj.value, deferrable=deferrable)
+            return self._lookup_type(
+                loc,
+                type_obj.value,
+                extra_scope=extra_scope,
+                deferrable=deferrable
+            )
 
         location = Location.FromTree(type_obj, self._stream)
 
@@ -851,7 +382,7 @@ class ModuleBuilder(lark.Visitor):
             )
 
         if type_obj.data == 'c_void_type_expr':
-            return self._lookup(location, 'cvoid', deferrable=deferrable)
+            return self._lookup_type(location, 'cvoid', deferrable=deferrable)
 
         if type_obj.data == 'function_type_expr':
             parameters = []
@@ -882,7 +413,7 @@ class ModuleBuilder(lark.Visitor):
 
         if type_obj.data == 'identifier':
             name = type_obj.children[0]
-            return self._lookup(location, name, deferrable=deferrable)
+            return self._lookup_type(location, name, deferrable=deferrable)
 
         if type_obj.data == 'c_function_type_type_expr':
             parameters = []
@@ -1012,13 +543,14 @@ class ModuleBuilder(lark.Visitor):
 
     def c_struct_type_def(self, tree):
         fields = []
-        for field_obj in tree.children[1:]:
+        for i, field_obj in enumerate(tree.children[1:]):
             name_token, field_type_obj = field_obj.children
             fields.append(
                 ast.Field(
                     location=Location.FromToken(name_token, self._stream),
                     name=name_token.value,
-                    type=self._get_type(field_type_obj, deferrable=True)
+                    type=self._get_type(field_type_obj, deferrable=True),
+                    index=i,
                 )
             )
         self._module.define(
@@ -1035,13 +567,14 @@ class ModuleBuilder(lark.Visitor):
 
     def c_union_type_def(self, tree):
         fields = []
-        for field_obj in tree.children[1:]:
+        for i, field_obj in enumerate(tree.children[1:]):
             name_token, field_type_obj = field_obj.children
             fields.append(
                 ast.Field(
                     location=Location.FromToken(name_token, self._stream),
                     name=name_token.value,
-                    type=self._get_type(field_type_obj, deferrable=True)
+                    type=self._get_type(field_type_obj, deferrable=True),
+                    index=i
                 )
             )
         self._module.define(
@@ -1074,7 +607,9 @@ class ModuleBuilder(lark.Visitor):
         else:
             return_type = None
 
-        code = self._process_code_block(code_block)
+        scope = {param.name: param.type for param in parameters}
+
+        code = self._process_code_block(code_block, extra_scope=scope)
 
         self._module.define(
             ast.FunctionDef(

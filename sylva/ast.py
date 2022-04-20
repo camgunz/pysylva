@@ -626,7 +626,7 @@ class Expr(ASTNode):
 
 @define(eq=False, slots=True)
 class ValueExpr(Expr):
-    name: str | None
+    pass
 
 
 @define(eq=False, slots=True)
@@ -719,7 +719,11 @@ class StringLiteralExpr(LiteralExpr):
         return cls(
             location,
             type=ArrayType(
-                location, IntegerType(8, signed=True), len(encoded_data)
+                location=location,
+                element_type=IntegerType(
+                    Location.Generate(), bits=8, signed=True
+                ),
+                element_count=len(encoded_data)
             ),
             value=encoded_data
         )
@@ -928,14 +932,8 @@ class FieldIndexLookupExpr(LLVMExpr):
 
 @define(eq=False, slots=True)
 class ReflectionLookupExpr(Expr):
-    object: ASTNode
+    expr: Expr
     name: str
-
-
-@define(eq=False, slots=True)
-class MoveExpr(ConstExpr):
-    type: OwnedPointerType
-    value: Expr
 
 
 @define(eq=False, slots=True)
@@ -980,8 +978,16 @@ class BasePointerExpr(ValueExpr):
         return self.type.is_exclusive
 
 
+@define(eq=False, slots=True)
 class ReferencePointerExpr(BasePointerExpr):
     type: ReferencePointerType
+    value: Expr
+
+
+@define(eq=False, slots=True)
+class MovePointerExpr(ConstExpr):
+    type: OwnedPointerType
+    value: Expr
 
 
 @define(eq=False, slots=True)
@@ -1049,7 +1055,7 @@ class Parameter(BaseTypeMapping):
 
 @define(eq=False, slots=True)
 class Field(BaseTypeMapping):
-    pass
+    index: int
 
 
 @define(eq=False, slots=True)

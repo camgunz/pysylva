@@ -478,7 +478,6 @@ class Module:
         return None
 
     def lookup(self, location, name):
-        debug('lookup', f'Looking up {name}')
         aliased_value = self._aliases.get(name)
         if aliased_value is not None:
             return aliased_value.value
@@ -502,11 +501,18 @@ class Module:
 
         return value
 
+    def lookup_type(self, location, type_name):
+        aliased_value = self._aliases.get(type_name)
+        if aliased_value is not None:
+            return aliased_value.value
+
+        return self.vars.get(type_name)
+
     def define(self, definition: ast.Def):
         self._check_definition(definition)
         if isinstance(definition, ast.AliasDef):
-            debug('lookup', f'Alias {definition.name} -> {definition}')
+            debug('define', f'Alias {definition.name} -> {definition}')
             self._aliases[definition.name] = definition
         else:
-            debug('lookup', f'Define {definition.name} -> {definition}')
+            debug('define', f'Define {definition.name} -> {definition}')
             self.vars[definition.name] = definition
