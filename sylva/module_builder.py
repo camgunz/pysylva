@@ -173,6 +173,39 @@ class ModuleBuilder(lark.Visitor):
                 )
             )
 
+        if expr.data == 'cpointer_expr':
+            referenced_expr = self._handle_expr(
+                expr.children[0], extra_scope=extra_scope
+            )
+
+            if not isinstance(referenced_expr, ast.BasePointerExpr):
+                referenced_type = referenced_expr.type
+                referenced_type_is_exclusive = True
+            else:
+                referenced_type = referenced_expr.referenced_type
+                referenced_type_is_exclusive = referenced_expr.is_exclusive
+
+            is_exclusive = len(expr.children) >= 2 and expr.children[1] == '!'
+
+            return ast.CPointerCastExpr(
+                location=location,
+                type=ast.CPointerType(
+                    location=location,
+                    referenced_type=referenced_type,
+                    referenced_type_is_exclusive=referenced_type_is_exclusive,
+                    is_exclusive=is_exclusive
+                ),
+                expr=referenced_expr
+            )
+
+        if expr.data == 'cvoid_expr':
+            return ast.CVoidCastExpr(
+                location=location,
+                expr=self._handle_expr(
+                    expr.children[0], extra_scope=extra_scope
+                )
+            )
+
         if expr.data == 'bool_expr':
             raw_value = expr.children[0].value
             return ast.BooleanLiteralExpr.FromRawValue(location, raw_value)
@@ -200,19 +233,10 @@ class ModuleBuilder(lark.Visitor):
         if expr.data == 'array_expr':
             pass
 
-        if expr.data == 'function_expr':
-            pass
-
         if expr.data == 'struct_expr':
             pass
 
-        if expr.data == 'carray_expr':
-            pass
-
-        if expr.data == 'cstruct_expr':
-            pass
-
-        if expr.data == 'cunion_expr':
+        if expr.data == 'function_expr':
             pass
 
         if expr.data == 'lookup_expr':
@@ -242,6 +266,9 @@ class ModuleBuilder(lark.Visitor):
                         name=field.value
                     )
                 else:
+                    # if value.lookup(location, field.value) is None:
+                    #     import pdb
+                    #     pdb.set_trace()
                     value = value.lookup(location, field.value)
                     if not value:
                         raise errors.NoSuchField(location, field.value)
@@ -478,6 +505,15 @@ class ModuleBuilder(lark.Visitor):
                 location=Location.FromTree(tree, self._stream),
                 name=tree.children[0].value,
                 value=self._get_type(tree.children[1])
+            )
+        )
+
+    def const_def(self, tree):
+        self._module.define(
+            ast.ConstDef(
+                location=Location.FromTree(tree, self._stream),
+                name=tree.children[0].value,
+                value=self._handle_expr(tree.children[1])
             )
         )
 

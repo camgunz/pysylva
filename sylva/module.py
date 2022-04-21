@@ -513,6 +513,9 @@ class Module:
         if isinstance(definition, ast.AliasDef):
             debug('define', f'Alias {definition.name} -> {definition}')
             self._aliases[definition.name] = definition
+        elif isinstance(definition, ast.ConstDef):
+            debug('define', f'Const {definition.name} -> {definition.value}')
+            self.vars[definition.name] = definition.value
         else:
             debug('define', f'Define {definition.name} -> {definition}')
             self.vars[definition.name] = definition

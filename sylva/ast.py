@@ -672,6 +672,7 @@ class LiteralExpr(ConstExpr):
 
 @define(eq=False, slots=True)
 class CVoidCastExpr(ConstExpr):
+    expr: Expr
     type: IntegerType = IntegerType(Location.Generate(), bits=8, signed=True)
 
 
@@ -819,7 +820,9 @@ class IntegerLiteralExpr(NumericLiteralExpr):
 
         return cls(
             location=location,
-            type=IntegerType(size or _SIZE_SIZE, signed=signed),
+            type=IntegerType(
+                location=location, bits=size or _SIZE_SIZE, signed=signed
+            ),
             value=value
         )
 
@@ -997,8 +1000,14 @@ class OwnedPointerExpr(BasePointerExpr):
 
 @define(eq=False, slots=True)
 class CPointerCastExpr(BasePointerExpr):
+
+    """
+    "Cast" is a misnomer here because while this casts other pointer
+    types, it takes a (c) pointer to non-pointer types.
+    """
+
     type: CPointerType
-    value: Expr
+    expr: Expr
 
 
 @define(eq=False, slots=True)
