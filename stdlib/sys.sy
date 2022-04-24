@@ -11,11 +11,11 @@ fn abort() {
 }
 
 fn print(message: &str) {
-  libc.write(libc.STDOUT_FILENO, cptr(cvoid(message)), message::size)
+  libc.write(libc.STDOUT_FILENO, cptr(cvoid(message)), message.get_length())
 }
 
 fn printerr(message: &str) {
-  libc.write(libc.STDERR_FILENO, cptr(cvoid(message)), message::size)
+  libc.write(libc.STDERR_FILENO, cptr(cvoid(message)), message.get_length())
 }
 
 fn echo(message: &str) {

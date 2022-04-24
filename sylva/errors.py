@@ -89,10 +89,9 @@ class InvalidOperatorExpansion(LocationError):
 
 class InvalidExpressionType(LocationError):
 
-    def __init__(self, location, expected, actual):
+    def __init__(self, location, expected):
         super().__init__(
-            location,
-            f'Invalid expression type. Expected {expected}; got {actual}'
+            location, f'Invalid expression type; expected {expected}'
         )
 
 
@@ -122,7 +121,7 @@ class UndefinedSymbol(LocationError):
         super().__init__(location, f'Undefined symbol {name}')
 
 
-class NoSuchField(LocationError):
+class NoSuchAttribute(LocationError):
 
     def __init__(self, location, name):
         super().__init__(location, f'No such field {name}')
@@ -257,13 +256,13 @@ class EmptyArray(LocationError):
 class ImpossibleLookup(LocationError):
 
     def __init__(self, location):
-        super().__init__(location, 'Cannot lookup values in this namespace')
+        super().__init__(location, 'Cannot lookup attributes in this object')
 
 
 class ImpossibleReflection(LocationError):
 
     def __init__(self, location):
-        super().__init__(location, 'Reflection not possible')
+        super().__init__(location, 'Cannot reflect on this object')
 
 
 class ImpossibleCompileTimeEvaluation(LocationError):

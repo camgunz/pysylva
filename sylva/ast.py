@@ -1,7 +1,6 @@
 # pylint: disable=too-many-lines
 
 import ctypes
-import decimal
 import typing
 
 from functools import cache, cached_property
@@ -44,7 +43,58 @@ class SylvaType(ASTNode):
     def check(self):
         return []
 
-    def get_value(self, location: Location, name: str):
+    def mangle(self):
+        raise NotImplementedError()
+
+
+@define(eq=False, slots=True)
+class BaseTypeMapping(ASTNode):
+    name: str
+    type: SylvaType
+    index: int | None = None
+
+    @property
+    def handle(self):
+        return self.index if self.index is not None else self.name
+
+
+@define(eq=False, slots=True)
+class Parameter(BaseTypeMapping):
+    pass
+
+
+@define(eq=False, slots=True)
+class Attribute(BaseTypeMapping):
+    pass
+
+
+@define(eq=False, slots=True)
+class Field(BaseTypeMapping):
+    pass
+
+
+@define(eq=False, slots=True)
+class Lookupable:
+    pass
+
+
+@define(eq=False, slots=True)
+class Dotable(Lookupable):
+
+    def get_attribute(self, location, name):
+        pass
+
+    def lookup_attribute(self, location, name):
+        raise NotImplementedError()
+
+
+@define(eq=False, slots=True)
+class Reflectable(Lookupable):
+
+    def get_reflection_attribute_type(self, name) -> SylvaType | None:
+        pass
+
+    def reflect_attribute(self, name):
         raise NotImplementedError()
 
 
@@ -65,7 +115,7 @@ class MetaSylvaType(SylvaType):
         raise NotImplementedError()
 
     def check(self):
-        type_errors = []
+        type_errors = super().check()
 
         dupes = utils.get_dupes(self.names)
         if dupes:
@@ -96,7 +146,7 @@ class MetaSylvaType(SylvaType):
 
 
 @define(eq=False, slots=True)
-class SylvaLLVMType(SylvaType):
+class BaseSylvaLLVMType(SylvaType):
 
     @cache
     def make_constant(self, module, value):
@@ -114,14 +164,47 @@ class SylvaLLVMType(SylvaType):
     def get_pointer(self, module):
         return self.get_llvm_type(module).as_pointer()
 
+
+@define(eq=False, slots=True)
+class SylvaLLVMType(BaseSylvaLLVMType):
+
     @cache
     def get_llvm_type(self, module):
         raise NotImplementedError()
 
 
 @define(eq=False, slots=True)
+class SylvaLLVMParamType(BaseSylvaLLVMType):
+
+    @cache
+    def get_llvm_types(self, module):
+        raise NotImplementedError()
+
+
+@define(eq=False, slots=True)
 class MetaSylvaLLVMType(MetaSylvaType, SylvaLLVMType):
     pass
+
+
+@define(eq=False, slots=True)
+class MetaSylvaLLVMParamType(MetaSylvaType, SylvaLLVMParamType):
+    monomorphizations: typing.List
+
+    def check(self):
+        type_errors = super().check()
+
+        for mm in self.monomorphizations:
+            type_errors.extend(mm.check())
+
+        return type_errors
+
+    @property
+    def is_polymorphic(self):
+        return len(self.monomorphizations) > 1
+
+    @cache
+    def get_llvm_types(self, module):
+        return [mm.get_llvm_type(module) for mm in self.monomorphizations]
 
 
 @define(eq=False, slots=True)
@@ -133,22 +216,32 @@ class ScalarType(SylvaLLVMType):
 class BooleanType(ScalarType):
 
     @cache
+    def mangle(self):
+        return '1b'
+
+    @cache
+    def get_value_expr(self, location):
+        return BooleanExpr(location=location, type=self)
+
+    @cache
     def get_llvm_type(self, module):
         return ir.IntType(8)
-
-    def get_value(self, location: Location, name: str):
-        return BooleanExpr(location, name)
 
 
 @define(eq=False, slots=True)
 class RuneType(ScalarType):
 
     @cache
+    def mangle(self):
+        return '1r'
+
+    @cache
+    def get_value_expr(self, location):
+        return RuneExpr(location=location, type=self)
+
+    @cache
     def get_llvm_type(self, module):
         return ir.IntType(32)
-
-    def get_value(self, location: Location, name: str):
-        return RuneExpr(location, name)
 
 
 @define(eq=False, slots=True)
@@ -165,6 +258,15 @@ class SizedNumericType(NumericType):
 class ComplexType(SizedNumericType):
 
     @cache
+    def mangle(self):
+        base = f'c{self.bits}'
+        return f'{len(base)}{base}'
+
+    @cache
+    def get_value_expr(self, location):
+        return ComplexExpr(location=location, type=self)
+
+    @cache
     def get_llvm_type(self, module):
         if self.bits == 8:
             return ir.HalfType()
@@ -178,12 +280,18 @@ class ComplexType(SizedNumericType):
         if self.bits == 128:
             return ir.DoubleType()
 
-    def get_value(self, location: Location, name: str):
-        return ComplexExpr(location=location, type=self, name=name)
-
 
 @define(eq=False, slots=True)
 class FloatType(SizedNumericType):
+
+    @cache
+    def mangle(self):
+        base = f'f{self.bits}'
+        return f'{len(base)}{base}'
+
+    @cache
+    def get_value_expr(self, location):
+        return FloatExpr(location=location, type=self)
 
     @cache
     def get_llvm_type(self, module):
@@ -200,42 +308,43 @@ class FloatType(SizedNumericType):
         if self.bits == 128:
             return ir.DoubleType()
 
-    def get_value(self, location: Location, name: str):
-        return FloatExpr(location=location, type=self, name=name)
-
 
 @define(eq=False, slots=True)
 class IntegerType(SizedNumericType):
     signed: bool
 
+    @cache
+    def mangle(self):
+        prefix = 'i' if self.signed else 'u'
+        base = f'{prefix}{self.bits}'
+        return f'{len(base)}{base}'
+
     @classmethod
     def SmallestThatHolds(cls, x):
-        return cls(utils.smallest_uint(x), signed=False)
+        return cls(Location.Generate(), utils.smallest_uint(x), signed=False)
 
     @classmethod
     def Platform(cls, signed):
-        return cls(bits=_SIZE_SIZE, signed=signed)
+        return cls(Location.Generate(), bits=_SIZE_SIZE, signed=signed)
+
+    @cache
+    def get_value_expr(self, location):
+        return IntegerExpr(location=location, type=self)
 
     @cache
     def get_llvm_type(self, module):
         return ir.IntType(self.bits)
 
-    def get_value(self, location: Location, name: str):
-        return IntegerExpr(location=location, type=self, name=name)
-
 
 @define(eq=False, slots=True)
-class StaticStringType(ScalarType):
+class BaseArrayType(MetaSylvaLLVMType, Reflectable):
+    element_type: SylvaType
+    element_count: int = field()
 
     @cache
-    def get_llvm_type(self, module):
-        return ir.PointerType(ir.IntType(8))
-
-
-@define(eq=False, slots=True)
-class BaseArrayType(MetaSylvaLLVMType):
-    element_type: SylvaType
-    element_count: None | int = field()
+    def mangle(self):
+        base = f'a{self.element_type.mangle()}{self.element_count}'
+        return f'{len(base)}{base}'
 
     # pylint: disable=unused-argument
     @element_count.validator
@@ -257,13 +366,31 @@ class BaseArrayType(MetaSylvaLLVMType):
             self.element_type.get_llvm_type(module), self.element_count
         )
 
-    # pylint: disable=no-self-use,redefined-outer-name
+    # pylint: disable=no-self-use
     @cache
-    def get_reflection_field_info(self, field):
-        if field == 'size':
-            return IntegerType.Platform(signed=False)
-        if field == 'count':
-            return IntegerType.Platform(signed=False)
+    def get_reflection_attribute_type(self, name):
+        if name == 'name':
+            return StringLiteralType
+        if name == 'size':
+            return IntegerType
+        if name == 'count':
+            return IntegerType
+        if name == 'element_type':
+            return SylvaType
+        if name == 'indices':
+            return RangeType
+
+    def reflect_attribute(self, name):
+        if name == 'name':
+            return 'array'
+        if name == 'size':
+            return self.element_count * self.element_type.size # [TODO]
+        if name == 'count':
+            return self.element_count
+        if name == 'element_type':
+            return self.element_type
+        if name == 'indices':
+            return range(0, self.element_count + 1)
 
 
 @define(eq=False, slots=True)
@@ -272,35 +399,100 @@ class ArrayType(BaseArrayType):
 
 
 @define(eq=False, slots=True)
-class BaseFunctionType(MetaSylvaLLVMType):
-    parameters: typing.Mapping[str, SylvaType]
-    return_type: SylvaType
+class StringLiteralType(ArrayType):
+    value: bytearray
+    element_type: IntegerType = IntegerType(
+        location=Location.Generate(), bits=8, signed=True
+    )
 
-    @property
-    def names(self):
-        return list(self.parameters.keys())
+    def mangle(self):
+        base = f'str{self.element_type.mangle()}{self.element_count}'
+        return f'{len(base)}{base}'
 
-    @property
-    def types(self):
-        return list(self.parameters.values())
+    @classmethod
+    def FromValue(cls, location, value):
+        return cls(location=location, element_count=len(value), value=value)
 
     @cache
-    def get_llvm_type(self, module):
-        params = []
-
-        for p in self.parameters.values():
-            params.append(p.get_llvm_type(module))
-
-        return ir.FunctionType(
-            self.return_type.get_llvm_type(module)
-            if self.return_type else ir.VoidType(),
-            params
+    def get_value_expr(self, location):
+        return StringLiteralExpr(
+            location=location, type=self, value=self.value
         )
 
 
 @define(eq=False, slots=True)
-class FunctionType(BaseFunctionType):
-    pass
+class StringType(SylvaType, Dotable):
+
+    def mangle(self):
+        return '6string'
+
+    def get_value_expr(self, location):
+        raise NotImplementedError
+
+    @cache
+    def get_attribute(self, location, name):
+        if name == 'get_length':
+            return Attribute(
+                location=Location.Generate(),
+                name='get_length',
+                type=FunctionType.Def(
+                    location=Location.Generate(),
+                    parameters=[],
+                    return_type=IntegerType.Platform(signed=False)
+                )
+            )
+
+
+@define(eq=False, slots=True)
+class MonoFunctionType(MetaSylvaLLVMType):
+    parameters: typing.List[Parameter]
+    return_type: SylvaType
+    llvm_value: None | ir.Function = None
+
+    def mangle(self):
+        params = ''.join(p.type.mangle() for p in self.parameters)
+        base = f'fn{params}{self.return_type.mangle()}'
+        return f'{len(base)}{base}'
+
+    @property
+    def names(self):
+        return [p.name for p in self.parameters]
+
+    @property
+    def types(self):
+        return [p.type for p in self.parameters]
+
+    @cache
+    def get_llvm_type(self, module):
+        return ir.FunctionType( # yapf: disable
+            (
+                self.return_type.get_llvm_type(module)
+                if self.return_type else ir.VoidType()
+            ),
+            [p.get_llvm_type(module) for p in self.parameters.values()]
+        )
+
+
+@define(eq=False, slots=True)
+class FunctionType(MetaSylvaLLVMParamType):
+    monomorphizations: typing.List[MonoFunctionType]
+
+    @classmethod
+    def Def(cls, location, parameters, return_type):
+        return cls(
+            location=location,
+            monomorphizations=[
+                MonoFunctionType(location, parameters, return_type)
+            ]
+        )
+
+    def resolve_self_references(self, name):
+        pass # [FIXME] This should run on structs etc., not functions
+
+    def add_monomorphization(self, mono_function_type):
+        index = len(self.monomorphizations)
+        self.monomorphizations.append(mono_function_type)
+        return index
 
 
 @define(eq=False, slots=True)
@@ -308,6 +500,9 @@ class RangeType(MetaSylvaLLVMType):
     type: NumericType
     min: int
     max: int
+
+    def mangle(self):
+        return self.type.mangle()
 
     @property
     def names(self):
@@ -323,9 +518,9 @@ class RangeType(MetaSylvaLLVMType):
 
 
 @define(eq=False, slots=True)
-class BaseStructType(MetaSylvaLLVMType):
+class BaseStructType(MetaSylvaLLVMType, Dotable):
     name: str | None
-    fields: typing.Mapping[str, SylvaType]
+    fields: typing.List[Field]
 
     # self._size = 0
     # self._alignment = 1
@@ -341,40 +536,39 @@ class BaseStructType(MetaSylvaLLVMType):
 
     @property
     def names(self):
-        return list(self.fields.keys())
+        return [f.name for f in self.fields]
 
     @property
     def types(self):
-        return list(self.fields.values())
+        return [f.type for f in self.fields]
 
+    # pylint: disable=unused-argument
     @cache
-    def get_field_info(self, name):
-        for n, field_name_and_type in enumerate(self.fields.items()):
-            field_name, field_type = field_name_and_type
-            if field_name == name:
-                return n, field_type
+    def get_attribute(self, location, name):
+        for f in self.fields:
+            if f.name == name:
+                return f
 
-    # pylint: disable=arguments-differ
     @cache
     def get_llvm_type(self, module):
         if self.name is None:
-            for f in self.fields.values():
-                if not isinstance(f, BasePointerType):
+            for f in self.fields:
+                if not isinstance(f.type, BasePointerType):
                     continue
-                if not f.referenced_type == self:
+                if not f.type.referenced_type == self:
                     continue
                 raise Exception('Cannot have self-referential struct literals')
             return ir.LiteralStructType([
-                f.get_llvm_type(module) for f in self.fields.values()
+                f.type.get_llvm_type(module) for f in self.fields
             ])
 
         struct = module.get_identified_type(self.name)
         fields = []
-        for f in self.fields.values():
-            if not isinstance(f, BasePointerType):
-                fields.append(f.get_llvm_type(module))
+        for f in self.fields:
+            if not isinstance(f.type, BasePointerType):
+                fields.append(f.type.get_llvm_type(module))
             elif not f.referenced_type == self:
-                fields.append(f.get_llvm_type(module))
+                fields.append(f.type.get_llvm_type(module))
             else:
                 fields.append(ir.PointerType(struct))
         struct.set_body(*fields)
@@ -383,56 +577,35 @@ class BaseStructType(MetaSylvaLLVMType):
 
 
 @define(eq=False, slots=True)
-class StructType(BaseStructType):
+class MonoStructType(BaseStructType):
     pass
 
 
 @define(eq=False, slots=True)
-class ParamStructType(ParamSylvaType):
-    type_params: typing.Mapping[str, str | SylvaType]
-    fields: typing.Mapping[str, SylvaType]
+class StructType(MetaSylvaLLVMParamType):
+    name: str | None
+    monomorphizations: typing.List[MonoStructType]
 
-    def get_struct(self, location, type_args):
-        fields = {}
-        for field_name, type_param in self.fields.items():
-            if isinstance(type_param, str):
-                field_type = type_args.get(type_param)
-                if field_type is None:
-                    raise errors.MissingTypeParam(location, type_param)
-                fields[field_name] = field_type
-            else:
-                fields[field_name] = type_param
-        return StructType(location=location, fields=fields)
-
-
-@define(eq=False, slots=True)
-class StringType(StructType):
-    fields: typing.Mapping[str, SylvaType] = {
-        'size': IntegerType( # yapf: disable
-            location=Location.Generate(), bits=_SIZE_SIZE, signed=False
-        ),
-        'data': ArrayType( # yapf: disable
-            Location.Generate(),
-            IntegerType(Location.Generate(), 8, signed=True),
-            None
+    @classmethod
+    def Def(cls, location, name, fields):
+        return cls(
+            location=location,
+            name=name,
+            monomorphizations=[
+                MonoStructType(location=location, name=name, field=fields)
+            ]
         )
-    }
 
-    def get_value(self, location: Location, name: str):
-        return StringExpr(location=location, name=name)
-
-    # pylint: disable=no-self-use,redefined-outer-name
-    @cache
-    def get_reflection_field_info(self, field):
-        if field == 'size':
-            return IntegerType.Platform(signed=False)
-        if field == 'count':
-            return IntegerType.Platform(signed=False)
+    def add_monomorphization(self, fields):
+        index = len(self.monomorphizations)
+        mst = MonoStructType(name=self.name, fields=fields)
+        self.monomorphizations.append(mst)
+        return index
 
 
 @define(eq=False, slots=True)
 class BaseUnionType(MetaSylvaLLVMType):
-    fields: typing.Mapping[str, SylvaType]
+    fields: typing.List[Field]
 
     @property
     def names(self):
@@ -451,22 +624,33 @@ class BaseUnionType(MetaSylvaLLVMType):
                 largest_field = f
         return largest_field.get_llvm_type(module)
 
+    # pylint: disable=unused-argument
     @cache
-    def get_field_info(self, name):
-        for n, field_name_and_type in enumerate(self.fields.items()):
-            field_name, field_type = field_name_and_type
-            if field_name == name:
-                return n, field_type
+    def get_attribute(self, location, name):
+        for f in self.fields:
+            if f.name == name:
+                return f
 
 
 @define(eq=False, slots=True)
-class VariantType(BaseUnionType):
+class MonoVariantType(BaseUnionType, Dotable):
+    name: str
+    fields: typing.List[Field]
 
-    def check(self):
-        type_errors = super().check()
-        type_errors.append(errors.EmptyVariant(self))
+    @property
+    def names(self):
+        return [f.name for f in self.fields]
 
-        return type_errors
+    @property
+    def types(self):
+        return [f.type for f in self.fields]
+
+    # pylint: disable=unused-argument
+    @cache
+    def get_attribute(self, location, name):
+        for f in self.fields:
+            if f.name == name:
+                return f
 
     @cache
     def get_llvm_type(self, module):
@@ -477,25 +661,13 @@ class VariantType(BaseUnionType):
 
 
 @define(eq=False, slots=True)
-class ParamVariantType(ParamSylvaType):
-    type_params: typing.Mapping[str, str | SylvaType]
-    fields: typing.Mapping[str, SylvaType]
-
-    def get_variant(self, location, type_args):
-        fields = {}
-        for field_name, type_param in self.fields.items():
-            if isinstance(type_param, str):
-                field_type = type_args.get(type_param)
-                if field_type is None:
-                    raise errors.MissingTypeParam(location, type_param)
-                fields[field_name] = field_type
-            else:
-                fields[field_name] = type_param
-        return VariantType(location=location, fields=fields)
+class VariantType(MetaSylvaLLVMParamType):
+    name: str
+    monomorphizations: typing.List[MonoVariantType]
 
 
 @define(eq=False, slots=True)
-class BasePointerType(MetaSylvaLLVMType):
+class BasePointerType(MetaSylvaLLVMType, Dotable, Reflectable):
     referenced_type: SylvaType
     is_exclusive: bool
 
@@ -511,38 +683,43 @@ class BasePointerType(MetaSylvaLLVMType):
     def get_llvm_type(self, module):
         return ir.PointerType(self.referenced_type.get_llvm_type(module))
 
-    # pylint: disable=redefined-outer-name
     @cache
-    def get_reflection_field_info(self, field):
-        return self.referenced_type.get_reflection_field_info(field)
+    def get_attribute(self, location, name):
+        if not isinstance(self.referenced_type, Dotable):
+            raise errors.ImpossibleLookup(location)
+        return self.referenced_type.get_attribute(location, name)
+
+    @cache
+    def get_reflection_attribute_type(self, name):
+        return self.referenced_type.get_reflection_attribute_type(name)
 
 
 @define(eq=False, slots=True)
 class ReferencePointerType(BasePointerType):
-
-    def get_value(self, location: Location, name: str):
-        return ReferencePointerExpr(location=location, type=self, name=name)
+    pass
 
 
 @define(eq=False, slots=True)
 class OwnedPointerType(BasePointerType):
     is_exclusive: bool = True
 
-    def get_value(self, location: Location, name: str):
-        return OwnedPointerExpr(location=location, type=self, name=name)
-
 
 @define(eq=False, slots=True)
 class CPointerType(BasePointerType):
     referenced_type_is_exclusive: bool
 
-    def get_value(self, location: Location, name: str):
-        return CPointerCastExpr(location=location, type=self, name=name)
-
 
 @define(eq=False, slots=True)
-class ModuleType(SylvaType):
+class ModuleType(SylvaType, Dotable):
     value: typing.Any # Module, but we can't because it would be circular
+
+    @cache
+    def get_attribute(self, location, name):
+        return self.value.get_attribute(location, name)
+
+    @cache
+    def lookup_attribute(self, location, name):
+        return self.value.lookup_attribute(location, name)
 
 
 @define(eq=False, slots=True)
@@ -575,28 +752,55 @@ class CStringType(ScalarType):
 
 @define(eq=False, slots=True)
 class CArrayType(BaseArrayType):
-    element_count: int | None = field()
+    element_count: int = field()
 
 
 @define(eq=False, slots=True)
-class CFunctionType(BaseFunctionType):
+class BaseCFunctionType(MetaSylvaLLVMType):
+    parameters: typing.List[Parameter]
+    return_type: SylvaType
+
+    @property
+    def names(self):
+        return list(self.parameters.keys())
+
+    @property
+    def types(self):
+        return list(self.parameters.values())
+
+    @cache
+    def get_llvm_type(self, module):
+        params = []
+
+        for p in self.parameters.values():
+            params.append(p.get_llvm_type(module))
+
+        return ir.FunctionType(
+            self.return_type.get_llvm_type(module)
+            if self.return_type else ir.VoidType(),
+            params
+        )
+
+
+@define(eq=False, slots=True)
+class CFunctionType(BaseCFunctionType):
     pass
 
 
 @define(eq=False, slots=True)
-class CFunctionPointerType(BaseFunctionType):
+class CFunctionPointerType(BaseCFunctionType):
 
     def get_llvm_type(self, module):
         return super().get_llvm_type(module).as_pointer()
 
 
 @define(eq=False, slots=True)
-class CBlockFunctionType(BaseFunctionType):
+class CBlockFunctionType(BaseCFunctionType):
     pass
 
 
 @define(eq=False, slots=True)
-class CBlockFunctionPointerType(BaseFunctionType):
+class CBlockFunctionPointerType(BaseCFunctionType):
 
     def get_llvm_type(self, module):
         return super().get_llvm_type(module).as_pointer()
@@ -616,12 +820,22 @@ class CUnionType(BaseUnionType):
 
 
 @define(eq=False, slots=True)
-class Expr(ASTNode):
+class Expr(ASTNode, Reflectable):
     type: SylvaType
 
     # pylint: disable=no-self-use
-    def eval(self, scope):
-        raise errors.ImpossibleCompileTimeEvaluation(self.location)
+    @cache
+    def get_reflection_attribute_type(self, name):
+        if name == 'type':
+            return SylvaType
+        if name == 'bytes':
+            return ArrayType
+
+    def reflect_attribute(self, name):
+        if name == 'type':
+            return self.type
+        if name == 'bytes':
+            pass
 
 
 @define(eq=False, slots=True)
@@ -630,40 +844,8 @@ class ValueExpr(Expr):
 
 
 @define(eq=False, slots=True)
-class ConstExpr(Expr):
-
-    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
-    def lookup(self, location, field):
-        # if isinstance(self.type, types.CStruct):
-        #     raise NotImplementedError() # This is a GEP call?
-        # if isinstance(self.type, types.CUnion):
-        #     raise NotImplementedError() # This is a bitcast and a GEP call?
-        # if isinstance(self.type, types.Enum):
-        #     raise NotImplementedError() # ???
-        # if isinstance(self.type, types.Interface):
-        #     raise NotImplementedError() # ???
-        # if isinstance(self.type, types.Struct):
-        #     raise NotImplementedError() # This is a GEP call?
-        # if isinstance(self.type, types.Variant):
-        #     raise NotImplementedError() # This is a bitcast and a GEP call?
-        # if isinstance(self.type, types.Module):
-        #     return self.type.lookup(location, field)
-        raise NotImplementedError()
-
-    def reflect(self, location, field):
-        # if field == 'type':
-        #     pass
-        # if field == 'bytes':
-        #     pass
-        raise NotImplementedError()
-
-
-@define(eq=False, slots=True)
-class LiteralExpr(ConstExpr):
+class LiteralExpr(Expr):
     value: typing.Any
-
-    def eval(self, scope):
-        return self.value
 
     @cache
     def get_llvm_value(self, module):
@@ -671,13 +853,22 @@ class LiteralExpr(ConstExpr):
 
 
 @define(eq=False, slots=True)
-class CVoidCastExpr(ConstExpr):
+class ScalarExpr(Expr):
+    value: bool | float | int | str
+
+    @cache
+    def get_llvm_value(self, module):
+        return self.type.make_constant(module, self.value)
+
+
+@define(eq=False, slots=True)
+class CVoidCastExpr(Expr):
     expr: Expr
     type: IntegerType = IntegerType(Location.Generate(), bits=8, signed=True)
 
 
 @define(eq=False, slots=True)
-class BooleanLiteralExpr(LiteralExpr):
+class BooleanScalarExpr(ScalarExpr):
     type: BooleanType = BooleanType(Location.Generate())
 
     @classmethod
@@ -695,7 +886,7 @@ class BooleanExpr(ValueExpr):
 
 
 @define(eq=False, slots=True)
-class RuneLiteralExpr(LiteralExpr):
+class RuneScalarExpr(ScalarExpr):
     type: RuneType = RuneType(Location.Generate())
 
     @classmethod
@@ -709,66 +900,12 @@ class RuneExpr(ValueExpr):
 
 
 @define(eq=False, slots=True)
-class StringLiteralExpr(LiteralExpr):
-    type: ArrayType
-
-    @classmethod
-    def FromRawValue(cls, location, raw_value):
-        # [NOTE] I suppose this is where we'd configure internal string
-        #        encoding; easy enough to grab from module.program
-        encoded_data = bytearray(raw_value[1:-1], encoding='utf-8')
-        return cls(
-            location,
-            type=ArrayType(
-                location=location,
-                element_type=IntegerType(
-                    Location.Generate(), bits=8, signed=True
-                ),
-                element_count=len(encoded_data)
-            ),
-            value=encoded_data
-        )
-
-    # pylint: disable=redefined-outer-name
-    def reflect(self, location, field):
-        if field == 'size':
-            return IntegerLiteralExpr.Platform(
-                location,
-                signed=False,
-                value=len(self.eval(location)),
-            )
-        if field == 'count':
-            # [NOTE] Parameterized decoding is a little harder I guess, but it
-            #        doesn't matter for prototype
-            return IntegerLiteralExpr.Platform(
-                location,
-                signed=False,
-                value=len(self.eval(location).decode('utf-8'))
-            )
-
-
-@define(eq=False, slots=True)
-class StringExpr(ValueExpr):
-    type: StringType = StringType(Location.Generate(), name='str')
-
-    # pylint: disable=redefined-outer-name
-    def reflect(self, location, field):
-        if field == 'size':
-            field_index, field_type = self.type.get_field_info(field)
-            return FieldIndexLookupExpr(
-                location, field_type, self, field_index
-            )
-
-        raise NotImplementedError()
-
-
-@define(eq=False, slots=True)
-class NumericLiteralExpr(LiteralExpr):
+class NumericScalarExpr(ScalarExpr):
     pass
 
 
 @define(eq=False, slots=True)
-class IntegerLiteralExpr(NumericLiteralExpr):
+class IntegerScalarExpr(NumericScalarExpr):
     type: IntegerType
 
     @classmethod
@@ -841,7 +978,7 @@ class IntegerExpr(ValueExpr):
 
 
 @define(eq=False, slots=True)
-class FloatLiteralExpr(NumericLiteralExpr):
+class FloatScalarExpr(NumericScalarExpr):
     type: FloatType
 
     @classmethod
@@ -867,7 +1004,7 @@ class FloatExpr(ValueExpr):
 
 
 @define(eq=False, slots=True)
-class ComplexLiteralExpr(NumericLiteralExpr):
+class ComplexScalarExpr(NumericScalarExpr):
     type: ComplexType
 
     @classmethod
@@ -893,31 +1030,179 @@ class ComplexExpr(ValueExpr):
 
 
 @define(eq=False, slots=True)
-class LookupExpr(ConstExpr):
+class ArrayLiteralExpr(LiteralExpr, Reflectable):
+    type: ArrayType
+
+    def get_reflection_attribute_type(self, name):
+        return self.type.get_reflection_attribute_type(name)
+
+    def reflect_attribute(self, name):
+        if name == 'name':
+            return 'array'
+        if name == 'size':
+            # [TODO]
+            return self.type.element_count * self.type.element_type.size
+        if name == 'count':
+            return self.type.element_count
+        if name == 'element_type':
+            return self.type.element_type
+        if name == 'indices':
+            return range(0, self.type.element_count + 1)
+
+    @classmethod
+    def FromRawValue(cls, location, element_type, raw_value):
+        return cls(location, element_type, len(raw_value), raw_value)
+
+
+"""
+# @define(eq=False, slots=True)
+# class ArrayExpr(ValueExpr, Reflectable):
+#     type: ArrayType
+#
+#     def get_reflection_attribute_type(self, name):
+#         return self.type.get_reflection_attribute_type(name)
+#
+#     def reflect_attribute(self, name):
+#         if name == 'name':
+#             return 'array'
+#         if name == 'size':
+#             # [TODO]
+#             return self.type.element_count * self.type.element_type.size
+#         if name == 'count':
+#             return self.type.element_count
+#         if name == 'element_type':
+#             return self.type.element_type
+#         if name == 'indices':
+#             return range(0, self.type.element_count + 1)
+"""
+
+
+@define(eq=False, slots=True)
+class StringLiteralExpr(ArrayLiteralExpr, Dotable):
+    type: StringLiteralType
+
+    # pylint: disable=arguments-differ
+    @classmethod
+    def FromRawValue(cls, location, raw_value):
+        # [NOTE] I suppose this is where we'd configure internal string
+        #        encoding.
+        encoded_data = bytearray(raw_value[1:-1], encoding='utf-8')
+        return cls(
+            location,
+            type=StringLiteralType.FromValue(location, encoded_data),
+            value=encoded_data
+        )
+
+    @cache
+    def get_attribute(self, location, name):
+        if name == 'get_length':
+            return Attribute(
+                name='get_length',
+                type=FunctionType(
+                    location=Location.Generate(),
+                    parameters=[],
+                    return_type=IntegerType.Platform(signed=False)
+                )
+            )
+
+    @cache
+    def lookup_attribute(self, location, name):
+        if name == 'get_length':
+            return Function(
+                name='get_length',
+                location=Location.Generate(),
+                type=self.get_attribute(location, 'get_length')[1],
+                code=[
+                    Return(
+                        location=Location.Generate(),
+                        expr=IntegerScalarExpr.Platform(
+                            location=location,
+                            signed=False,
+                            value=len(self.value)
+                        )
+                    )
+                ]
+            )
+
+    @cache
+    def get_reflection_attribute_type(self, name):
+        # pylint: disable=consider-using-in
+        if name == 'size' or name == 'count':
+            return self.type.get_reflection_attribute_type(name)
+
+    @cache
+    def reflect_attribute(self, name):
+        if name == 'size':
+            return len(self.value)
+        if name == 'count':
+            return len(self.value.decode('utf-8'))
+
+
+"""
+# @define(eq=False, slots=True)
+# class StringExpr(ArrayExpr, Dotable):
+#     type: StringType
+#
+#     @cache
+#     def get_attribute(self, location, name):
+#         if name == 'get_length':
+#             return Attribute(
+#                 name='get_length',
+#                 type=FunctionType(
+#                     location=Location.Generate(),
+#                     parameters=[],
+#                     return_type=IntegerType.Platform(signed=False)
+#                 )
+#             )
+#
+#     @cache
+#     def lookup_attribute(self, location, name):
+#         type=self.get_attribute(location, 'get_length')[1],
+#         if name == 'get_length':
+#             return Function(
+#                 location=Location.Generate(),
+#                 type=type,
+#                 code=[
+#                     Return(
+#                         location=Location.Generate(),
+#                         expr=AttributeLookupExpr(
+#
+#                             signed=False,
+#                             value=len(self.value)
+#                         )
+#                     )
+#                 ]
+#             )
+#
+#     def get_reflection_attribute_type(self, name):
+#         # pylint: disable=consider-using-in
+#         if name == 'size' or name == 'count':
+#             return self.type.get_reflection_attribute_type(name)
+#
+#     def reflect_attribute(self, name):
+#         pass
+"""
+
+
+@define(eq=False, slots=True)
+class BaseLookupExpr(Expr):
+    pass
+
+
+@define(eq=False, slots=True)
+class LookupExpr(BaseLookupExpr):
     name: str
 
-    def eval(self, scope):
-        value = scope.lookup(self.name)
-        if value is None:
-            raise errors.UndefinedSymbol(self.location, self.name)
-        return value
-
 
 @define(eq=False, slots=True)
-class LLVMExpr(Expr):
-
-    def eval(self, scope, builder, name=None):
-        raise NotImplementedError()
-
-
-@define(eq=False, slots=True)
-class FieldNameLookupExpr(LLVMExpr):
+class AttributeLookupExpr(BaseLookupExpr):
     expr: Expr
-    name: str
+    attribute: str | int
+    reflection: bool
 
 
 @define(eq=False, slots=True)
-class FieldIndexLookupExpr(LLVMExpr):
+class FieldIndexLookupExpr(Expr):
     expr: Expr
     index: int
 
@@ -948,6 +1233,7 @@ class FunctionExpr(ValueExpr):
 class CallExpr(Expr):
     function: Expr
     arguments: list[Expr]
+    monomorphization_index: int | None = None
 
 
 @define(eq=False, slots=True)
@@ -958,7 +1244,7 @@ class IndexExpr(Expr):
 
 @define(eq=False, slots=True)
 class UnaryExpr(Expr):
-    operator: Operator
+    operator: str
     expr: Expr
 
 
@@ -988,7 +1274,7 @@ class ReferencePointerExpr(BasePointerExpr):
 
 
 @define(eq=False, slots=True)
-class MovePointerExpr(ConstExpr):
+class MovePointerExpr(BasePointerExpr):
     type: OwnedPointerType
     value: Expr
 
@@ -1052,28 +1338,8 @@ class While(StmtBlock):
 
 
 @define(eq=False, slots=True)
-class BaseTypeMapping(ASTNode):
+class Alias(ASTNode):
     name: str
-    type: SylvaType
-
-
-@define(eq=False, slots=True)
-class Parameter(BaseTypeMapping):
-    pass
-
-
-@define(eq=False, slots=True)
-class Field(BaseTypeMapping):
-    index: int
-
-
-@define(eq=False, slots=True)
-class Def(ASTNode):
-    name: str
-
-
-@define(eq=False, slots=True)
-class AliasDef(Def):
     value: str | SylvaType = field()
 
     # pylint: disable=unused-argument
@@ -1084,52 +1350,71 @@ class AliasDef(Def):
 
 
 @define(eq=False, slots=True)
-class ConstDef(Def):
-    value: ConstExpr
+class Def(ASTNode):
+    name: str
+    type: SylvaType
+
+
+# @define(eq=False, slots=True)
+# class LLVMParamDef(Def):
+#
+#     def set_llvm_value(self, index, llvm_value):
+#         raise NotImplementedError()
 
 
 @define(eq=False, slots=True)
-class FunctionDef(Def):
+class Const(Def):
+    value: LiteralExpr
+
+    def get_llvm_value(self, module):
+        return self.value.get_llvm_value(module)
+
+
+@define(eq=False, slots=True)
+class Function(Def):
     type: FunctionType
     code: list[Expr | Stmt]
 
+    def get_llvm_value(self, index):
+        return self.type.monomorphizations[index].llvm_value
+
+    def set_llvm_value(self, index, llvm_value):
+        self.type.monomorphizations[index].llvm_value = llvm_value
+
 
 @define(eq=False, slots=True)
-class CFunctionDef(Def):
+class CFunction(Def):
     type: CFunctionType
+    llvm_value: None | ir.Function = None
 
 
 @define(eq=False, slots=True)
 class TypeDef(Def):
-    type: SylvaType
+
+    def get_llvm_type(self, module):
+        return self.type.get_llvm_type(module)
 
 
 @define(eq=False, slots=True)
-class IndexedFieldsTypeDef(TypeDef):
-    type: StructType | CStructType | ArrayType | CArrayType
+class ParamTypeDef(TypeDef):
 
-    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
-    def lookup(self, location: Location, field: str):
-        field_index, field_type = self.type.get_field_info(field)
-        return FieldIndexLookupExpr(location, field_type, self, field_index)
-
-    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
-    # def reflect(self, location, field):
-    #     return self.value.reflect(location, field)
+    # pylint: disable=arguments-differ
+    def get_llvm_type(self, module, index):
+        return self.type.monomorphizations[index].get_llvm_type(module)
 
 
 @define(eq=False, slots=True)
-class CArrayDef(IndexedFieldsTypeDef):
+class CArray(TypeDef):
     pass
 
 
 @define(eq=False, slots=True)
-class StructDef(IndexedFieldsTypeDef):
+class Struct(ParamTypeDef):
     pass
 
 
 @define(eq=False, slots=True)
-class CStructDef(IndexedFieldsTypeDef):
+class CStruct(TypeDef):
     pass
 
 
@@ -1140,14 +1425,14 @@ class DeferredTypeLookup(ASTNode):
 
 @define(eq=False, slots=True)
 class InterfaceType(MetaSylvaType):
-    fields: typing.Mapping[str, FunctionExpr | FunctionType]
+    functions: typing.List[Attribute]
 
+    # pylint: disable=unused-argument
     @cache
-    def get_field_info(self, name):
-        for n, field_name_and_value in enumerate(self.fields.items()):
-            field_name, field_value = field_name_and_value
-            if field_name == name:
-                return n, field_value
+    def get_attribute(self, location, name):
+        for function in self.functions:
+            if function.name == name:
+                return function
 
 
 @define(eq=False, slots=True)
@@ -1159,16 +1444,12 @@ class Implementation(ASTNode):
 
 @define(eq=False, slots=True)
 class EnumType(MetaSylvaLLVMType):
-    # yapf: disable
-    values: typing.Mapping[
-        str,
-        LiteralExpr
-    ] = field()
+    values: typing.List[Expr] = field()
 
     # pylint: disable=unused-argument
     @values.validator
     def check_values(self, attribute, value):
-        if len(list(value.keys())) <= 0:
+        if len(value) <= 0:
             raise errors.EmptyEnum(self.location)
 
     @cache
@@ -1176,12 +1457,10 @@ class EnumType(MetaSylvaLLVMType):
         return self.types[0].get_llvm_type(module)
 
     @cache
-    def get_field_info(self, name):
-        vals = self.values.items() # pylint: disable=no-member
-        for n, field_name_and_value in enumerate(vals):
-            field_name, field_value = field_name_and_value
-            if field_name == name:
-                return n, field_value
+    def get_attribute(self, location, name):
+        for val in self.values: # pylint: disable=not-an-iterable
+            if val.name == name:
+                return val
 
     @cached_property
     def names(self):
@@ -1201,26 +1480,12 @@ class EnumType(MetaSylvaLLVMType):
 
 
 @define(eq=False, slots=True)
-class NamedFieldsTypeDef(TypeDef):
-    type: VariantType | CUnionType | EnumType | InterfaceType
-
-    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
-    def lookup(self, location: Location, field: str):
-        _, field_type = self.type.get_field_info(field)
-        return FieldNameLookupExpr(location, field_type, self, field)
-
-    # pylint: disable=unused-argument,no-self-use,redefined-outer-name
-    # def reflect(self, location, field):
-    #     return self.value.reflect(location, field)
-
-
-@define(eq=False, slots=True)
-class VariantDef(NamedFieldsTypeDef):
+class VariantDef(ParamTypeDef):
     pass
 
 
 @define(eq=False, slots=True)
-class CUnionDef(NamedFieldsTypeDef):
+class CUnion(TypeDef):
     pass
 
 
@@ -1257,7 +1522,7 @@ BUILTIN_TYPES = {
     'i64': IntegerType(Location.Generate(), 64, signed=True),
     'i128': IntegerType(Location.Generate(), 128, signed=True),
     'rune': RuneType(Location.Generate()),
-    'str': StringType(Location.Generate(), name='str'),
+    'str': StringType(Location.Generate()),
     'uint': IntegerType(Location.Generate(), _SIZE_SIZE, signed=False),
     'u8': IntegerType(Location.Generate(), 8, signed=False),
     'u16': IntegerType(Location.Generate(), 16, signed=False),
@@ -1265,3 +1530,20 @@ BUILTIN_TYPES = {
     'u64': IntegerType(Location.Generate(), 64, signed=False),
     'u128': IntegerType(Location.Generate(), 128, signed=False),
 }
+
+# class SylvaTypes(enum.Enum):
+#     Array
+#     Bool
+#     Complex
+#     Float
+#     Function
+#     Integer
+#     Interface
+#     Rune
+#     Str
+#     Struct
+#     Variant
+#     CArray
+#     CBlockFunction
+#     CFunction
+#     CStruct

@@ -6,6 +6,7 @@ setup(
     version="0.0.1",
     packages=find_packages(),
     scripts=['scripts/sylva'],
+    package_data={'sylva': ['Sylva.lark']},
 
     # metadata to display on PyPI
     author="Charlie Gunyon",
@@ -16,7 +17,5 @@ setup(
     project_urls={
         "Source Code": "https://gitub.com/camgunz/pysylva",
     },
-    classifiers=[
-        'License :: OSI Approved :: MIT'
-    ]
+    classifiers=['License :: OSI Approved :: MIT']
 )

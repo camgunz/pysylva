@@ -1,6 +1,6 @@
 # Arrays
 
-Arrays in Sylva have both an element type and count:
+Sylva offers three array types: `array`, `dynarray`, and `slice`.
 
 ```sylva
 req sys
@@ -10,15 +10,58 @@ struct Person {
   age: u8,
 }
 
-alias Triumverate: [Person * 3]
+array Triumverate [Person * 3]
 
-# Element counts can be left off of arrays
-fn print_people(people: &[Person]) {
-  for (&person: people) {
+fn print_people(people: &Triumverate) {
+  for (i: people::indices) {
+    let person: &people[i]
+
     sys.echo("{person.name} is {person.age} years old")
   }
 }
+```
 
+Here, `Triumverate` is a sized `array`, therefore `::indices` is a compile-time
+constant that allows us to index into it directly. This works similarly for
+`dynarray` and `slice`, with the caveat that since their sizes can change at
+runtime, `::indices` must also be built at runtime whenever asked for.
+
+```sylva
+req sys
+
+struct Person {
+  name: str,
+  age: u8,
+}
+
+alias Triumverate: dynarray(Person)
+
+fn print_people(people: &Triumverate) {
+  for (i: people::indices) { # Built at runtime based on the current size of
+    let person: &people[i]   # `people`.
+
+    sys.echo("{person.name} is {person.age} years old")
+  }
+}
+```
+
+*N.B. `dynarray` allocates its data on the heap, so any program using it requires
+heap allocation.*
+
+```sylva
+struct dynarray(element_type) {
+  size: uint(0),
+  alloc: uint(0),
+  data: *element_type
+}
+
+struct slice(array_type, start) {
+  start: uint,
+  data: &[array_type::element_type * array_type::element_size]
+}
+```
+
+```sylva
 # An element count is specified here, but it doesn't do us a lot of good
 # because the domain of `index` is greater than that of `Triumverate`'s
 # indices.

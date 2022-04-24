@@ -19,9 +19,12 @@ class Location:
         return cls(stream, ctx.start.start, ctx.start.line, ctx.start.column)
 
     @classmethod
+    def FromMeta(cls, meta, stream=None):
+        return cls(stream, meta.start_pos, meta.line, meta.column)
+
+    @classmethod
     def FromTree(cls, tree, stream=None):
-        md = tree.meta
-        return cls(stream, md.start_pos, md.line, md.column)
+        return cls.FromMeta(tree.meta, stream=stream)
 
     @classmethod
     def Generate(cls):

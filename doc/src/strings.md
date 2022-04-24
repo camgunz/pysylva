@@ -1,7 +1,19 @@
 # Strings
 
+
 [TODO] Figure out how to reconcile format strings being super useful, but also
-       requiring allocation and therefore being `String`s.
+       requiring allocation and therefore being `string`s.
+       ...Having thought about it, decomposition is what works here.
+
+- `str`: statically compiled string that we know the length of at compile time
+- `string`: struct with `size`, `alloc`, and `data` fields.
+- `sslice`: is a struct with `start` and `data` fields
+
+---
+
+Old section:
+
+...or, can think of the strings as arrays but with element_type set to `i8`.
 
 Sylva offers two string types: `str` and `String`.
 
