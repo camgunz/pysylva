@@ -101,31 +101,31 @@ class CodeGen:
             # the types of everything, so we can at least check for impossible
             # lookups and reflections.
 
-        if isinstance(obj, ast.Parameter):
+        if isinstance(expr, ast.Parameter):
             # [FIXME] These have to be expressions, WTF is a parameter
             #         gonna do here.
             # Get the type
             pass
 
-        if isinstance(obj, ast.CallExpr):
+        if isinstance(expr, ast.CallExpr):
             pass
 
-        if isinstance(obj, ast.StructDef):
+        if isinstance(expr, ast.StructDef):
             pass
 
-        if isinstance(obj, ast.CStructDef):
+        if isinstance(expr, ast.CStructDef):
             pass
 
-        if isinstance(obj, ast.VariantDef):
+        if isinstance(expr, ast.VariantDef):
             pass
 
-        if isinstance(obj, ast.CUnionDef):
+        if isinstance(expr, ast.CUnionDef):
             pass
 
-        # if isinstance(obj, ast.InterfaceDef):
+        # if isinstance(expr, ast.InterfaceDef):
         #     pass
 
-        # if isinstance(obj, ast.EnumDef):
+        # if isinstance(expr, ast.EnumDef):
         #     pass
 
         if is_reflection:
