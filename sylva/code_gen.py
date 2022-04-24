@@ -236,32 +236,20 @@ class CodeGen:
         raise NotImplementedError()
 
     # pylint: disable=too-many-locals
-    def _compile_function(self, name, function_type, code):
-        # When we encounter a function with string parameters, we have to
-        # somehow save the state of "generate this function on call"
-        function = function_def.type
-        llvm_func = self._llvm_module.get_global(name)
-        block = llvm_func.append_basic_block()
+    def _compile_function(self, function_type, code):
+        # "function_type" is a little confusing here. It's a Sylva
+        # MonoFunctionType.
+        block = function_type.llvm_value.append_basic_block()
         builder = ir.IRBuilder(block=block)
-        params = function.parameters
+        params = function_type.parameters
         code_block_vars = {}
-        for arg, param in zip(llvm_func.args, params):
-            param_llvm_type = param.type.get_llvm_type(self)
+        for arg, param in zip(function_type.llvm_value.args, params):
+            param_llvm_type = param.type.get_llvm_type(self._module)
             alloca = builder.alloca(param_llvm_type, name=param.name)
-            builder.store(arg, alloca)
-            # Local vars here has to store at least the Sylva object for lookup
-            # and reflection. But we also need handles into these allocated
-            # function arguments.
-            #
-            # ...does this mean that `ValueExpr` is different than `Expr` by
-            # having an LLVM _value_ attached to it?? I guess that would be
-            # less of an expression and more of a... value. But whatever.
-            #
-            # Also, I don't actually think we need these handles yet. Stay
-            # tuned.
-            value_expr = param.type.get_value_expr(param.location)
+            value_expr = param.type.get_value_expr(param.location, alloca)
+            builder.store(arg, value_expr.llvm_value)
             code_block_vars[param.name] = value_expr
-        self._compile_code_block(function_def.code, builder, code_block_vars)
+        self._compile_code_block(code, builder, code_block_vars)
 
     def _compile_code_block(self, code, builder, local_vars):
         for node in code:
@@ -269,6 +257,8 @@ class CodeGen:
                 expr = self._reduce_expr(node, local_vars)
 
     def get_llvm_module(self):
+        from .module import Module
+
         if self._llvm_module is not None:
             return self._llvm_module, self._errors
 
@@ -287,45 +277,42 @@ class CodeGen:
             if name in ast.BUILTIN_TYPES:
                 continue
 
-            if isinstance(var, ast.LiteralExpr):
+            if isinstance(var, ast.Const):
                 debug('compile', f'Compiling constant {name}')
-                llvm_type = var.type.get_llvm_type(self)
+                llvm_type = var.type.get_llvm_type(self._module)
                 const = ir.GlobalVariable(self._llvm_module, llvm_type, name)
-                const.initializer = ir.Constant(llvm_type, var.value)
+                const.initializer = ir.Constant(llvm_type, var.value.value)
                 const.global_constant = True
                 var.llvm_value = const
-
-            if isinstance(var, ast.CFunction):
+            elif isinstance(var, ast.CFunction):
                 debug('compile', f'Compiling cfn {name}')
                 var.llvm_value = ir.Function(
-                    self._llvm_module, var.type.get_llvm_type(self), name
+                    self._llvm_module,
+                    var.type.get_llvm_type(self._module),
+                    name
                 )
-
-            if isinstance(var, ast.CStruct):
+            elif isinstance(var, ast.CStruct):
                 var.llvm_value = ir.GlobalVariable(
-                    self._llvm_module, var.get_llvm_type(self), name
+                    self._llvm_module, var.get_llvm_type(self._module), name
                 )
-
-            if isinstance(var, ast.CUnion):
+            elif isinstance(var, ast.CUnion):
                 var.llvm_value = ir.GlobalVariable(
-                    self._llvm_module, var.get_llvm_type(self), name
+                    self._llvm_module, var.get_llvm_type(self._module), name
                 )
-
-            # if isinstance(var, ast.Struct):
-            #     llvm_type = var.value.get_llvm_type(self)
+            # elif isinstance(var, ast.Struct):
+            #     llvm_type = var.value.get_llvm_type(self._module)
             #     ir.GlobalVariable(self._llvm_module, llvm_type, name)
-
-            if isinstance(var, ast.Function):
+            elif isinstance(var, ast.Function):
                 for mm in var.type.monomorphizations:
                     llvm_type = mm.get_llvm_type(self._module)
-                    func = ir.Function(self._llvm_module, llvm_type, name)
-                    if var.is_polymorphic:
+                    if var.type.is_polymorphic:
                         func_name = f'_Sylva_{mm.type.mangle()}'
                     else:
                         func_name = name
-                    mm.llvm_value = func
-                    self._compile_function(func_name, mm, var.code)
-
+                    mm.llvm_value = ir.Function(
+                        self._llvm_module, llvm_type, func_name
+                    )
+                    self._compile_function(mm, var.code)
             # elif isinstance(val, ast.CFunctionType):
             #     self.compile_c_function_type(val)
             # elif isinstance(val, ast.CBlockFunctionType):
@@ -338,10 +325,12 @@ class CodeGen:
             #     self.compile_interface(val)
             # elif isinstance(val, ast.Range):
             #     self.compile_range(val)
-            import pdb
-            pdb.set_trace()
-
-            raise NotImplementedError()
+            elif isinstance(var, Module):
+                pass
+            else:
+                import pdb
+                pdb.set_trace()
+                raise NotImplementedError()
 
         return self._llvm_module, self._errors
 
@@ -353,7 +342,7 @@ class CodeGen:
         llvm_mod_ref = llvmlite.binding.parse_assembly(str(llvm_module))
         llvm_mod_ref.verify()
 
-        return self.target.machine.emit_object(llvm_mod_ref), []
+        return self._module.target.machine.emit_object(llvm_mod_ref), []
 
     def get_identified_type(self, name):
         return self._llvm_module.context.get_identified_type(name)

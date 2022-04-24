@@ -97,11 +97,14 @@ class Module(ast.Dotable):
             ModuleBuilder(self, s).visit(parser.parse(s.data))
 
         for name, obj in self.vars.items():
+            if name in ast.BUILTIN_TYPES:
+                continue
+
             if isinstance(obj, ast.SylvaType):
                 self._errors.extend(obj.check())
 
-            if isinstance(obj, ast.MetaSylvaType):
-                self._errors.extend(obj.resolve_self_references(name))
+            if isinstance(obj.type, ast.MetaSylvaType):
+                self._errors.extend(obj.type.resolve_self_references(name))
 
         self._parsed = True
 
@@ -179,3 +182,6 @@ class Module(ast.Dotable):
         else:
             debug('define', f'Define {definition.name} -> {definition}')
             self.vars[definition.name] = definition
+
+    def get_identified_type(self, name):
+        return self._code_gen.get_identified_type(name)

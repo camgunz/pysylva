@@ -117,25 +117,13 @@ class ModuleBuilder(lark.Visitor):
             pass
 
         if expr.data == 'unary_expr':
-            location = Location.FromTree(expr, self._stream)
-            operator = expr.children[0].value
-            expr = self._handle_expr(expr.children[1], extra_scope=extra_scope)
-
-            # [NOTE] Maybe this goes in the expr?
-            if operator == '+' and not isinstance(expr.type, ast.NumericType):
-                raise errors.InvalidExpressionType(location, 'number')
-            if operator == '-' and not isinstance(expr.type, ast.NumericType):
-                raise errors.InvalidExpressionType(location, 'number')
-            if operator == '~' and not isinstance(expr.type, ast.IntegerType):
-                raise errors.InvalidExpressionType(location, 'integer')
-            if operator == '!' and not isinstance(expr.type, ast.BooleanType):
-                raise errors.InvalidExpressionType(location, 'bool')
+            ex = self._handle_expr(expr.children[1], extra_scope=extra_scope)
 
             return ast.UnaryExpr(
-                location=location,
-                type=expr.type,
-                operator=operator,
-                expr=expr,
+                location=Location.FromTree(expr, self._stream),
+                type=ex.type,
+                operator=expr.children[0].value,
+                expr=ex,
             )
 
         if expr.data == 'power_expr':
@@ -286,9 +274,10 @@ class ModuleBuilder(lark.Visitor):
                     location=location,
                     referenced_type=referenced_type,
                     referenced_type_is_exclusive=referenced_type_is_exclusive,
-                    is_exclusive=is_exclusive
+                    is_exclusive=is_exclusive,
                 ),
-                expr=referenced_expr
+                expr=referenced_expr,
+                llvm_value=None
             )
 
         if expr.data == 'cvoid_expr':
@@ -419,6 +408,7 @@ class ModuleBuilder(lark.Visitor):
         info = self._module.get_attribute(location, type_name)
         if info is None:
             if deferrable:
+                debug('defer_type', f'DTL: {type_name}')
                 return ast.DeferredTypeLookup(location, type_name)
             raise errors.UndefinedSymbol(location, type_name)
         debug('lookup', f'_lookup returning {info.type}')
@@ -438,10 +428,7 @@ class ModuleBuilder(lark.Visitor):
         location = Location.FromTree(type_obj, self._stream)
 
         if type_obj.data == 'c_array_type_expr':
-            if len(type_obj.children[0].children) == 3:
-                element_count = int(type_obj.children[0].children[2])
-            else:
-                element_count = None
+            element_count = int(type_obj.children[0].children[1])
             return ast.CArrayType(
                 location=location,
                 element_type=self._get_type(
@@ -626,20 +613,7 @@ class ModuleBuilder(lark.Visitor):
         )
 
     def c_array_type_def(self, tree):
-        if tree.children[1].children[1].value == '*':
-            self._module.define(
-                ast.CArray(
-                    location=Location.FromTree(tree, self._stream),
-                    name=tree.children[0].value,
-                    type=ast.CArrayType(
-                        location=Location.FromTree(tree, self._stream),
-                        element_type=self._get_type(
-                            tree.children[1].children[0], deferrable=True
-                        ),
-                        element_count=int(tree.children[1].children[2])
-                    )
-                )
-            )
+        debug('defer', 'Making array')
         self._module.define(
             ast.CArray(
                 location=Location.FromTree(tree, self._stream),
@@ -649,7 +623,7 @@ class ModuleBuilder(lark.Visitor):
                     element_type=self._get_type(
                         tree.children[1].children[0], deferrable=True
                     ),
-                    element_count=None
+                    element_count=int(tree.children[1].children[2])
                 )
             )
         )
@@ -687,10 +661,11 @@ class ModuleBuilder(lark.Visitor):
 
     def c_struct_type_def(self, tree):
         fields = []
+        debug('defer', 'Making struct')
         for i, field_obj in enumerate(tree.children[1:]):
             name_token, field_type_obj = field_obj.children
             fields.append(
-                ast.Attribute(
+                ast.Field(
                     location=Location.FromToken(name_token, self._stream),
                     name=name_token.value,
                     type=self._get_type(field_type_obj, deferrable=True),
@@ -711,10 +686,11 @@ class ModuleBuilder(lark.Visitor):
 
     def c_union_type_def(self, tree):
         fields = []
+        debug('defer', 'Making union')
         for i, field_obj in enumerate(tree.children[1:]):
             name_token, field_type_obj = field_obj.children
             fields.append(
-                ast.Attribute(
+                ast.Field(
                     location=Location.FromToken(name_token, self._stream),
                     name=name_token.value,
                     type=self._get_type(field_type_obj, deferrable=True),

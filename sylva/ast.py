@@ -8,7 +8,7 @@ from functools import cache, cached_property
 from attrs import define, field
 from llvmlite import ir # type: ignore
 
-from . import errors, utils
+from . import debug, errors, utils
 from .location import Location
 from .operator import Operator
 
@@ -48,32 +48,6 @@ class SylvaType(ASTNode):
 
 
 @define(eq=False, slots=True)
-class BaseTypeMapping(ASTNode):
-    name: str
-    type: SylvaType
-    index: int | None = None
-
-    @property
-    def handle(self):
-        return self.index if self.index is not None else self.name
-
-
-@define(eq=False, slots=True)
-class Parameter(BaseTypeMapping):
-    pass
-
-
-@define(eq=False, slots=True)
-class Attribute(BaseTypeMapping):
-    pass
-
-
-@define(eq=False, slots=True)
-class Field(BaseTypeMapping):
-    pass
-
-
-@define(eq=False, slots=True)
 class Lookupable:
     pass
 
@@ -96,11 +70,6 @@ class Reflectable(Lookupable):
 
     def reflect_attribute(self, name):
         raise NotImplementedError()
-
-
-@define(eq=False, slots=True)
-class ParamSylvaType(SylvaType):
-    pass
 
 
 @define(eq=False, slots=True)
@@ -146,7 +115,7 @@ class MetaSylvaType(SylvaType):
 
 
 @define(eq=False, slots=True)
-class BaseSylvaLLVMType(SylvaType):
+class SylvaLLVMType(SylvaType):
 
     @cache
     def make_constant(self, module, value):
@@ -164,30 +133,57 @@ class BaseSylvaLLVMType(SylvaType):
     def get_pointer(self, module):
         return self.get_llvm_type(module).as_pointer()
 
-
-@define(eq=False, slots=True)
-class SylvaLLVMType(BaseSylvaLLVMType):
-
     @cache
     def get_llvm_type(self, module):
         raise NotImplementedError()
 
 
 @define(eq=False, slots=True)
-class SylvaLLVMParamType(BaseSylvaLLVMType):
+class BaseTypeMapping(ASTNode):
+    name: str
+    type: SylvaLLVMType
+    index: int | None = None
+
+    @property
+    def handle(self):
+        return self.index if self.index is not None else self.name
 
     @cache
-    def get_llvm_types(self, module):
-        raise NotImplementedError()
+    def get_alignment(self, module):
+        return self.type.get_llvm_type(module).get_abi_alignment(
+            module.target.data
+        )
+
+    @cache
+    def get_size(self, module):
+        return self.type.get_llvm_type(module).get_abi_size(module.target.data)
+
+    @cache
+    def get_pointer(self, module):
+        return self.type.get_llvm_type(module).as_pointer()
+
+    @cache
+    def get_llvm_type(self, module):
+        return self.type.get_llvm_type(module)
 
 
 @define(eq=False, slots=True)
-class MetaSylvaLLVMType(MetaSylvaType, SylvaLLVMType):
+class Parameter(BaseTypeMapping):
     pass
 
 
 @define(eq=False, slots=True)
-class MetaSylvaLLVMParamType(MetaSylvaType, SylvaLLVMParamType):
+class Attribute(BaseTypeMapping):
+    pass
+
+
+@define(eq=False, slots=True)
+class Field(BaseTypeMapping):
+    pass
+
+
+@define(eq=False, slots=True)
+class SylvaParamType(SylvaType):
     monomorphizations: typing.List
 
     def check(self):
@@ -204,7 +200,12 @@ class MetaSylvaLLVMParamType(MetaSylvaType, SylvaLLVMParamType):
 
     @cache
     def get_llvm_types(self, module):
-        return [mm.get_llvm_type(module) for mm in self.monomorphizations]
+        raise NotImplementedError()
+
+
+@define(eq=False, slots=True)
+class MetaSylvaLLVMType(MetaSylvaType, SylvaLLVMType):
+    pass
 
 
 @define(eq=False, slots=True)
@@ -220,8 +221,8 @@ class BooleanType(ScalarType):
         return '1b'
 
     @cache
-    def get_value_expr(self, location):
-        return BooleanExpr(location=location, type=self)
+    def get_value_expr(self, location, llvm_value):
+        return BooleanExpr(location=location, type=self, llvm_value=llvm_value)
 
     @cache
     def get_llvm_type(self, module):
@@ -236,8 +237,8 @@ class RuneType(ScalarType):
         return '1r'
 
     @cache
-    def get_value_expr(self, location):
-        return RuneExpr(location=location, type=self)
+    def get_value_expr(self, location, llvm_value):
+        return RuneExpr(location=location, type=self, llvm_value=llvm_value)
 
     @cache
     def get_llvm_type(self, module):
@@ -263,8 +264,8 @@ class ComplexType(SizedNumericType):
         return f'{len(base)}{base}'
 
     @cache
-    def get_value_expr(self, location):
-        return ComplexExpr(location=location, type=self)
+    def get_value_expr(self, location, llvm_value):
+        return ComplexExpr(location=location, type=self, llvm_value=llvm_value)
 
     @cache
     def get_llvm_type(self, module):
@@ -290,8 +291,8 @@ class FloatType(SizedNumericType):
         return f'{len(base)}{base}'
 
     @cache
-    def get_value_expr(self, location):
-        return FloatExpr(location=location, type=self)
+    def get_value_expr(self, location, llvm_value):
+        return FloatExpr(location=location, type=self, llvm_value=llvm_value)
 
     @cache
     def get_llvm_type(self, module):
@@ -328,8 +329,8 @@ class IntegerType(SizedNumericType):
         return cls(Location.Generate(), bits=_SIZE_SIZE, signed=signed)
 
     @cache
-    def get_value_expr(self, location):
-        return IntegerExpr(location=location, type=self)
+    def get_value_expr(self, location, llvm_value):
+        return IntegerExpr(location=location, type=self, llvm_value=llvm_value)
 
     @cache
     def get_llvm_type(self, module):
@@ -414,9 +415,14 @@ class StringLiteralType(ArrayType):
         return cls(location=location, element_count=len(value), value=value)
 
     @cache
-    def get_value_expr(self, location):
+    def get_value_expr(self, location, llvm_value):
+        # I might... not need llvm_value here. Don't these compile to interned
+        # strings?
         return StringLiteralExpr(
-            location=location, type=self, value=self.value
+            location=location,
+            type=self,
+            value=self.value,
+            llvm_value=llvm_value
         )
 
 
@@ -426,7 +432,7 @@ class StringType(SylvaType, Dotable):
     def mangle(self):
         return '6string'
 
-    def get_value_expr(self, location):
+    def get_value_expr(self, location, llvm_value):
         raise NotImplementedError
 
     @cache
@@ -469,12 +475,12 @@ class MonoFunctionType(MetaSylvaLLVMType):
                 self.return_type.get_llvm_type(module)
                 if self.return_type else ir.VoidType()
             ),
-            [p.get_llvm_type(module) for p in self.parameters.values()]
+            [p.type.get_llvm_type(module) for p in self.parameters]
         )
 
 
 @define(eq=False, slots=True)
-class FunctionType(MetaSylvaLLVMParamType):
+class FunctionType(SylvaParamType):
     monomorphizations: typing.List[MonoFunctionType]
 
     @classmethod
@@ -567,7 +573,7 @@ class BaseStructType(MetaSylvaLLVMType, Dotable):
         for f in self.fields:
             if not isinstance(f.type, BasePointerType):
                 fields.append(f.type.get_llvm_type(module))
-            elif not f.referenced_type == self:
+            elif not f.type.referenced_type == self:
                 fields.append(f.type.get_llvm_type(module))
             else:
                 fields.append(ir.PointerType(struct))
@@ -582,7 +588,7 @@ class MonoStructType(BaseStructType):
 
 
 @define(eq=False, slots=True)
-class StructType(MetaSylvaLLVMParamType):
+class StructType(SylvaParamType):
     name: str | None
     monomorphizations: typing.List[MonoStructType]
 
@@ -609,17 +615,16 @@ class BaseUnionType(MetaSylvaLLVMType):
 
     @property
     def names(self):
-        return list(self.fields.keys())
+        return [f.name for f in self.fields]
 
     @property
     def types(self):
-        return list(self.fields.values())
+        return [f.type for f in self.fields]
 
     @cache
     def get_largest_field(self, module):
-        fields = list(self.fields.values())
-        largest_field = fields[0]
-        for f in fields[1:]:
+        largest_field = self.fields[0]
+        for f in self.fields[1:]:
             if f.get_size(module) > largest_field.get_size(module):
                 largest_field = f
         return largest_field.get_llvm_type(module)
@@ -661,7 +666,7 @@ class MonoVariantType(BaseUnionType, Dotable):
 
 
 @define(eq=False, slots=True)
-class VariantType(MetaSylvaLLVMParamType):
+class VariantType(SylvaParamType):
     name: str
     monomorphizations: typing.List[MonoVariantType]
 
@@ -762,18 +767,18 @@ class BaseCFunctionType(MetaSylvaLLVMType):
 
     @property
     def names(self):
-        return list(self.parameters.keys())
+        return [p.name for p in self.parameters]
 
     @property
     def types(self):
-        return list(self.parameters.values())
+        return [p.type for p in self.parameters]
 
     @cache
     def get_llvm_type(self, module):
         params = []
 
-        for p in self.parameters.values():
-            params.append(p.get_llvm_type(module))
+        for p in self.parameters:
+            params.append(p.type.get_llvm_type(module))
 
         return ir.FunctionType(
             self.return_type.get_llvm_type(module)
@@ -840,7 +845,7 @@ class Expr(ASTNode, Reflectable):
 
 @define(eq=False, slots=True)
 class ValueExpr(Expr):
-    pass
+    llvm_value: None | ir.Value
 
 
 @define(eq=False, slots=True)
@@ -849,22 +854,12 @@ class LiteralExpr(Expr):
 
     @cache
     def get_llvm_value(self, module):
-        return self.type.make_constant(module, self.value)
+        return self.type.get_llvm_type(module)(self.value)
 
 
 @define(eq=False, slots=True)
-class ScalarExpr(Expr):
+class ScalarExpr(LiteralExpr):
     value: bool | float | int | str
-
-    @cache
-    def get_llvm_value(self, module):
-        return self.type.make_constant(module, self.value)
-
-
-@define(eq=False, slots=True)
-class CVoidCastExpr(Expr):
-    expr: Expr
-    type: IntegerType = IntegerType(Location.Generate(), bits=8, signed=True)
 
 
 @define(eq=False, slots=True)
@@ -877,7 +872,7 @@ class BooleanScalarExpr(ScalarExpr):
 
     @cache
     def get_llvm_value(self, module):
-        self.type.make_constant(module, 1 if self.value else 0)
+        return self.type.get_llvm_type(module)(1 if self.value else 0)
 
 
 @define(eq=False, slots=True)
@@ -1244,8 +1239,20 @@ class IndexExpr(Expr):
 
 @define(eq=False, slots=True)
 class UnaryExpr(Expr):
-    operator: str
+    operator: str = field()
     expr: Expr
+
+    # pylint: disable=unused-argument
+    @operator.validator
+    def check_value(self, attribute, value):
+        if value == '+' and not isinstance(self.expr.type, NumericType):
+            raise errors.InvalidExpressionType(self.location, 'number')
+        if value == '-' and not isinstance(self.expr.type, NumericType):
+            raise errors.InvalidExpressionType(self.location, 'number')
+        if value == '~' and not isinstance(self.expr.type, IntegerType):
+            raise errors.InvalidExpressionType(self.location, 'integer')
+        if value == '!' and not isinstance(self.expr.type, BooleanType):
+            raise errors.InvalidExpressionType(self.location, 'bool')
 
 
 @define(eq=False, slots=True)
@@ -1294,6 +1301,12 @@ class CPointerCastExpr(BasePointerExpr):
 
     type: CPointerType
     expr: Expr
+
+
+@define(eq=False, slots=True)
+class CVoidCastExpr(Expr):
+    expr: Expr
+    type: IntegerType = IntegerType(Location.Generate(), bits=8, signed=True)
 
 
 @define(eq=False, slots=True)
@@ -1365,6 +1378,7 @@ class Def(ASTNode):
 @define(eq=False, slots=True)
 class Const(Def):
     value: LiteralExpr
+    llvm_value: None | ir.Value = None
 
     def get_llvm_value(self, module):
         return self.value.get_llvm_value(module)
@@ -1415,7 +1429,7 @@ class Struct(ParamTypeDef):
 
 @define(eq=False, slots=True)
 class CStruct(TypeDef):
-    pass
+    llvm_value: None | ir.Value = None
 
 
 @define(eq=False, slots=True)
@@ -1486,7 +1500,7 @@ class VariantDef(ParamTypeDef):
 
 @define(eq=False, slots=True)
 class CUnion(TypeDef):
-    pass
+    llvm_value: None | ir.Value = None
 
 
 BUILTIN_TYPES = {
