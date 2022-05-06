@@ -169,3 +169,6 @@ fn print_child_age(age: Age.Child) {
   sys.echo("Child age: {age}")
 }
 ```
+
+Note: while empty ranges cannot be defined, they can be returned by
+[types](types.html) in certain cases (empty structs and variants).

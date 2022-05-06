@@ -1,5 +1,7 @@
 # Strings
 
+Strings are arrays of bytes that represent a text encoding, configurable at
+runtime (defaults to UTF-8).
 
 [TODO] Figure out how to reconcile format strings being super useful, but also
        requiring allocation and therefore being `string`s.
@@ -8,6 +10,11 @@
 - `str`: statically compiled string that we know the length of at compile time
 - `string`: struct with `size`, `alloc`, and `data` fields.
 - `sslice`: is a struct with `start` and `data` fields
+
+---
+
+Decomposition:
+- Is this an interface? But then how does an interned string implement .get_length() and such?
 
 ---
 

@@ -23,7 +23,7 @@ fn on_failure<ok_type> (
   return r
 }
 
-fn succeed_or_die<ok_type> (
+fn ok_or_die<ok_type> (
   r: Result(ok_type)
 ): ok_type {
   match (r) {
@@ -116,7 +116,7 @@ req sys
 range Age 0u8..250u8
 
 fn increment(age: Age): Age {
-  return (age + Age(1u8)).succeed_or_die()
+  return (age + Age(1u8)).ok_or_die()
 }
 
 fn main() {
@@ -179,17 +179,17 @@ req checked
 # `op(x, y)` == `sqrt(ln(x / y))`
 fn op(x: f64, y: f64): f64 {
   # This is a three level match pyramid!
-  let div_res: checked.div(x, y).succeed_or_die()
-  let ln_res: checked.ln(div_res).succeed_or_die()
-  let sqrt_res: checked.sqrt(ln_res).succeed_or_die()
+  let div_res: checked.div(x, y).ok_or_die()
+  let ln_res: checked.ln(div_res).ok_or_die()
+  let sqrt_res: checked.sqrt(ln_res).ok_or_die()
 
   return sqrt_res
 
   return checked.sqrt(
     checked.ln(
-      checked.div(x, y).succeed_or_die()
-    ).succeed_or_die()
-  ).succeed_or_die()
+      checked.div(x, y).ok_or_die()
+    ).ok_or_die()
+  ).ok_or_die()
 }
 
 fn main() {

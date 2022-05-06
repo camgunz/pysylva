@@ -111,17 +111,17 @@ fn main() {
   let res: sys.open(file_path, "r")
 
   match (res) {
-    case (file: FileOpen.OK) {
+    case (file: OK) {
       sys.echo("Data: {file.read_utf8()}")
     }
-    case (f: FileOpen.Failed) {
+    case (f: Fail) {
       sys.echoerr("[{f.code}] Failed to open {file_path}: {f}")
     }
   }
 }
 ```
 
-<!-- [NOTE] A good example in favor of interfaces are streams -->
+<!-- [NOTE] A good example in favor of interfaces are streams and iterators -->
 
 Finally, bear in mind the tradeoffs of interfaces and variants. Sylva's
 implementation of interfaces requires dereferencing, and the very concept of
