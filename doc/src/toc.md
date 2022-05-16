@@ -7,7 +7,7 @@
 - [Arrays](arrays.html)
 - [Structs](structs.html)
 - [Modules](modules.html)
-- [Aliases](aliases.html)
+- [Aliases and Constants](aliases_and_constants.html)
 - [Functions](functions.html)
 - [Flow Control](flow_control.html)
 - [Enums](enums.html)

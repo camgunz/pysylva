@@ -10,7 +10,7 @@ mod main
 
 req sys
 
-range Age (0u8, 250u8)
+range Age 0u8..250u8
 
 struct Person {
   name: str(""),
@@ -22,28 +22,52 @@ fn print_usage() {
 }
 
 fn have_birthday(person: &Person!) {
-  person.age = (person.age + Age(1)).on_failure((f: Age::RangeFailure) {
-    sys.die("Person {person.name} is already the max age {person.age}")
-  })
+  let add_result: person.age + Age(1u8)
+
+  match (add_result) {
+    case (age: OK) {
+      person.age = age
+    }
+    case (f: Fail) {
+      sys.die("Person {person.name} is already the max age {person.age}")
+    }
+  }
 }
 
 fn greet_person(person: &Person) {
-  sys.echo("Hello {person.name}! Next year you'll be {person.age} years old!")
+  sys.echo("Hello {person.name}!")
 }
 
 fn main() {
-  let person: Person{
-    name: sys.args.get(1).on_failure((f: sys.args::IndexFailure) {
+  let name_index_result: sys.args.get(1)
+  let age_index_result: sys.args.get(2)
+  let person: Person{}
+
+  match (name_index_result) {
+    case (name: OK) {
+      person.name = name
+    }
+    case (f: Fail) {
       print_usage()
-    })
-    age: Age.parse_from_string(
-      sys.args.get(2).on_failure((f: sys.args::IndexFailure) {
-        print_usage()
-      })
-    ).on_failure((f: sys.args::IndexFailure) {
-      sys.echoerr("Invalid age: {f}")
+    }
+  }
+
+  match (age_index_result) {
+    case (age_string: OK) {
+      let parse_result = Age.parse_from_string(age_string)
+      match (parse_result) {
+        case (age: OK) {
+          person.age = age
+        }
+        case (f: Fail) {
+          sys.echoerr("Invalid age: {r}")
+          print_usage()
+        }
+      }
+    }
+    case (f: Fail) {
       print_usage()
-    })
+    }
   }
 
   person.have_birthday()

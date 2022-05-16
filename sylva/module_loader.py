@@ -2,10 +2,11 @@ from collections import defaultdict
 
 import lark
 
+from . import errors
 from .ast import ModuleDecl, RequirementDecl
 from .location import Location
 from .module import Module
-from .parser import Lark_StandAlone as Parser
+from .parser import Parser
 from .stream import Stream
 
 
@@ -44,7 +45,14 @@ class ModuleLoader:
     def get_module_declarations_from_streams(streams):
         mod_decls = []
         for s in streams:
-            ModuleDeclVisitor(s, mod_decls).visit(Parser().parse(s.data))
+            try:
+                ModuleDeclVisitor(s, mod_decls).visit(Parser().parse(s.data))
+            except lark.UnexpectedToken as e:
+                raise errors.UnexpectedToken(
+                    Location.FromUnexpectedTokenError(e, stream=s),
+                    e.token.value,
+                    e.expected
+                ) from None
         return mod_decls
 
     @staticmethod

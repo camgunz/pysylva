@@ -13,6 +13,7 @@ class CodeGen:
         self._errors = []
         self._llvm_module = None
 
+    """
     def _resolve_lookup_expr(self, expr, local_vars):
         # Might be:
         # - ConstDef
@@ -27,26 +28,18 @@ class CodeGen:
         # - Variant
         # - CUnion
         # - Interface
-        while isinstance(expr, ast.BaseLookupExpr):
-            if isinstance(expr, ast.LookupExpr):
-                local_var = local_vars.get(expr.name)
-                if local_var is not None:
-                    expr = local_var
-
-                var = self.vars.get(expr.name)
-                if var is not None:
-                    expr = var
-
-                raise errors.UndefinedSymbol(expr.location, expr.name)
-            elif isinstance(expr, ast.AttributeLookupExpr):
-                ns_expr = self._resolve_lookup_expr(expr.expr, local_vars)
-                if expr.reflection:
+        attr = expr
+        while isinstance(attr, ast.BaseLookupExpr):
+            elif isinstance(attr, ast.AttributeLookupExpr):
+                ns_expr = self._resolve_lookup_expr(attr.expr, local_vars)
+                if attr.reflection:
                     if not isinstance(ns_expr.type, ast.Reflectable):
-                        raise errors.ImpossibleReflection(expr.location)
-                    field = ns_expr.reflect
+                        raise errors.ImpossibleReflection(attr.location)
+                    attr = ns_expr.reflect_attribute(attr.location, attr.name, self._module)
+                elif not isinstance(ns_expr.type, ast.Dotable):
+                    raise errors.ImpossibleLookup(attr.location)
                 else:
-                    if not isinstance(ns_expr.type, ast.Dotable):
-                        raise errors.ImpossibleLookup(expr.location)
+                    attr = ns_expr.lookup_attribute(attr.location, attr.name, self._module)
 
                 # What will have happened is:
                 # AttributeLookupExpr(LookupExpr('libc'), 'write', ref=False)
@@ -64,12 +57,27 @@ class CodeGen:
                     pass
 
         return expr
+        """
 
-    def _reduce_expr(self, expr, local_vars):
-        debug('compile_expr', f'_reduce_expr: {expr}')
+    def _compile_expr(self, expr, builder, local_vars):
+        debug('compile_expr', f'_compile_expr: {expr}')
+        from .module import Module
+
+        if isinstance(expr, Module):
+            return expr
 
         if isinstance(expr, ast.LookupExpr):
-            pass
+            var = local_vars.get(expr.name)
+
+            if var is None:
+                var = self._module.lookup_attribute(
+                    expr.location, expr.name, self._module
+                )
+
+            if var is None:
+                raise errors.UndefinedSymbol(expr.location, expr.name)
+
+            return self._compile_expr(var, builder, local_vars)
 
         if isinstance(expr, ast.AttributeLookupExpr):
             # Might be:
@@ -85,7 +93,24 @@ class CodeGen:
             # - Variant field
             # - CUnion field
             # - Interface function
-            obj = self._reduce_expr(expr.expr, local_vars)
+            nex = self._compile_expr(expr.expr, builder, local_vars)
+            while isinstance(nex, ast.AttributeLookupExpr):
+                if nex.reflection:
+                    if not isinstance(nex.type, ast.Reflectable):
+                        raise errors.ImpossibleReflection(nex.location)
+                    nex = nex.reflect_attribute(
+                        nex.location, nex.attribute, self._module
+                    )
+                elif not isinstance(nex.type, ast.Dotable):
+                    raise errors.ImpossibleLookup(nex.location)
+                else: # [FIXME] This will only work for depth-1 lookups
+                    nex = nex.lookup_attribute(
+                        nex.location, nex.attribute, self._module
+                    )
+
+            return self._compile_expr(nex, builder, local_vars)
+            # The tactic here is to rollup the things we can into a single
+            # GEP ((c)structs and (c)arrays), other
 
             # This is all different depending on what obj is. If it's an
             # enum we're looking at some kind of constant. If it's a struct
@@ -101,80 +126,35 @@ class CodeGen:
             # the types of everything, so we can at least check for impossible
             # lookups and reflections.
 
-        if isinstance(expr, ast.Parameter):
+        if isinstance(expr, ast.ValueExpr):
             # [FIXME] These have to be expressions, WTF is a parameter
             #         gonna do here.
             # Get the type
-            pass
+            return expr.emit_llvm_expr(self._module, builder)
 
         if isinstance(expr, ast.CallExpr):
+            return expr.emit_llvm_expr(self._module, builder)
+
+        if isinstance(expr, ast.Struct):
             pass
 
-        if isinstance(expr, ast.StructDef):
+        if isinstance(expr, ast.CStruct):
             pass
 
-        if isinstance(expr, ast.CStructDef):
+        if isinstance(expr, ast.CUnion):
             pass
 
-        if isinstance(expr, ast.VariantDef):
+        if isinstance(expr, ast.InterfaceType):
+            return # [TODO]
+
+        if isinstance(expr, ast.EnumType):
+            return # [TODO]
+
+        if isinstance(expr, ast.Variant):
             pass
-
-        if isinstance(expr, ast.CUnionDef):
-            pass
-
-        # if isinstance(expr, ast.InterfaceDef):
-        #     pass
-
-        # if isinstance(expr, ast.EnumDef):
-        #     pass
-
-        if is_reflection:
-            pass
-
-        res = local_vars.get(expr.name)
-
-        if res is not None:
-            value = res[1] # LLVM value
-        else:
-            value = expr.object.lookup(expr.location, expr.name)
-            if value is not None:
-                value = self.get_or_define_llvm_symbol(expr.name, value)
-
-        if value is None:
-            raise errors.NoSuchAttribute(expr.location, expr.name)
-
-        return value
-
-        if isinstance(expr, ast.FieldIndexLookupExpr):
-            return expr.emit(builder)
-            indices = [expr.index]
-
-            while isinstance(expr.object, ast.FieldIndexLookupExpr):
-                expr = expr.object
-                indices.insert(0, expr.index)
-
-            return builder.gep(
-                expr.object, # struct, cstruct
-                indices,
-                inbounds=True,
-                name=expr.name
-            )
-
-        # if isinstance(expr, ast.ConstExpr):
-        #     # This catches CVoidCast and MoveExpr... why?
-        #     pass
-
-        if isinstance(expr, ast.CallExpr):
-            func = self._reduce_expr(expr.function, params, local_vars)
-            args = [
-                self._reduce_expr(arg_expr, params, local_vars)
-                for arg_expr in expr.arguments
-            ]
-
-            return builder.call(func, [builder.load(arg) for arg in args])
 
         if isinstance(expr, ast.CPointerCastExpr):
-            value = self._reduce_expr(expr.value, params, local_vars)
+            value = self._compile_expr(expr.value, builder, local_vars)
             if value.type.is_pointer:
                 return value
 
@@ -183,52 +163,8 @@ class CodeGen:
             return stack_slot
 
         if isinstance(expr, ast.CVoidCastExpr):
-            value = self._reduce_expr(expr.value, params, local_vars)
+            value = self._compile_expr(expr.value, builder, local_vars)
             return builder.bitcast(value, ir.IntType(8).as_pointer())
-
-        if isinstance(expr, ast.ReflectionLookupExpr):
-            # ReflectionLookupExpr
-            # - type: i64
-            # - object: LookupExpr
-            #   - type: ReferencePointerType
-            #     - referenced_type: StringType
-            #   - name: message
-            # - name: size
-            #
-            # Alright, the problem here is that this recursive algorithm
-            # assumes everything returns LLVM objects, but in order to unwrap
-            # this, I need to at least some times return Sylva objects.
-
-            # object = eval(expr.object) # Runs the LookupExpr, gets the
-            #                            # literal, etc. This means that
-            #                            # expr.object is const
-            # Get a reference pointer to a string
-            # Base pointers are... also const? No, dereferencing them is. So
-            # what we can do is do object.deref() if it's a BasePoniterExpr.
-            # if isinstance(object, ast.BasePointerExpr):
-            #     object = object.defer(location)
-            # value = object.reflect(location, expr.name)
-
-            value = expr.object
-            value = self._reduce_expr(expr.object, params, local_vars)
-            if not isinstance(value, ast.ValueExpr):
-                import pdb
-                pdb.set_trace()
-                raise Exception('Non-value-expr stored as a value expr')
-            return self._reduce_expr(
-                value.reflect(expr.location, expr.name), params, local_vars
-            )
-
-        if isinstance(expr, ast.ValueExpr):
-            # [TODO] Do the alloca
-
-            # I can just look this up now
-            res = local_vars.get(expr.name)
-
-            if res is None:
-                raise errors.UndefinedSymbol(expr.location, expr.name)
-
-            return res[0] # Sylva value
 
         import pdb
         pdb.set_trace()
@@ -246,7 +182,8 @@ class CodeGen:
         for arg, param in zip(function_type.llvm_value.args, params):
             param_llvm_type = param.type.get_llvm_type(self._module)
             alloca = builder.alloca(param_llvm_type, name=param.name)
-            value_expr = param.type.get_value_expr(param.location, alloca)
+            value_expr = param.type.get_value_expr(param.location)
+            value_expr.llvm_value = alloca
             builder.store(arg, value_expr.llvm_value)
             code_block_vars[param.name] = value_expr
         self._compile_code_block(code, builder, code_block_vars)
@@ -254,7 +191,7 @@ class CodeGen:
     def _compile_code_block(self, code, builder, local_vars):
         for node in code:
             if isinstance(node, ast.Expr):
-                expr = self._reduce_expr(node, local_vars)
+                expr = self._compile_expr(node, builder, local_vars)
 
     def get_llvm_module(self):
         from .module import Module
@@ -274,8 +211,8 @@ class CodeGen:
         # sites for those functions
 
         for name, var in self._module.vars.items():
-            if name in ast.BUILTIN_TYPES:
-                continue
+            # if name in ast.BUILTIN_TYPES:
+            #     continue
 
             if isinstance(var, ast.Const):
                 debug('compile', f'Compiling constant {name}')

@@ -54,6 +54,7 @@ Most types have methods beyond just `name` and `size`.
 * `last`: returns the last value of the `enum`
 * `indices`: returns a `range` of the `enum`'s valid indices
 * `count`: returns the number of values in the `enum`
+* `type`: returns the type of the `enum`'s values
 
 ## Numeric types
 
@@ -76,10 +77,22 @@ Most types have methods beyond just `name` and `size`.
 
 ## `struct`
 
-* `get`: a method that indexes into the `struct`'s fields, usable as:
-  `Person.get(Person.field_indices(0))` and returning a "field" type
-* `field_indices`: returns a range of the `struct`'s valid indices
+* `index_field`: a method that indexes into the `struct`'s fields, usable as:
+  `Person.index_field(Person.field_indices(0))` and returning a "field" type
+* `get_field`: a method that indexes into the `struct`'s fields, usable as:
+  `Person.get_field("name")` and returning a "field" type
+* `field_indices`: returns a range of the `struct`'s valid field indices
 * `field_count`: returns the number of fields in the `struct`
+* `field_names`: returns an array of the `struct`'s field names
+* `index_type_param`: a method that indexes into the `struct`'s type
+  params, usable as: `Person.index_type_param(Person.type_param_indices(0))`
+  and returning a type
+* `get_type_param`: a method that indexes into the `struct`'s type params,
+  usable as: `Person.get_type_param("name")` and returning a type
+* `type_param_indices`: returns a range of the `struct`'s valid type param
+  indices
+* `type_param_count`: returns the number of the `struct`'s type params
+* `type_param_names`: returns an array of the `struct`'s type param names
 
 ## Field types
 
@@ -95,6 +108,16 @@ following attributes and methods:
   `Person.get(Person.case_indices(0))` and returning a "case" type
 * `case_indices`: returns a range of the `variant`'s valid indices
 * `case_count`: returns the number of cases in the `variant`
+* `case_names`: returns an array of the `variant`'s case names
+* `index_type_param`: a method that indexes into the `variant`'s type
+  params, usable as: `Person.index_type_param(Person.type_param_indices(0))`
+  and returning a type
+* `get_type_param`: a method that indexes into the `variant`'s type params,
+  usable as: `Person.get_type_param("name")` and returning a type
+* `type_param_indices`: returns a range of the `variant`'s valid type param
+  indices
+* `type_param_count`: returns the number of the `variant`'s type params
+* `type_param_names`: returns an array of the `variant`'s type param names
 
 ## Case types
 

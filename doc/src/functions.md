@@ -28,10 +28,11 @@ fn main() {
 ## Function types
 
 It's often useful to be able to define a function type, for use in structs
-or higher-order functions:
+or higher-order functions. This is accomplished in Sylva simply by leaving off
+the code block.
 
 ```sylva
-fntype int_stringer(i: int): str
+fn int_stringer(i: int): str
 
 fn stringify_ints(func: int_stringer, ints: [int...])
 ```
@@ -39,8 +40,8 @@ fn stringify_ints(func: int_stringer, ints: [int...])
 But it's even more useful to use these alongside type parameters:
 
 ```sylva
-fntype serializer(object_type) (i: object_type): str
-fntype deserializer(object_type) (s: str): object_type
+fn serializer(object_type) (i: object_type): str
+fn deserializer(object_type) (s: str): object_type
 alias serializer_u8: serializer(u8)
 alias deserializer_u8: deserializer(u8)
 ```

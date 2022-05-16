@@ -56,10 +56,6 @@ fn main() {
 }
 ```
 
-In practice, try to avoid explicit looping constructs. There are usually
-other methods that are semantically clearer, such as using an `.each` or `.map`
-method.
-
 ## Pattern matching
 
 A very basic version of pattern matching on [variants](variants.html) exists in

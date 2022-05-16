@@ -27,6 +27,15 @@ class Location:
         return cls.FromMeta(tree.meta, stream=stream)
 
     @classmethod
+    def FromUnexpectedTokenError(cls, err, stream=None):
+        return cls(
+            stream=stream,
+            index=err.pos_in_stream,
+            line=err.line,
+            column=err.column
+        )
+
+    @classmethod
     def Generate(cls):
         return cls()
 

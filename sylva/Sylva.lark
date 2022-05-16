@@ -82,13 +82,11 @@ c_array_type_def: "carray" VALUE array_type_expr
 
 c_bit_field_type_expr: "cbitfield" "(" _type_param "," INTEGER ")"
 
-c_block_function_type_type_expr: "cblockfntype" function_type_expr
+c_block_function_type_expr: "cblockfntype" function_type_expr
 
-c_block_function_type_type_def: "cblockfntype" VALUE function_type_expr
+c_block_function_type_def: "cblockfntype" VALUE function_type_expr
 
-c_function_type_type_expr: "cfntype" function_type_expr
-
-c_function_type_type_def: "cfntype" VALUE function_type_expr
+c_function_type_expr: "cfn" function_type_expr
 
 c_function_type_def: "cfn" VALUE function_type_expr
 
@@ -107,6 +105,7 @@ c_union_type_def: "cunion" VALUE "{" _type_param_pair_list "}"
 c_void_type_expr: "cvoid"
 
 array_type_expr: "[" _type_param "*" (_identifier | INTEGER) "]"
+               | "[" _type_param ELLIPSIS "]"
 
 array_type_def: "array" VALUE array_type_expr
 
@@ -116,13 +115,11 @@ function_type_expr: "(" _type_param_pair_list? ")" [return_type]
 
 function_type_def: "fn" VALUE function_type_expr
 
-function_literal: function_type_expr code_block
+function_literal: "fn" function_type_expr code_block
 
 function_def: function_type_def code_block
 
-_interface_function_pair: VALUE ":" (function_type_expr | function_literal)
-
-interface_type_def: "iface" VALUE "{" _interface_function_pair* "}"
+interface_type_def: "iface" VALUE "{" (function_def | function_type_def)* "}"
 
 range_type_expr: ((  FLOAT | _identifier) ".." (  FLOAT | _identifier))
                | ((INTEGER | _identifier) ".." (INTEGER | _identifier))
@@ -145,8 +142,8 @@ _type_expr: STAR? array_type_expr
           | AMP struct_type_expr BANG?
           | c_array_type_expr
           | c_bit_field_type_expr
-          | c_block_function_type_type_expr
-          | c_function_type_type_expr
+          | c_block_function_type_expr
+          | c_function_type_expr
           | c_pointer_type_expr
           | c_struct_type_expr
           | c_union_type_expr
@@ -173,7 +170,7 @@ alias_def: "alias" VALUE ":" _type_param
 const_def: "const" VALUE ":" literal_expr
 
 implementation_def: \
-  "impl" _identifier ["(" _identifier ")"] "{" _interface_function_pair* "}"
+  "impl" _identifier ["(" _identifier ")"] "{" function_def* "}"
 
 module: module_decl (requirement_decl
                    | array_type_def
@@ -188,8 +185,7 @@ module: module_decl (requirement_decl
                    | function_def
                    | implementation_def
                    | c_array_type_def
-                   | c_block_function_type_type_def
-                   | c_function_type_type_def
+                   | c_block_function_type_def
                    | c_function_type_def
                    | c_struct_type_def
                    | c_union_type_def)*

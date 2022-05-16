@@ -1,10 +1,10 @@
 # import re
-import lark
 
 from . import ast, debug, errors
 from .code_gen import CodeGen
 from .location import Location
 from .module_builder import ModuleBuilder
+from .parser import Parser
 
 # _IDENTIFIER_DELIMITERS = re.compile(r'(\.|::)')
 
@@ -22,7 +22,7 @@ class Module(ast.Dotable):
 
         self._code_gen = CodeGen(self)
         self.vars = {}
-        self.vars.update(ast.BUILTIN_TYPES)
+        # self.vars.update(ast.BUILTIN_TYPES)
         self.requirements = set()
         self.type = ast.ModuleType(Location.Generate(), self)
 
@@ -52,15 +52,16 @@ class Module(ast.Dotable):
                 definition.location, existing_alias.location, definition.name
             )
 
+        # if definition.name in ast.BUILTIN_TYPES:
+        #     raise errors.RedefinedBuiltIn(definition)
+
         existing_definition = self.vars.get(definition.name)
         if existing_definition:
             raise errors.DuplicateDefinition(
-                definition,
+                definition.name,
+                definition.location,
                 existing_definition.location,
             )
-
-        if definition.name in ast.BUILTIN_TYPES:
-            raise errors.RedefinedBuiltIn(definition)
 
     def resolve_requirements(self, seen=None):
         if len(self.requirements) == len(self._requirement_statements):
@@ -85,20 +86,11 @@ class Module(ast.Dotable):
             return self._errors
 
         for s in self._streams:
-            parser = lark.Lark.open(
-                'Sylva.lark',
-                rel_to=__file__,
-                parser='lalr',
-                propagate_positions=True,
-                maybe_placeholders=True,
-                start='module',
-            )
-
-            ModuleBuilder(self, s).visit(parser.parse(s.data))
+            ModuleBuilder(self, s).visit(Parser().parse(s.data))
 
         for name, obj in self.vars.items():
-            if name in ast.BUILTIN_TYPES:
-                continue
+            # if name in ast.BUILTIN_TYPES:
+            #     continue
 
             if isinstance(obj, ast.SylvaType):
                 self._errors.extend(obj.check())
@@ -146,6 +138,13 @@ class Module(ast.Dotable):
         return ast.Attribute(
             location=location, name=name, type=attribute_type, index=None
         )
+
+    def lookup_attribute(self, location, name, module):
+        aliased_value = self._aliases.get(name)
+        if aliased_value is not None:
+            return aliased_value.value
+
+        return self.vars.get(name)
 
     # def lookup_field(self, location, name):
     #     aliased_value = self._aliases.get(name)

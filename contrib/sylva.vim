@@ -15,8 +15,8 @@ syntax keyword SylvaType uint u8 u16 u32 u64 u128
 syntax keyword SylvaType float f16 f32 f64 f128
 syntax keyword SylvaType complex c16 c32 c64 c128
 syntax keyword SylvaType dec
-syntax keyword SylvaType str
-syntax keyword SylvaType array
+syntax keyword SylvaType str strslice string strslice
+syntax keyword SylvaType array slice dynarray dynslice
 syntax keyword SylvaType struct
 syntax keyword SylvaType variant
 syntax keyword SylvaType fn

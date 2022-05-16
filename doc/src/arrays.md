@@ -40,10 +40,17 @@ fn print_people(people: &[Person...]!) {
 }
 
 fn print_iterable_people(people: Iterable(People)) {
-  while (people.has_next()) {
-    let person: &people.get_next()
+  loop {
+    let iter_result: people.get_next()
 
-    sys.echo("{person.name} is {person.age} years old")
+    match (iter_result) {
+      case (person: OK) {
+        sys.echo("{person.name} is {person.age} years old")
+      }
+      default {
+        break
+      }
+    }
   }
 }
 
@@ -105,55 +112,6 @@ index operation would succeed, and performing the index operation itself.
 
 Finally, dynarrays allocate their data on the heap, so any program using them
 requires heap allocation.
-
-
-```sylva
-mod main
-
-struct Person {
-  name: str,
-  age: u8,
-}
-
-fn main() {
-  let p: Person{"Charlie", 38}
-  let p2: *Person{"Barack", 61}
-  let p3: &p # Shared ref to Charlie
-  let p4: &p2 # Shared ref to Barack
-  let p5: &p3 # Auto-derefs, and therefore creates a 2nd shared ref to Charlie
-  let p5x: &p5! # Can't do this, there are other shared references
-  let p6: Person{"Joe", 78}
-  let p7: Person{"Joe", 78}
-
-  sys.print(&p6.name) # Automatically creates a shared reference to p6, which
-                      # is then immediately automatically dereferenced by '.'
-  p7.age++ # automatically creates an exclusive reference (if this were p6, it
-           # would fail, as we already sent a shared ref to p6 to sys.print
-           # above)
-}
-```
-
-Do we actually have to track sending refernces to other scopes? For the
-`&p6.name` line up there, I suppose if `sys.print` ran with `name` in a thread,
-then taking an exclusive reference to it or its parent later on is a problem.
-Is there an ownership/scalar requirement for threading? Feels like that would
-make things a lot simpler.
-
-Otherwise, because we can't assume that `sys.print` isn't still running in
-parallel, we can't assume `p6.name` isn't still being read in a parallel thread
-somewhere, and therefore can't assume we can write to it (etc.).
-
-It's really a question of "this might break the scope rules". I guess though, what are the rules of multithreading anyway? Pretty much shared/exclusive references right?
-
-Nah, it has to be ownership. This is because we can't guarantee that the calling scope will stay open, so references will dangle.
-
-Well, I guess what this means is:
-
-- You can't do anything with a raw value, stack, heap, doesn't matter
-- If you're reading, you need a shared reference
-- If you're writing, you need a mutable reference
-
-So, in the interest of ergonomics, doesn't Sylva have to... "auto-ref"?
 
 ```sylva
 req sys

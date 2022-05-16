@@ -1,331 +1,321 @@
 # Grammar
 
-Below is Sylva's grammar written for ANTLR4.
+Below is Sylva's grammar, written for Lark.
 
 ```
-grammar Sylva;
+%import common.CNAME -> VALUE
+%import common.SH_COMMENT -> COMMENT
+%import common.WS -> BS
+%import common.FLOAT -> _FLOAT
+
+%ignore COMMENT
+%ignore BS
+
+INTEGER: /((0[Xx][a-fA-F0-9][a-fA-F0-9_]*)|([0-9][0-9_]*)|(0[Oo][0-7][0-7_]*)|(0[Bb][01]01_]*))(u8|u16|u32|u64|u128|u|i8|i16|i32|i64|i128)?/
+FLOAT: _FLOAT /("f16"|"f32"|"f64"|"f128")/
+COMPLEX: _FLOAT /("c16"|"c32"|"c64"|"c128")/
+RUNE: /'((~[\r\n])|(\\(([abfnrtv\\"'{])|(x[a-fA-F0-9][a-fA-F0-9])|(u[a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9])|(U[a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9]))))?'/
+// STRING: /"[^\r\n]*"/
+STRING: /"(([^\r\n])|(\\(([abfnrtv\\"'{])|(x[a-fA-F0-9][a-fA-F0-9])|(u[a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9])|(U[a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9]))))*"/
+
+EQUAL:                    "="
+COLON:                    ":"
+COLON_COLON:              "::"
+DOT:                      "."
+ELLIPSIS:                 "..."
+PLUS_PLUS:                "++"
+MINUS_MINUS:              "--"
+PLUS:                     "+"
+MINUS:                    "-"
+TILDE:                    "~"
+BANG:                     "!"
+STAR:                     "*"
+SLASH:                    "\/"
+SLASH_SLASH:              "\/\/"
+BACKSLASH:                "\\"
+PERCENT:                  "%"
+STAR_STAR:                "**"
+DOUBLE_OPEN_ANGLE:        "<<"
+DOUBLE_CLOSE_ANGLE:       ">>"
+TRIPLE_CLOSE_ANGLE:       ">>>"
+OPEN_ANGLE:               "<"
+CLOSE_ANGLE:              ">"
+OPEN_ANGLE_EQUAL:         "<="
+CLOSE_ANGLE_EQUAL:        ">="
+EQUAL_EQUAL:              "=="
+BANG_EQUAL:               "!="
+AMP:                      "&"
+AMP_AMP:                  "&&"
+CARET:                    "^"
+PIPE:                     "|"
+PIPE_PIPE:                "||"
+STAR_EQUAL:               "*="
+SLASH_EQUAL:              "\/="
+SLASH_SLASH_EQUAL:        "\/\/="
+PERCENT_EQUAL:            "%="
+PLUS_EQUAL:               "+="
+MINUS_EQUAL:              "-="
+DOUBLE_OPEN_ANGLE_EQUAL:  "<<="
+DOUBLE_CLOSE_ANGLE_EQUAL: ">>="
+TRIPLE_CLOSE_ANGLE_EQUAL: ">>>="
+AMP_EQUAL:                "&="
+CARET_EQUAL:              "^="
+PIPE_EQUAL:               "|="
+TILDE_EQUAL:              "~="
+STAR_STAR_EQUAL:          "**="
+AMP_AMP_EQUAL:            "&&="
+PIPE_PIPE_EQUAL:          "||="
+TRUE:                     "true"
+FALSE:                    "false"
+
+?value: VALUE
+
+?value_list: value | value ("," value)+ [","] | value ","
+
+_identifier: VALUE ((DOT | COLON_COLON) VALUE)*
+
+?param: value
+     | "*" value     -> moveparam
+     | "&" value     -> refparam
+     | "&" value "!" -> exrefparam
 
-module :
-  moduleDecl (
-    requirementDecl
-    | enumTypeDef
-    | functionTypeDef
-    | interfaceTypeDef
-    | rangeTypeDef
-    | structTypeDef
-    | variantTypeDef
-    | aliasDef
-    | constDef
-    | functionDef
-    | implementationDef
-    | cblockfunctionTypeDef
-    | cfunctionTypeDef
-    | cstructTypeDef
-    | cunionTypeDef
-  )* (moduleDecl | EOF) ;
+_type_param: _type_expr | _identifier "(" _type_param_list ")" | param
+
+c_array_type_expr: "carray" array_type_expr
+
+c_array_type_def: "carray" VALUE array_type_expr
+
+c_bit_field_type_expr: "cbitfield" "(" _type_param "," INTEGER ")"
+
+c_block_function_type_expr: "cblockfntype" function_type_expr
+
+c_block_function_type_def: "cblockfntype" VALUE function_type_expr
+
+c_function_type_expr: "cfn" function_type_expr
+
+c_function_type_def: "cfn" VALUE function_type_expr
+
+c_pointer_type_expr: "cptr" "(" ( \
+  _type_expr | _identifier ["(" _type_param_list ")"]) BANG? \
+")" BANG?
+
+c_struct_type_expr: "cstruct" "(" _type_param_pair_list? ")"
+
+c_struct_type_def: "cstruct" VALUE "{" _type_param_pair_list? "}"
+
+c_union_type_expr: "cunion" "(" _type_param_pair_list ")"
 
-aliasDef : 'alias' singleIdentifier ':' (identifier | typeLiteral) ;
+c_union_type_def: "cunion" VALUE "{" _type_param_pair_list "}"
 
-constDef : 'const' singleIdentifier ':' constExpr ;
+c_void_type_expr: "cvoid"
 
-functionDef : 'fn' singleIdentifier functionLiteral ;
+array_type_expr: "[" _type_param "*" (_identifier | INTEGER) "]"
+               | "[" _type_param ELLIPSIS "]"
 
-implementationDef :
-  'impl' strictIdentifier '(' strictIdentifier ')' '{' functionDef* '}' ;
+array_type_def: "array" VALUE array_type_expr
 
-moduleDecl : 'mod' strictIdentifier ;
+enum_type_def: "enum" VALUE "{" _expr_pair_list "}"
 
-requirementDecl : 'req' strictIdentifier ;
+function_type_expr: "(" _type_param_pair_list? ")" [return_type]
 
-enumTypeDef : 'enum' singleIdentifier '{' constExprPairList '}' ;
+function_type_def: "fn" VALUE function_type_expr
 
-functionTypeDef : 'fntype' singleIdentifier functionTypeLiteral ;
+function_literal: "fn" function_type_expr code_block
 
-interfaceTypeDef : 'iface' singleIdentifier '{' (functionDef | functionTypeDef)* '}' ;
+function_def: function_type_def code_block
 
-rangeTypeDef : 'range' singleIdentifier rangeTypeLiteral;
-
-structTypeDef : 'struct' singleIdentifier ('(' valueList ')')? structTypeLiteral ;
-
-variantTypeDef :
-  'variant' singleIdentifier ('(' valueList ')')? '{' typeLiteralPairList '}' ;
-
-cblockfunctionTypeDef : 'cblockfntype' singleIdentifier functionTypeLiteral ;
+interface_type_def: "iface" VALUE "{" (function_def | function_type_def)* "}"
 
-cfunctionTypeDef : 'cfn' singleIdentifier functionTypeLiteral ;
-
-cstructTypeDef : 'cstruct' singleIdentifier '{' typeLiteralPairList '}' ;
-
-cunionTypeDef : 'cunion' singleIdentifier '{' typeLiteralPairList '}' ;
-
-ifBlock : 'if' '(' expr ')' codeBlock ('else' (ifBlock | codeBlock))? ;
-
-switchBlock :
-  'switch' '(' expr ')' '{' (defaultBlock | (caseBlock+ defaultBlock?)) '}' ;
-
-caseBlock: 'case' '(' constExpr ')' codeBlock ;
-
-matchBlock :
-  'match' '(' expr ')' '{' (
-    (matchCaseBlock+ defaultBlock?) | defaultBlock
-  ) '}' ;
-
-param : '*'? singleIdentifier | '&' singleIdentifier '!'? ;
-
-matchCaseBlock: 'case' '(' param ':' singleIdentifier ')' codeBlock ;
-
-defaultBlock: 'default' codeBlock ;
-
-forBlock : 'for' '(' param ':' (expr | rangeTypeLiteral) ')' codeBlock ;
-
-whileBlock : 'while' '(' expr ')' codeBlock ;
-
-loopBlock : 'loop' codeBlock ;
-
-breakStmt : 'break' ;
-
-continueStmt : 'continue' ;
-
-letStmt : 'let' singleIdentifier '!'? ':' expr ;
+range_type_expr: ((  FLOAT | _identifier) ".." (  FLOAT | _identifier))
+               | ((INTEGER | _identifier) ".." (INTEGER | _identifier))
 
-returnStmt : 'return' expr ;
+range_type_def: "range" VALUE range_type_expr
 
-exprList : (expr ',')* (expr ','?)? ;
+struct_type_expr: "{" _type_param_pair_list? "}"
 
-expr :
-  literal                                                # LiteralExpr
-  | (identifier | carrayTypeLiteral) arrayConstLiteral   # CArrayLiteralExpr
-  | 'cptr' '(' expr ')'                                  # CPointerLiteralExpr
-  | (identifier | cstructTypeLiteral) structConstLiteral # CStructLiteralExpr
-  | (identifier | cunionTypeLiteral) structConstLiteral  # CUnionLiteralExpr
-  | 'cvoid' '(' expr ')' # CVoidLiteralExpr
-  | expr '[' expr ']'                                    # IndexExpr
-  | expr '(' exprList ')'                                # FunctionCallExpr
-  | expr '(' typeLiteralList ')' '(' exprList ')'        # ParamFunctionCallExpr
-  | singleIdentifier                                     # SingleLookupExpr
-  | expr ('.' | '::') expr                               # LookupExpr
-  | '(' exprList ')'                                     # ParenExpr
-  | '[' exprList ']'                                     # ArrayExpr
-  | expr ('++' | '--')                                   # IncDecExpr
-  | ('+' | '-' | '~' | '!' ) expr                        # UnaryExpr
-  | <assoc=right> expr '**' expr                         # PowerExpr
-  | expr ('*' | '/' | '//' | '%') expr                   # MulDivModExpr
-  | expr ('+' | '-') expr                                # AddSubExpr
-  | expr ('<<' | '>>' | '>>>') expr                      # ShiftExpr
-  | expr (
-      '<' | '>' | '<=' | '>=' | '==' | '!=' | '=='
-    ) expr                                               # CmpExpr
-  | expr '&' expr                                        # BandExpr
-  | expr '^' expr                                        # BxorExpr
-  | expr '|' expr                                        # BorExpr
-  | expr '&&' expr                                       # AndExpr
-  | expr '||' expr                                       # OrExpr
-  | '*' expr                                             # OwnedPointerExpr
-  | '&' expr '!'?                                        # ReferenceExpr
-  ;
-
-assignStmt :
-  (strictIdentifier | (expr '[' expr ']'))
-  ( '=' |
-    '+=' | '-=' | '%=' | '^=' | '&=' | '*=' | '~=' | '|=' | '/=' |
-    '&&=' | '||=' | '//=' | '<<=' | '>>=' |
-    '>>>=' )
-  expr ;
-
-codeBlock :
-  '{' (
-    ifBlock
-    | switchBlock
-    | matchBlock
-    | forBlock
-    | whileBlock
-    | loopBlock
-    | letStmt
-    | assignStmt
-    | returnStmt
-    | breakStmt
-    | continueStmt
-    | expr
-  )* '}' ;
-
-constExpr : literal | identifier ;
-
-literal :
-  arrayConstLiteral
-  | rangeConstLiteral
-  | structConstLiteral
-  | booleanLiteral
-  | functionLiteral
-  | decimalLiteral
-  | floatLiteral
-  | integerLiteral
-  | runeLiteral
-  | stringLiteral
-  ;
-
-arrayConstLiteral :
-  // '[' constExprList ']' |
-  '[' typeLiteral '*' (identifier | intDecimalLiteral) ']' ;
-
-rangeConstLiteral :
-  identifier '(' (decimalLiteral | floatLiteral | integerLiteral) ')'
-  | floatLiteral '..' floatLiteral '(' floatLiteral ')'
-  | integerLiteral '..' integerLiteral '(' integerLiteral ')'
-  | decimalLiteral '..' decimalLiteral '(' decimalLiteral ')'
-  ;
-
-structConstLiteral : (identifier | structTypeLiteral) '{' constExprList '}' ;
-
-booleanLiteral : 'true' | 'false' ;
-
-functionLiteral : '(' typeLiteralPairList ')' (':' typeLiteral)? codeBlock;
+struct_type_def: "struct" VALUE ["(" value_list ")"] struct_type_expr
 
-runeLiteral : RUNE ;
+variant_type_def: \
+  "variant" VALUE ["(" value_list ")"] "{" _type_param_pair_list "}"
 
-stringLiteral : STRING ;
+_type_expr: STAR? array_type_expr
+          | AMP array_type_expr BANG?
+          | function_type_expr
+          | STAR? range_type_expr
+          | AMP range_type_expr BANG?
+          | STAR? struct_type_expr
+          | AMP struct_type_expr BANG?
+          | c_array_type_expr
+          | c_bit_field_type_expr
+          | c_block_function_type_expr
+          | c_function_type_expr
+          | c_pointer_type_expr
+          | c_struct_type_expr
+          | c_union_type_expr
+          | c_void_type_expr
+          | STAR? _identifier "(" INTEGER ")"
+          | AMP _identifier "(" INTEGER ")" BANG?
 
-intDecimalLiteral : INT_DECIMAL ;
+_type_param_list: _type_param
+                | _type_param ("," _type_param)+ [","]
+                | _type_param ","
 
-decimalLiteral : INT_DECIMAL | FLOAT_DECIMAL ;
+?type_param_pair: VALUE ":" _type_param
 
-floatLiteral : FLOAT ;
+_type_param_pair_list: type_param_pair
+                     | type_param_pair ("," type_param_pair)+ [","]
+                     | type_param_pair ","
 
-integerLiteral : INTEGER ;
+module_decl: "mod" _identifier
 
-singleIdentifier : (VALUE | INT_TYPE | FLOAT_TYPE) ;
+requirement_decl: "req" _identifier
 
-strictIdentifier : singleIdentifier ('.' singleIdentifier)* ;
+alias_def: "alias" VALUE ":" _type_param
 
-identifier : singleIdentifier (('.' | '::') singleIdentifier)* ;
+const_def: "const" VALUE ":" literal_expr
 
-constExprList : (constExpr ',')* (constExpr ','?)? ;
+implementation_def: \
+  "impl" _identifier ["(" _identifier ")"] "{" function_def* "}"
 
-constExprPairList : (singleIdentifier ':' constExpr ',')* (singleIdentifier ':' constExpr ','?)? ;
+module: module_decl (requirement_decl
+                   | array_type_def
+                   | enum_type_def
+                   | function_type_def
+                   | interface_type_def
+                   | range_type_def
+                   | struct_type_def
+                   | variant_type_def
+                   | alias_def
+                   | const_def
+                   | function_def
+                   | implementation_def
+                   | c_array_type_def
+                   | c_block_function_type_def
+                   | c_function_type_def
+                   | c_struct_type_def
+                   | c_union_type_def)*
 
-arrayTypeLiteral :
-  '[' typeLiteral '...' ']' |
-  '[' typeLiteral '*' (identifier | intDecimalLiteral) ']' ;
+return_type: ":" _type_param
 
-functionTypeLiteral : '(' typeLiteralPairList ')' (':' typeLiteral)? ;
+_expr_list: expr | expr ("," expr)+ [","] | expr ","
 
-paramTypeLiteral : identifier '(' typeLiteralList ')' ;
+_expr_pair_list: VALUE ":" expr
+               | VALUE ":" expr ("," VALUE ":" expr)+ [","]
+               | VALUE ":" expr ","
 
-rangeTypeLiteral : 
-  (  floatLiteral | identifier) '..' (  floatLiteral | identifier) |
-  (integerLiteral | identifier) '..' (integerLiteral | identifier) |
-  (decimalLiteral | identifier) '..' (decimalLiteral | identifier) ;
+_arg_list: _expr_list | _expr_pair_list
 
-structTypeLiteral : '{' typeLiteralPairList '}' ;
+?expr: and_expr ("||" and_expr)* | "(" and_expr ("||" and_expr)* ")" -> or_expr
 
-carrayTypeLiteral : 'carray' '(' typeLiteral (',' intDecimalLiteral)? ')' ;
+?and_expr: cmp_expr ("&&" cmp_expr)* | "(" cmp_expr ("&&" cmp_expr)* ")"
 
-cbitfieldTypeLiteral :
-  'cbitfield' '(' (
-    INT_TYPE
-  ) ',' intDecimalLiteral ')' ;
+?cmp_expr: bor_expr (_cmp_op bor_expr)* | "(" bor_expr (_cmp_op bor_expr)* ")"
 
-cblockfunctionTypeLiteral : 'cblockfntype' functionTypeLiteral ;
+?bor_expr: bxor_expr ("|" bxor_expr)* | "(" bxor_expr ("|" bxor_expr)* ")"
 
-cfunctionTypeLiteral : 'cfntype' functionTypeLiteral ;
+?bxor_expr: band_expr ("^" band_expr)* | "(" band_expr ("^" band_expr)* ")"
 
-cstructTypeLiteral : 'cstruct' '(' typeLiteralPairList ')' ;
+?band_expr: shift_expr ("&" shift_expr)* | "(" shift_expr ("&" shift_expr)* ")"
 
-cunionTypeLiteral : 'cunion' '(' typeLiteralPairList ')' ;
+?shift_expr: arith_expr (_shift_op arith_expr)*
+       | "(" arith_expr (_shift_op arith_expr)* ")"
 
-cpointerTypeLiteral : 'cptr' '(' typeLiteral '!'? ')' ;
+?arith_expr: mul_expr (_add_op mul_expr)*
+       | "(" mul_expr (_add_op mul_expr)* ")"
 
-cvoidTypeLiteral : 'cvoid';
+?mul_expr: inc_dec_expr (_mul_op inc_dec_expr)*
+     | "(" inc_dec_expr (_mul_op inc_dec_expr)* ")"
 
-typeLiteral :
-  '*'? arrayTypeLiteral
-  | '&' arrayTypeLiteral '!'?
-  | functionTypeLiteral
-  | '*'? paramTypeLiteral
-  | '&' paramTypeLiteral '!'?
-  | '*'? rangeTypeLiteral
-  | '&' rangeTypeLiteral '!'?
-  | '*'? structTypeLiteral
-  | '&' structTypeLiteral '!'?
-  | carrayTypeLiteral
-  | cbitfieldTypeLiteral
-  | cblockfunctionTypeLiteral
-  | cfunctionTypeLiteral
-  | cpointerTypeLiteral
-  | cstructTypeLiteral
-  | cunionTypeLiteral
-  | cvoidTypeLiteral
-  | '*'? identifier
-  | '&' identifier '!'?
-  | '*'? identifier '(' constExpr ')'
-  | '&' identifier '(' constExpr ')' '!'?
-  ;
+?inc_dec_expr: (inc_dec_expr _inc_dec_op) | unary_expr
 
-typeLiteralList : (typeLiteral ',')* (typeLiteral ','?)? ;
+?unary_expr: (_unary_op unary_expr) | power_expr
 
-typeLiteralPairList :
-  (singleIdentifier ':' typeLiteral ',')* (singleIdentifier ':' typeLiteral ','?)? ;
+?power_expr: atom_expr ("**" unary_expr)*
+       | "(" atom_expr ("**" unary_expr)+ ")"
 
-valueList : (singleIdentifier ',')* (singleIdentifier ','?)? ;
+?atom_expr: atom_expr "(" [_arg_list] ")" -> call_expr
+          | atom_expr "[" atom_expr "]"   -> index_expr
+          | "(" atom_expr ")"
+          | maybe_const_expr
 
-fragment NonStringChar : ~["\\] ;
+?maybe_const_expr: \
+    "*" atom_expr                                      -> move_expr
+  | "&" atom_expr                                      -> ref_expr
+  | "&" atom_expr "!"                                  -> exref_expr
+  | "cptr" "(" atom_expr ")" BANG?                     -> cpointer_expr
+  | "cvoid" "(" atom_expr ")" BANG?                    -> cvoid_expr
+  | array_type_expr                                    -> array_expr
+  | (_identifier | struct_type_expr) "{" _arg_list "}" -> struct_expr
+  | function_literal                                   -> function_expr
+  | _identifier                                        -> lookup_expr
+  | literal_expr
 
-fragment FloatNum : (DecNum '.' DecNum) | ('.' DecNum) ;
+?literal_expr: (TRUE | FALSE)       -> bool_expr
+             | COMPLEX              -> complex_expr
+             | FLOAT                -> float_expr
+             | INTEGER              -> int_expr
+             | RUNE                 -> rune_expr
+             | STRING               -> string_expr
+             | "(" literal_expr ")"
 
-fragment IntNum : (HexNum | DecNum | OctNum | BinNum) ;
+if_block: "if" "(" expr ")" code_block ["else" (if_block | code_block)]
 
-fragment HexNum : '0'[Xx][a-fA-F0-9][a-fA-F0-9_]* ;
+switch_block: "switch" "(" _identifier ")" "{" ( \
+  default_block | (case_block+ default_block?) \
+) "}"
 
-fragment DecNum : [0-9][0-9_]* ;
+case_block: "case" "(" maybe_const_expr ")" code_block
 
-fragment OctNum : '0'[Oo][0-7][0-7_]* ;
+match_block: "match" "(" _identifier ")" "{" ( \
+  default_block | (match_case_block+ default_block?) \
+) "}"
 
-fragment BinNum : '0'[Bb][0-1][0-1_]* ;
+match_case_block: "case" "(" param ":" _identifier ")" code_block
 
-fragment Exponent : [Ee][+-]?[0-9][0-9_]* ;
+default_block: "default" code_block
 
-fragment FloatType : ('f16' | 'f32' | 'f64') ;
+for_block: "for" "(" param ":" (expr | range_type_expr) ")" code_block
 
-fragment IntType : [ui]('8' | '16' | '32' | '64' | '128')? ;
+while_block: "while" "(" expr ")" code_block
 
-fragment HexDigit : [a-fA-F0-9] ;
+loop_block: "loop" code_block
 
-fragment EscapedValue :
-    '\\' (
-      'u' HexDigit HexDigit HexDigit HexDigit
-      | 'U' HexDigit HexDigit HexDigit HexDigit HexDigit HexDigit HexDigit HexDigit
-      | [abfnrtv\\'"]
-      | 'x' HexDigit HexDigit
-    )
-    ;
+break_stmt: "break"
 
-fragment UnicodeValue : ~[\r\n'] | LittleUValue | BigUValue | EscapedValue ;
+continue_stmt: "continue"
 
-fragment HexByteValue : '\\' 'x'  HexDigit HexDigit ;
+let_stmt: "let" VALUE BANG? ":" expr
 
-fragment LittleUValue : '\\' 'u' HexDigit HexDigit HexDigit HexDigit ;
+return_stmt: "return" expr
 
-fragment BigUValue :
-  '\\' 'U' HexDigit HexDigit HexDigit HexDigit HexDigit HexDigit HexDigit HexDigit ;
+assign_stmt: expr _assign_op expr
 
-STRING : '"' (NonStringChar | EscapedValue)* '"' ;
+code_block: "{" (if_block
+               | switch_block
+               | match_block
+               | for_block
+               | while_block
+               | loop_block
+               | let_stmt
+               | assign_stmt
+               | return_stmt
+               | break_stmt
+               | continue_stmt
+               | expr)* "}"
 
-RUNE : '\'' (UnicodeValue | HexByteValue) '\'' ;
-
-INT_DECIMAL : IntNum ;
-
-FLOAT_DECIMAL : (FloatNum Exponent?) | (IntNum Exponent) ;
-
-FLOAT : ((FloatNum Exponent?) | (DecNum Exponent)) FloatType ;
-
-FLOAT_TYPE : FloatType ;
-
-INTEGER : IntNum IntType ;
-
-INT_TYPE : IntType ;
-
-VALUE : [a-zA-Z_][a-zA-Z0-9_]* ;
-
-COMMENT : '#' .*? [\r\n] -> skip ;
-
-BS : [ \t\r\n]+ -> skip ;
+!_cmp_op: "<"|">"|"<="|">="|"=="|"!="
+!_shift_op: "<<"|">>"|">>>"
+!_add_op: "+"|"-"
+!_mul_op: "*"|"/"|"//"|"%"
+!_inc_dec_op: "++"|"--"
+!_unary_op: "+"|"-"|"~"|"!"
+!_int_type: ("int" | "i8" | "i16" | "i32" | "i64" | "i128"
+           | "uint" | "u8" | "u16" | "u32" | "u64" | "u128")
+!_assign_op: \
+  EQUAL |                                                                   \
+  PLUS_EQUAL | MINUS_EQUAL | PERCENT_EQUAL | CARET_EQUAL | AMP_EQUAL |      \
+    STAR_EQUAL | TILDE_EQUAL | PIPE_EQUAL | SLASH_EQUAL |                   \
+  SLASH_SLASH_EQUAL | AMP_AMP_EQUAL | PIPE_PIPE_EQUAL | SLASH_SLASH_EQUAL | \
+    DOUBLE_OPEN_ANGLE_EQUAL | DOUBLE_CLOSE_ANGLE_EQUAL |                    \
+  TRIPLE_CLOSE_ANGLE_EQUAL                                                  \
 ```

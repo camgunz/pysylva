@@ -82,7 +82,7 @@ class ModuleBuilder(lark.Visitor):
         self._stream = stream
 
     # pylint: disable=too-many-locals
-    def _handle_expr(self, expr, extra_scope=None):
+    def _handle_expr(self, expr, scope):
         debug('_handle_expr', f'{expr}')
         location = Location.FromTree(expr, self._stream)
 
@@ -117,7 +117,7 @@ class ModuleBuilder(lark.Visitor):
             pass
 
         if expr.data == 'unary_expr':
-            ex = self._handle_expr(expr.children[1], extra_scope=extra_scope)
+            ex = self._handle_expr(expr.children[1], scope)
 
             return ast.UnaryExpr(
                 location=Location.FromTree(expr, self._stream),
@@ -132,20 +132,15 @@ class ModuleBuilder(lark.Visitor):
         if expr.data == 'call_expr':
             func = expr.children[0]
             args = filter(None, expr.children[1:])
-            func_expr = self._handle_expr(func, extra_scope=extra_scope)
+            func_expr = self._handle_expr(func, scope)
             debug('call_expr', f'func_expr: {func_expr}')
             argument_exprs = []
             for arg in args:
                 # [TODO] save parameterization info in the module
-                argument_expr = self._handle_expr(arg, extra_scope=extra_scope)
+                argument_expr = self._handle_expr(arg, scope)
                 argument_exprs.append(argument_expr)
-            mm_index = 0
 
             debug('funcmono', f'arg exprs: {argument_exprs}')
-            uses_str = any(
-                ae for ae in argument_exprs
-                if isinstance(ae.type, ast.StringLiteralType)
-            )
 
             if isinstance(func_expr, ast.AttributeLookupExpr):
                 ale = func_expr
@@ -154,60 +149,25 @@ class ModuleBuilder(lark.Visitor):
                 func_type = ale.type
             elif isinstance(func_expr, ast.LookupExpr):
                 func_type = func_expr.type
-            elif isinstance(func_expr, ast.Function):
-                func_type = func_expr.type
             else:
                 raise Exception(
                     'Can\'t figure out how to get a function type from '
                     f'{func_expr}'
                 )
 
-            if isinstance(func_type, ast.CFunctionType):
-                # We don't monomorphize these
-                return ast.CallExpr(
-                    location=location,
-                    type=func_type.return_type,
-                    function=func_expr,
-                    arguments=argument_exprs,
-                )
-
-            if not isinstance(func_type, ast.FunctionType):
+            if not isinstance(func_type, (ast.Function, ast.CFunction)):
+                # [FIXME] Make this an actual semantic Sylva error to try and
+                #         call something that isn't a function
                 raise Exception(
                     f'Got non-function-type from {func_expr}\n'
                     f'{func_type}'
                 )
 
-            if uses_str:
-                debug('funcmono', f'str function_type: {func_type}')
-
-                # [FIXME] We're blowing right by type checking here.
-                params = []
-                mm1 = func_type.monomorphizations[0]
-                for i in range(len(mm1.parameters)):
-                    param = mm1.parameters[i]
-                    arg = argument_exprs[i]
-                    params.append(
-                        ast.Parameter(
-                            location=Location.Generate(),
-                            name=param.name,
-                            type=arg.type,
-                            index=i
-                        )
-                    )
-                mm_index = func_type.add_monomorphization(
-                    ast.MonoFunctionType(
-                        location=Location.Generate(),
-                        parameters=params,
-                        return_type=mm1.return_type
-                    )
-                )
-
-            return ast.CallExpr(
+            return ast.CallExpr.Def(
                 location=location,
-                type=func_expr.type,
+                type=func_type.type.return_type,
                 function=func_expr,
-                arguments=argument_exprs,
-                monomorphization_index=mm_index,
+                arguments=argument_exprs
             )
 
         if expr.data == 'index_expr':
@@ -217,47 +177,33 @@ class ModuleBuilder(lark.Visitor):
             return ast.MovePointerExpr(
                 location=location,
                 type=ast.OwnedPointerType(
-                    referenced_type=self._get_type(
-                        expr.children[0], extra_scope=extra_scope
-                    ),
+                    referenced_type=self._get_type(expr.children[0], scope),
                 ),
-                expr=self._handle_expr(
-                    expr.children[0], extra_scope=extra_scope
-                )
+                expr=self._handle_expr(expr.children[0], scope)
             )
 
         if expr.data == 'ref_expr':
             return ast.ReferencePointerExpr(
                 location=location,
                 type=ast.ReferencePointerType(
-                    referenced_type=self._get_type(
-                        expr.children[0], extra_scope=extra_scope
-                    ),
+                    referenced_type=self._get_type(expr.children[0], scope),
                     is_exclusive=False
                 ),
-                expr=self._handle_expr(
-                    expr.children[0], extra_scope=extra_scope
-                )
+                expr=self._handle_expr(expr.children[0], scope)
             )
 
         if expr.data == 'exref_expr':
             return ast.ReferencePointerExpr(
                 location=location,
                 type=ast.ReferencePointerType(
-                    referenced_type=self._get_type(
-                        expr.children[0], extra_scope=extra_scope
-                    ),
+                    referenced_type=self._get_type(expr.children[0], scope),
                     is_exclusive=True
                 ),
-                expr=self._handle_expr(
-                    expr.children[0], extra_scope=extra_scope
-                )
+                expr=self._handle_expr(expr.children[0], scope)
             )
 
         if expr.data == 'cpointer_expr':
-            referenced_expr = self._handle_expr(
-                expr.children[0], extra_scope=extra_scope
-            )
+            referenced_expr = self._handle_expr(expr.children[0], scope)
 
             if not isinstance(referenced_expr, ast.BasePointerExpr):
                 referenced_type = referenced_expr.type
@@ -283,9 +229,7 @@ class ModuleBuilder(lark.Visitor):
         if expr.data == 'cvoid_expr':
             return ast.CVoidCastExpr(
                 location=location,
-                expr=self._handle_expr(
-                    expr.children[0], extra_scope=extra_scope
-                )
+                expr=self._handle_expr(expr.children[0], scope)
             )
 
         if expr.data == 'bool_expr':
@@ -310,7 +254,7 @@ class ModuleBuilder(lark.Visitor):
 
         if expr.data == 'string_expr':
             raw_value = expr.children[0].value
-            return ast.StringLiteralExpr.FromRawValue(location, raw_value)
+            return ast.StrExpr.FromRawValue(location, raw_value)
 
         if expr.data == 'array_expr':
             pass
@@ -322,10 +266,38 @@ class ModuleBuilder(lark.Visitor):
             pass
 
         if expr.data == 'lookup_expr':
+            # What can the first identifier be? Well, I guess what I mean is
+            # what are valid operands for the lookup operator?
+            # - module
+            # - function
+            # - struct
+            # -
             name = expr.children.pop(0).value
-            type = self._lookup_type(location, name, extra_scope=extra_scope)
+            type = self._lookup_type(location, name, scope)
             if type is None:
                 raise errors.UndefinedSymbol(location, name)
+
+            # Modules aren't 1st class, so we can really never use them in an
+            # expression. They can only appear as the 1st name, so we can fix
+            # this with a preliminary `while`
+            while isinstance(type, ast.ModuleType):
+                debug('lookup', f'_handle_expr skipping module {name}')
+                connector = expr.children.pop(0)
+                reflection = connector.value == '::'
+                attribute_token = expr.children.pop(0)
+                location = Location.FromToken(attribute_token, self._stream)
+                attribute_name = attribute_token.value
+
+                if reflection:
+                    raise errors.ImpossibleReflection(location)
+
+                new_type = type.lookup_attribute(
+                    location, attribute_name, self._module
+                )
+
+                if new_type is None:
+                    raise errors.NoSuchAttribute(location, attribute_name)
+                type = new_type
 
             lookup_expr = ast.LookupExpr(
                 location=location, type=type, name=name
@@ -344,20 +316,16 @@ class ModuleBuilder(lark.Visitor):
                         raise errors.ImpossibleReflection(location)
 
                     attribute_type = type.get_reflection_attribute_type(
-                        location, attribute_name
+                        location, attribute_name, self._module
                     )
                     if not attribute_type:
                         raise errors.NoSuchAttribute(location, attribute_name)
                 else:
                     if not isinstance(type, ast.Dotable):
-                        import pdb
-                        pdb.set_trace()
                         raise errors.ImpossibleLookup(location)
 
                     attribute = type.get_attribute(location, attribute_name)
                     if not attribute:
-                        import pdb
-                        pdb.set_trace()
                         raise errors.NoSuchAttribute(location, attribute_name)
 
                     attribute_name = attribute.handle
@@ -372,35 +340,54 @@ class ModuleBuilder(lark.Visitor):
                 )
 
             return lookup_expr
-        import pdb
-        pdb.set_trace()
 
     # pylint: disable=no-self-use,unused-argument
-    def _handle_stmt(self, stmt):
-        return None
+    def _handle_stmt(self, stmt, scope):
+        location = Location.FromTree(stmt, stream=self._stream)
+        if stmt.data == 'let_stmt':
+            name = stmt.children[0].value
+            name_location = Location.FromToken(stmt.children[0], self._stream)
+            expr = self._handle_expr(stmt.children[1], scope)
 
-    def _process_code_block(self, code_block, extra_scope=None):
+            existing_value = self._lookup_type(
+                name_location, name, scope=scope, raise_exception=False
+            )
+            if existing_value is not None:
+                location = existing_value.location
+                raise errors.DuplicateDefinition(name, name_location, location)
+
+            scope[name] = expr
+            return ast.LetStmt(location, name, expr)
+
+    def _process_code_block(self, code_block, scope=None):
         code = []
-        extra_scope = extra_scope or {}
+        local_scope = {}
+        if scope is not None:
+            local_scope.update(scope)
 
         for expr_or_stmt in code_block.children:
             if expr_or_stmt.data in _EXPR_NODE_NAMES:
-                code.append(self._handle_expr(expr_or_stmt, extra_scope))
+                code.append(self._handle_expr(expr_or_stmt, local_scope))
             else:
-                code.append(self._handle_stmt(expr_or_stmt))
+                code.append(self._handle_stmt(expr_or_stmt, local_scope))
 
         return code
 
     def _lookup_type(
-        self, location, type_name, extra_scope=None, deferrable=False
+        self,
+        location,
+        type_name,
+        scope=None,
+        deferrable=False,
+        raise_exception=True
     ):
         # [NOTE] Maybe it's a good idea to have an `UndefinedSymbol` ASTNode?
         #        Or, this could be a general semantic error reporting strategy
         #        where we use the tree to hold errors and report them as we
         #        walk it.
         debug('lookup', f'_lookup looking up {type_name}')
-        if extra_scope:
-            extra_type = extra_scope.get(type_name)
+        if scope:
+            extra_type = scope.get(type_name)
             if extra_type is not None:
                 debug('lookup', f'_lookup returning local {extra_type}')
                 return extra_type
@@ -410,19 +397,18 @@ class ModuleBuilder(lark.Visitor):
             if deferrable:
                 debug('defer_type', f'DTL: {type_name}')
                 return ast.DeferredTypeLookup(location, type_name)
-            raise errors.UndefinedSymbol(location, type_name)
-        debug('lookup', f'_lookup returning {info.type}')
-        return info.type
+            if raise_exception:
+                raise errors.UndefinedSymbol(location, type_name)
+        else:
+            debug('lookup', f'_lookup returning {info.type}')
+            return info.type
 
     # pylint: disable=too-many-locals
-    def _get_type(self, type_obj, extra_scope=None, deferrable=False):
+    def _get_type(self, type_obj, scope=None, deferrable=False):
         if isinstance(type_obj, lark.lexer.Token):
             loc = Location.FromToken(type_obj, self._stream)
             return self._lookup_type(
-                loc,
-                type_obj.value,
-                extra_scope=extra_scope,
-                deferrable=deferrable
+                loc, type_obj.value, scope=scope, deferrable=deferrable
             )
 
         location = Location.FromTree(type_obj, self._stream)
@@ -446,8 +432,8 @@ class ModuleBuilder(lark.Visitor):
                 field_size=int(field_bit_size)
             )
 
-        if type_obj.data in ('c_function_type_type_expr',
-                             'c_block_function_type_type_expr'):
+        if type_obj.data in ('c_function_type_expr',
+                             'c_block_function_type_expr'):
             parameters = []
             for n, param_obj in enumerate(type_obj.children[0].children[:-1]):
                 name_token, param_type_obj = param_obj.children
@@ -470,7 +456,7 @@ class ModuleBuilder(lark.Visitor):
             else:
                 return_type = None
 
-            if type_obj.data == 'c_function_type_type_expr':
+            if type_obj.data == 'c_function_type_expr':
                 return ast.CFunctionPointerType(
                     location=location,
                     parameters=parameters,
@@ -534,7 +520,7 @@ class ModuleBuilder(lark.Visitor):
             name = type_obj.children[0]
             return self._lookup_type(location, name, deferrable=deferrable)
 
-        if type_obj.data == 'c_function_type_type_expr':
+        if type_obj.data == 'c_function_type_expr':
             parameters = []
             for n, param_obj in enumerate(type_obj.children[:-1]):
                 name_token, param_type_obj = param_obj.children
@@ -602,7 +588,7 @@ class ModuleBuilder(lark.Visitor):
         )
 
     def const_def(self, tree):
-        value = self._handle_expr(tree.children[1])
+        value = self._handle_expr(tree.children[1], {})
         self._module.define(
             ast.Const(
                 location=Location.FromTree(tree, self._stream),
@@ -730,7 +716,7 @@ class ModuleBuilder(lark.Visitor):
 
         scope = {param.name: param.type for param in parameters}
 
-        code = self._process_code_block(code_block, extra_scope=scope)
+        code = self._process_code_block(code_block, scope=scope)
 
         # [TODO] Monomorphize based on params (not strings) here
         self._module.define(

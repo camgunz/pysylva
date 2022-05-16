@@ -1,4 +1,4 @@
-from . import sylva
+from . import sylva, sylva_builtins
 
 from .module_loader import ModuleLoader
 from .stdlib import Stdlib
@@ -14,11 +14,14 @@ class Program:
         self.stdlib_path = stdlib_path or 'stdlib'
         self.stdlib = Stdlib.FromPath(self.stdlib_path)
         self.stdlib_modules = {
-            module.name: module
-            for module in
-            ModuleLoader.load_from_streams(self, self.stdlib.streams)
+            'builtin': sylva_builtins.get_module(self),
+            **{
+                module.name: module
+                for module in ModuleLoader.load_from_streams(
+                    self, self.stdlib.streams
+                )
+            }
         }
-
         self.modules = {
             module.name: module
             for module in ModuleLoader.load_from_streams(self, streams)

@@ -53,13 +53,16 @@ class UnexpectedTokenCategory(LocationError):
 
 class UnexpectedToken(LocationError):
 
-    def __init__(self, token, expected_token_types, expected_token_categories):
+    def __init__(self, location, token, expected_tokens):
+        if token == '"':
+            token = f"'{token}'"
+        else:
+            token = f'"{token}"'
         super().__init__(
-            token.location,
+            location,
             (
                 f'Unexpected token {token}; '
-                f'expected: {strlist(expected_token_types)} or '
-                f' {strlist(expected_token_categories)}'
+                f'expected: {strlist(expected_tokens)}'
             )
         )
 
@@ -129,10 +132,9 @@ class NoSuchAttribute(LocationError):
 
 class DuplicateDefinition(LocationError):
 
-    def __init__(self, definition, existing_location):
-        name = definition.name
+    def __init__(self, name, location, existing_location):
         super().__init__(
-            definition.location,
+            location,
             f'"{name}" already defined: [{existing_location.shorthand}]'
         )
 
@@ -271,3 +273,15 @@ class ImpossibleCompileTimeEvaluation(LocationError):
         super().__init__(
             location, 'Cannot evaluate expression at compile time'
         )
+
+
+class IndexOutOfBounds(LocationError):
+
+    def __init__(self, location):
+        super().__init__(location, 'Index out of bounds')
+
+
+class NoSuchField(LocationError):
+
+    def __init__(self, location, field_name):
+        super().__init__(location, f'No such field {field_name}')

@@ -5,20 +5,20 @@ available on a specific shape of data.
 
 ```sylva
 iface Orderable {
-  get_rank: (self: Orderable): uint,
-  comes_before: (self: Orderable, other: Orderable): bool {
+  fn get_rank(self: &Orderable): uint
+  fn comes_before(self: &Orderable, other: &Orderable): bool {
     return self.get_rank() < other.get_rank()
-  },
+  }
 }
 
 iface Sortable {
-  sort: (self: Sortable!),
+  fn sort(self: &Sortable!)
 }
 
 impl Sortable(&[Orderable]) {
-  sort: (self: &[Orderable]!) {
+  fn sort(self: &[Orderable]!) {
     ...
-  },
+  }
 }
 
 impl Orderable(int) {
@@ -34,7 +34,9 @@ Interfaces can have concrete methods:
 req sys
 
 iface Greeter {
-  get_greeting: (animal: &Animal): str
+  fn get_greeting(greeter: &Greeter): *str {
+    return *"Hey there"
+  }
 }
 
 fn greet(animal: &Animal) {
@@ -44,13 +46,13 @@ fn greet(animal: &Animal) {
 struct Cat {}
 
 impl Greeter(Cat) {
-  get_greeting: (self: &Cat): str { return "Meow" }
+  fn get_greeting(self: &Cat): *str { return *"Meow" }
 }
 
 struct Dog {}
 
 impl Greeter(Dog) {
-  get_greeting: (self: &Dog): str { return "Woof" }
+  fn get_greeting(self: &Dog): *str { return *"Woof" }
 }
 ```
 
@@ -63,9 +65,9 @@ extension of the _abilities_ of a type (i.e. its functions). When deciding
 whether to use interfaces or variants, consider whether you'll likely be adding
 new shapes or new abilities.
 
-In particular, avoid using interfaces _instead of_ variants. In most cases,
-they are orthogonal. For example, if Sylva's failures were an interface opening
-a file would have to look something like:
+In particular, avoid using interfaces _instead of_ variants, and vice versa. In
+most cases, they are orthogonal. For example, if Sylva's failures were an
+interface opening a file would have to look something like:
 
 ```sylva
 mod sys
@@ -123,10 +125,9 @@ fn main() {
 
 <!-- [NOTE] A good example in favor of interfaces are streams and iterators -->
 
-Finally, bear in mind the tradeoffs of interfaces and variants. Sylva's
-implementation of interfaces requires dereferencing, and the very concept of
-interfaces necessitates function call overhead--after all interfaces are simply
-additional functions, so you must call those functions in order to take
-advantage of the interface. Sylva's implementation of variants requires
+Finally, bear in mind the tradeoffs of interfaces and variants. The very
+concept of interfaces necessitates function call overhead--after all interfaces
+are simply additional functions, so you must call those functions in order to
+take advantage of the interface. Sylva's implementation of variants requires
 additional information in data structures, and in general uses more memory than
 necessary to represent every possible variant.
