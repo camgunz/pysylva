@@ -1,12 +1,14 @@
 import typing
 
-from attrs import define
+from attrs import define, field
+from llvmlite import ir # type: ignore
 
-from . import ast
+from ..target import get_target
+from .base import Node
 
 
 @define(eq=False, slots=True)
-class SylvaType(ast.ASTNode):
+class BaseSylvaType(Node):
     implementations: typing.List = []
 
     def mangle(self):
@@ -17,32 +19,31 @@ class SylvaType(ast.ASTNode):
 
 
 @define(eq=False, slots=True)
-class LLVMTypeMixIn:
+class SylvaType(BaseSylvaType):
+    llvm_type: ir.Type | None = field(init=False)
 
-    def make_constant(self, module, value):
-        return self.get_llvm_type(module)(value)
+    def make_constant(self, value):
+        return self.llvm_type(value)
 
-    def get_alignment(self, module):
-        llvm_type = self.get_llvm_type(module)
-        return llvm_type.get_abi_alignment(module.target.data)
+    def get_alignment(self):
+        llvm_type = self.llvm_type
+        return llvm_type.get_abi_alignment(get_target().data)
 
-    def get_size(self, module):
-        return self.get_llvm_type(module).get_abi_size(module.target.data)
+    def get_size(self):
+        return self.llvm_type.get_abi_size(get_target().data)
 
-    def get_pointer(self, module):
-        return self.get_llvm_type(module).as_pointer()
-
-    def get_llvm_type(self, module):
-        raise NotImplementedError()
+    def get_pointer(self):
+        return self.llvm_type.as_pointer()
 
 
 @define(eq=False, slots=True)
-class ParamTypeMixIn:
+class SylvaParamType(BaseSylvaType):
     monomorphizations: typing.List = []
 
     @property
     def is_polymorphic(self):
         return len(self.monomorphizations) > 1
 
-    def get_llvm_types(self, module):
-        raise NotImplementedError()
+    @property
+    def llvm_types(self):
+        return [mm.llvm_type for mm in self.monomorphizations]

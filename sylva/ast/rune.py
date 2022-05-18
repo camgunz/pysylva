@@ -1,15 +1,16 @@
 from llvmlite import ir # type: ignore
 
-from attrs import define
+from attrs import define, field
 
 from .expr import LiteralExpr, ValueExpr
-from .type_singleton import TypeSingleton
-from .sylva_type import LLVMTypeMixIn, SylvaType
+from .type_singleton import TypeSingletons
+from .sylva_type import SylvaType
 from ..location import Location
 
 
 @define(eq=False, slots=True)
-class RuneType(SylvaType, LLVMTypeMixIn):
+class RuneType(SylvaType):
+    llvm_type = field(init=False)
 
     # pylint: disable=no-self-use
     def mangle(self):
@@ -19,7 +20,8 @@ class RuneType(SylvaType, LLVMTypeMixIn):
         return RuneExpr(location=location, type=self)
 
     # pylint: disable=no-self-use,unused-argument
-    def get_llvm_type(self, module):
+    @llvm_type.default
+    def _llvm_type_factory(self):
         return ir.IntType(32)
 
 
@@ -34,4 +36,4 @@ class RuneLiteralExpr(LiteralExpr):
 
 @define(eq=False, slots=True)
 class RuneExpr(ValueExpr):
-    type: RuneType = TypeSingleton.RUNE.value
+    type: RuneType = TypeSingletons.RUNE.value

@@ -3,14 +3,15 @@ from llvmlite import ir # type: ignore
 
 from .expr import LiteralExpr, ValueExpr
 from .type_singleton import TypeSingletons
-from .sylva_type import LLVMTypeMixIn, SylvaType
+from .sylva_type import SylvaType
 
 
 @define(eq=False, slots=True)
-class CStrType(SylvaType, LLVMTypeMixIn):
+class CStrType(SylvaType):
 
     # pylint: disable=unused-argument
-    def get_llvm_type(self, module):
+    @llvm_type.default
+    def _llvm_type_factory(self):
         return ir.PointerType(ir.IntType(8))
 
 

@@ -1,17 +1,19 @@
-from attrs import define
+from attrs import define, field
 from llvmlite import ir # type: ignore
 
-from .defs import Def, LLVMDefMixIn
+from .defs import Def
 from .union import BaseUnionType
 
 
 @define(eq=False, slots=True)
 class CUnionType(BaseUnionType):
+    llvm_type = field(init=False)
 
-    def get_llvm_type(self, module):
-        return ir.LiteralStructType([self.get_largest_field(module)])
+    @llvm_type.default
+    def _llvm_type_factory(self):
+        return ir.LiteralStructType([self.get_largest_field()])
 
 
 @define(eq=False, slots=True)
-class CUnionDef(Def, LLVMDefMixIn):
+class CUnionDef(Def):
     llvm_value: None | ir.Value = None

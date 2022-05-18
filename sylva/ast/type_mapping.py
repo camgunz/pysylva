@@ -1,11 +1,11 @@
 from attrs import define
 
-from . import ast
-from .sylva_types import SylvaType
+from .base import Node
+from .sylva_type import SylvaType
 
 
 @define(eq=False, slots=True)
-class BaseTypeMapping(ast.ASTNode):
+class BaseTypeMapping(Node):
     name: str
     type: SylvaType
     index: int | None = None

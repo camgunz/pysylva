@@ -5,15 +5,16 @@ from llvmlite import ir # type: ignore
 
 from .. import errors, utils
 from .defs import Def
-from .sylva_type import LLVMTypeMixIn, SylvaType
+from .sylva_type import SylvaType
 from .type_mapping import Parameter
 
 
 @define(eq=False, slots=True)
-class BaseCFunctionType(SylvaType, LLVMTypeMixIn):
-    parameters: typing.List[Parameter] = field()
-    return_type: SylvaType
+class BaseCFunctionType(SylvaType):
     implementations: typing.List = []
+    llvm_type = field(init=False)
+    parameters: typing.List[Parameter] = field(default=[])
+    return_type: SylvaType
 
     # pylint: disable=unused-argument
     @parameters.validator
@@ -22,15 +23,15 @@ class BaseCFunctionType(SylvaType, LLVMTypeMixIn):
         if dupes:
             raise errors.DuplicateParameters(self, dupes)
 
-    def get_llvm_type(self, module):
+    @llvm_type.default
+    def _llvm_type_factory(self):
         params = []
 
         for p in self.parameters:
-            params.append(p.type.get_llvm_type(module))
+            params.append(p.type.llvm_type)
 
         return ir.FunctionType(
-            self.return_type.get_llvm_type(module)
-            if self.return_type else ir.VoidType(),
+            self.return_type.llvm_type if self.return_type else ir.VoidType(),
             params
         )
 
@@ -42,9 +43,20 @@ class CFunctionType(BaseCFunctionType):
 
 @define(eq=False, slots=True)
 class CFunctionPointerType(BaseCFunctionType):
+    llvm_type = field(init=False)
 
-    def get_llvm_type(self, module):
-        return super().get_llvm_type(module).as_pointer()
+    @llvm_type.default
+    def _llvm_type_factory(self):
+        params = []
+
+        # pylint: disable=not-an-iterable
+        for p in self.parameters:
+            params.append(p.type.llvm_type)
+
+        return ir.FunctionType(
+            self.return_type.llvm_type if self.return_type else ir.VoidType(),
+            params
+        ).as_pointer()
 
 
 @define(eq=False, slots=True)
@@ -54,9 +66,20 @@ class CBlockFunctionType(BaseCFunctionType):
 
 @define(eq=False, slots=True)
 class CBlockFunctionPointerType(BaseCFunctionType):
+    llvm_type = field(init=False)
 
-    def get_llvm_type(self, module):
-        return super().get_llvm_type(module).as_pointer()
+    @llvm_type.default
+    def _llvm_type_factory(self):
+        params = []
+
+        # pylint: disable=not-an-iterable
+        for p in self.parameters:
+            params.append(p.type.llvm_type)
+
+        return ir.FunctionType(
+            self.return_type.llvm_type if self.return_type else ir.VoidType(),
+            params
+        ).as_pointer()
 
 
 @define(eq=False, slots=True)

@@ -2,13 +2,13 @@ from . import sylva, sylva_builtins
 
 from .module_loader import ModuleLoader
 from .stdlib import Stdlib
-from .target import Target
+from .target import make_target
 
 
 class Program:
 
     def __init__(self, streams, stdlib_path=None, target_triple=None):
-        self.target = Target(target_triple=target_triple)
+        make_target(target_triple=target_triple)
 
         # [TODO] Do some kind of searching
         self.stdlib_path = stdlib_path or 'stdlib'

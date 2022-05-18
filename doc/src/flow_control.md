@@ -67,20 +67,20 @@ req math
 
 variant Shape {
   Circle: {
-    radius: dec,
+    radius: f64,
   },
 
   Square: {
-    side_length: dec,
+    side_length: f64,
   },
 
   Rectangle: {
-    width: dec,
-    height: dec,
+    width: f64,
+    height: f64,
   },
 }
 
-fn get_shape_area(shape: &Shape): dec {
+fn get_shape_area(shape: &Shape): f64 {
   match (shape) {
     case (c: Circle) {
       return math.PI * (c.radius ** 2)

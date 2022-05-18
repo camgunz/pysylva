@@ -4,19 +4,20 @@ from attrs import define, field
 from llvmlite import ir # type: ignore
 
 from .. import errors, utils
-from .defs import Def
+from .defs import ParamDef
 from .expr import Expr, ValueExpr
 from .statement import Stmt
-from .sylva_type import LLVMTypeMixIn, ParamTypeMixIn, SylvaType
+from .sylva_type import SylvaParamType, SylvaType
 from .type_mapping import Parameter
 
 
 @define(eq=False, slots=True)
-class MonoFunctionType(SylvaType, LLVMTypeMixIn):
-    parameters: typing.List[Parameter] = field()
+class MonoFunctionType(SylvaType):
+    parameters: typing.List[Parameter] = field(default=[])
     return_type: SylvaType
     llvm_value: None | ir.Function = None
     implementations: typing.List = []
+    llvm_type = field(init=False)
 
     # pylint: disable=unused-argument
     @parameters.validator
@@ -31,19 +32,20 @@ class MonoFunctionType(SylvaType, LLVMTypeMixIn):
         base = f'fn{params}{self.return_type.mangle()}'
         return f'{len(base)}{base}'
 
-    def get_llvm_type(self, module):
+    @llvm_type.default
+    def _llvm_type_factory(self):
         return ir.FunctionType( # yapf: disable
             (
-                self.return_type.get_llvm_type(module)
+                self.return_type.llvm_type
                 if self.return_type else ir.VoidType()
             ),
             # pylint: disable=not-an-iterable
-            [p.type.get_llvm_type(module) for p in self.parameters]
+            [p.type.llvm_type for p in self.parameters]
         )
 
 
 @define(eq=False, slots=True)
-class FunctionType(SylvaType, ParamTypeMixIn):
+class FunctionType(SylvaParamType):
     monomorphizations: typing.List[MonoFunctionType] = []
 
     @classmethod
@@ -67,7 +69,7 @@ class FunctionExpr(ValueExpr):
 
 
 @define(eq=False, slots=True)
-class FunctionDef(Def):
+class FunctionDef(ParamDef):
     type: FunctionType
     code: typing.List[Expr | Stmt]
 

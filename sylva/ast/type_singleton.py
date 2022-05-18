@@ -2,43 +2,37 @@ import enum
 
 from .. import _SIZE_SIZE
 from ..location import Location
-from .boolean import BooleanType
+from .bool import BoolType
+from .cstr import CStrType
 from .rune import RuneType
-from .number import ComplexType, FloatType, IntegerType
-from .str import StrType
+from .number import ComplexType, FloatType, IntType
 
 
 class TypeSingletons(enum.Enum):
-    BOOL = BooleanType(Location.Generate())
+    BOOL = BoolType(location=Location.Generate())
     C16 = ComplexType(location=Location.Generate(), bits=16)
     C32 = ComplexType(location=Location.Generate(), bits=32)
     C64 = ComplexType(location=Location.Generate(), bits=64)
     C128 = ComplexType(location=Location.Generate(), bits=128)
-    CSTR = CStringType(Location.Generate())
     F16 = FloatType(location=Location.Generate(), bits=16)
     F32 = FloatType(location=Location.Generate(), bits=32)
     F64 = FloatType(location=Location.Generate(), bits=64)
     F128 = FloatType(location=Location.Generate(), bits=128)
-    INT = IntegerType(
-        location=Location.Generate(), bits=_SIZE_SIZE, signed=True
-    )
-    I8 = IntegerType(location=Location.Generate(), bits=8, signed=True)
-    I16 = IntegerType(location=Location.Generate(), bits=16, signed=True)
-    I32 = IntegerType(location=Location.Generate(), bits=32, signed=True)
-    I64 = IntegerType(location=Location.Generate(), bits=64, signed=True)
-    I128 = IntegerType(location=Location.Generate(), bits=128, signed=True)
+    INT = IntType(location=Location.Generate(), bits=_SIZE_SIZE, signed=True)
+    I8 = IntType(location=Location.Generate(), bits=8, signed=True)
+    I16 = IntType(location=Location.Generate(), bits=16, signed=True)
+    I32 = IntType(location=Location.Generate(), bits=32, signed=True)
+    I64 = IntType(location=Location.Generate(), bits=64, signed=True)
+    I128 = IntType(location=Location.Generate(), bits=128, signed=True)
     RUNE = RuneType(location=Location.Generate())
-    STR = StrType(location=Location.Generate())
-    UINT = IntegerType(
-        location=Location.Generate(), bits=_SIZE_SIZE, signed=False
-    )
-    U8 = IntegerType(location=Location.Generate(), bits=8, signed=False)
-    U16 = IntegerType(location=Location.Generate(), bits=16, signed=False)
-    U32 = IntegerType(location=Location.Generate(), bits=32, signed=False)
-    U64 = IntegerType(location=Location.Generate(), bits=64, signed=False)
-    U128 = IntegerType(location=Location.Generate(), bits=128, signed=False)
+    UINT = IntType(location=Location.Generate(), bits=_SIZE_SIZE, signed=False)
+    U8 = IntType(location=Location.Generate(), bits=8, signed=False)
+    U16 = IntType(location=Location.Generate(), bits=16, signed=False)
+    U32 = IntType(location=Location.Generate(), bits=32, signed=False)
+    U64 = IntType(location=Location.Generate(), bits=64, signed=False)
+    U128 = IntType(location=Location.Generate(), bits=128, signed=False)
     CSTR = CStrType(location=Location.Generate())
-    CVOID = IntegerType(location=Location.Generate(), bits=8, signed=True)
+    CVOID = IntType(location=Location.Generate(), bits=8, signed=True)
 
 
 def get_integer_type(bits, signed):

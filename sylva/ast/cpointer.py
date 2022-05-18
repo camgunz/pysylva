@@ -13,12 +13,6 @@ class CPointerType(BasePointerType):
 
 
 @define(eq=False, slots=True)
-class CPointerCastExpr(BasePointerExpr):
-
-    """
-    "Cast" is a misnomer here because while this casts other pointer
-    types, it takes a (c) pointer to non-pointer types.
-    """
-
+class CPointerExpr(BasePointerExpr):
     type: CPointerType
     expr: Expr

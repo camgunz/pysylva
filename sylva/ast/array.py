@@ -4,21 +4,22 @@ from attrs import define, field
 from llvmlite import ir # type: ignore
 
 from .expr import LiteralExpr, ValueExpr
-from .number import IntegerType
+from .number import IntType
 from .operator import ReflectionLookupMixIn
 from .pointer import ReferencePointerExpr, ReferencePointerType
 from .range import RangeType
 from .str import StrType
-from .sylva_type import LLVMTypeMixIn, ParamTypeMixIn, SylvaType
+from .sylva_type import SylvaParamType, SylvaType
 from .. import errors
 from ..location import Location
 
 
 @define(eq=False, slots=True)
-class MonoArrayType(SylvaType, LLVMTypeMixIn, ReflectionLookupMixIn):
+class MonoArrayType(SylvaType, ReflectionLookupMixIn):
     element_type: SylvaType
     element_count: int = field()
     implementations: typing.List = []
+    llvm_type: ir.Type | None = field(init=False)
 
     def mangle(self):
         base = f'a{self.element_type.mangle()}{self.element_count}'
@@ -30,25 +31,24 @@ class MonoArrayType(SylvaType, LLVMTypeMixIn, ReflectionLookupMixIn):
         if value is not None and value <= 0:
             raise errors.EmptyArray(self.location)
 
-    def get_llvm_type(self, module):
-        return ir.ArrayType(
-            self.element_type.get_llvm_type(module), self.element_count
-        )
+    @llvm_type.default
+    def _llvm_type_factory(self):
+        return ir.ArrayType(self.element_type.llvm_type, self.element_count)
 
     # pylint: disable=no-self-use
-    def get_reflection_attribute_type(self, location, name, module):
+    def get_reflection_attribute_type(self, location, name):
         if name == 'name':
             return StrType
         if name == 'size':
-            return IntegerType
+            return IntType
         if name == 'count':
-            return IntegerType
+            return IntType
         if name == 'element_type':
             return SylvaType
         if name == 'indices':
             return RangeType
 
-    def reflect_attribute(self, location, name, module):
+    def reflect_attribute(self, location, name):
         # [FIXME] These need to be Sylva expressions that evaluate to LLVM
         #         values
         if name == 'name':
@@ -66,7 +66,7 @@ class MonoArrayType(SylvaType, LLVMTypeMixIn, ReflectionLookupMixIn):
 # Here, we want some way of saying "this type sort of exists without an
 # element_count, but in most contexts it has to have one"
 @define(eq=False, slots=True)
-class ArrayType(SylvaType, ParamTypeMixIn):
+class ArrayType(SylvaParamType):
     monomorphizations: typing.List[MonoArrayType] = []
 
     @classmethod
@@ -95,7 +95,7 @@ class ArrayType(SylvaType, ParamTypeMixIn):
 
 @define(eq=False, slots=True)
 class ArrayLiteralExpr(LiteralExpr):
-    type: ArrayType
+    type: MonoArrayType
 
     @classmethod
     def FromRawValue(cls, location, element_type, raw_value):
@@ -104,23 +104,21 @@ class ArrayLiteralExpr(LiteralExpr):
 
 @define(eq=False, slots=True)
 class ArrayExpr(ValueExpr, ReflectionLookupMixIn):
-    type: ArrayType
+    type: MonoArrayType
 
-    def get_reflection_attribute_type(self, location, name, module):
+    def get_reflection_attribute_type(self, location, name):
         if name == 'type':
-            return SylvaType
+            return self.type
         if name == 'bytes':
             return ReferencePointerType(
-                referenced_type=ArrayType(
+                referenced_type=MonoArrayType(
                     Location.Generate(),
-                    element_type=IntegerType(
-                        Location.Generate(), 8, signed=False
-                    ),
-                    element_count=self.type.get_size(module)
+                    element_type=IntType(Location.Generate(), 8, signed=False),
+                    element_count=self.type.get_size()
                 )
             )
 
-    def reflect_attribute(self, location, name, module):
+    def reflect_attribute(self, location, name):
         if name == 'type':
             # [FIXME]
             return SylvaType
@@ -131,12 +129,12 @@ class ArrayExpr(ValueExpr, ReflectionLookupMixIn):
             return ReferencePointerExpr(
                 location=Location.Generate(),
                 type=ReferencePointerType(
-                    referenced_type=ArrayType(
+                    referenced_type=MonoArrayType(
                         Location.Generate(),
-                        element_type=IntegerType(
+                        element_type=IntType(
                             Location.Generate(), 8, signed=False
                         ),
-                        element_count=self.type.get_size(module)
+                        element_count=self.type.get_size()
                     )
                 ),
                 expr=self

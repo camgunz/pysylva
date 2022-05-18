@@ -4,6 +4,7 @@ from llvmlite import ir
 
 # pylint: disable=unused-import
 from . import ast, debug, errors
+from .target import get_target
 
 
 class CodeGen:
@@ -35,11 +36,11 @@ class CodeGen:
                 if attr.reflection:
                     if not isinstance(ns_expr.type, ast.Reflectable):
                         raise errors.ImpossibleReflection(attr.location)
-                    attr = ns_expr.reflect_attribute(attr.location, attr.name, self._module)
+                    attr = ns_expr.reflect_attribute(attr.location, attr.name)
                 elif not isinstance(ns_expr.type, ast.Dotable):
                     raise errors.ImpossibleLookup(attr.location)
                 else:
-                    attr = ns_expr.lookup_attribute(attr.location, attr.name, self._module)
+                    attr = ns_expr.emit_attribute_lookup(attr.location, attr.name)
 
                 # What will have happened is:
                 # AttributeLookupExpr(LookupExpr('libc'), 'write', ref=False)
@@ -70,8 +71,8 @@ class CodeGen:
             var = local_vars.get(expr.name)
 
             if var is None:
-                var = self._module.lookup_attribute(
-                    expr.location, expr.name, self._module
+                var = self._module.emit_attribute_lookup(
+                    expr.location, expr.name
                 )
 
             if var is None:
@@ -98,14 +99,12 @@ class CodeGen:
                 if nex.reflection:
                     if not isinstance(nex.type, ast.Reflectable):
                         raise errors.ImpossibleReflection(nex.location)
-                    nex = nex.reflect_attribute(
-                        nex.location, nex.attribute, self._module
-                    )
+                    nex = nex.reflect_attribute(nex.location, nex.attribute)
                 elif not isinstance(nex.type, ast.Dotable):
                     raise errors.ImpossibleLookup(nex.location)
                 else: # [FIXME] This will only work for depth-1 lookups
-                    nex = nex.lookup_attribute(
-                        nex.location, nex.attribute, self._module
+                    nex = nex.emit_attribute_lookup(
+                        nex.location, nex.attribute
                     )
 
             return self._compile_expr(nex, builder, local_vars)
@@ -130,10 +129,10 @@ class CodeGen:
             # [FIXME] These have to be expressions, WTF is a parameter
             #         gonna do here.
             # Get the type
-            return expr.emit_llvm_expr(self._module, builder)
+            return expr.emit(self._module, builder)
 
         if isinstance(expr, ast.CallExpr):
-            return expr.emit_llvm_expr(self._module, builder)
+            return expr.emit(self._module, builder)
 
         if isinstance(expr, ast.Struct):
             pass
@@ -153,7 +152,7 @@ class CodeGen:
         if isinstance(expr, ast.Variant):
             pass
 
-        if isinstance(expr, ast.CPointerCastExpr):
+        if isinstance(expr, ast.CPointerExpr):
             value = self._compile_expr(expr.value, builder, local_vars)
             if value.type.is_pointer:
                 return value
@@ -162,7 +161,7 @@ class CodeGen:
             builder.store(value, stack_slot)
             return stack_slot
 
-        if isinstance(expr, ast.CVoidCastExpr):
+        if isinstance(expr, ast.CVoidExpr):
             value = self._compile_expr(expr.value, builder, local_vars)
             return builder.bitcast(value, ir.IntType(8).as_pointer())
 
@@ -180,8 +179,7 @@ class CodeGen:
         params = function_type.parameters
         code_block_vars = {}
         for arg, param in zip(function_type.llvm_value.args, params):
-            param_llvm_type = param.type.get_llvm_type(self._module)
-            alloca = builder.alloca(param_llvm_type, name=param.name)
+            alloca = builder.alloca(param.type.llvm_type, name=param.name)
             value_expr = param.type.get_value_expr(param.location)
             value_expr.llvm_value = alloca
             builder.store(arg, value_expr.llvm_value)
@@ -216,7 +214,7 @@ class CodeGen:
 
             if isinstance(var, ast.Const):
                 debug('compile', f'Compiling constant {name}')
-                llvm_type = var.type.get_llvm_type(self._module)
+                llvm_type = var.type.llvm_type
                 const = ir.GlobalVariable(self._llvm_module, llvm_type, name)
                 const.initializer = ir.Constant(llvm_type, var.value.value)
                 const.global_constant = True
@@ -224,30 +222,27 @@ class CodeGen:
             elif isinstance(var, ast.CFunction):
                 debug('compile', f'Compiling cfn {name}')
                 var.llvm_value = ir.Function(
-                    self._llvm_module,
-                    var.type.get_llvm_type(self._module),
-                    name
+                    self._llvm_module, var.type.llvm_type, name
                 )
             elif isinstance(var, ast.CStruct):
                 var.llvm_value = ir.GlobalVariable(
-                    self._llvm_module, var.get_llvm_type(self._module), name
+                    self._llvm_module, var.llvm_type, name
                 )
             elif isinstance(var, ast.CUnion):
                 var.llvm_value = ir.GlobalVariable(
-                    self._llvm_module, var.get_llvm_type(self._module), name
+                    self._llvm_module, var.llvm_type, name
                 )
             # elif isinstance(var, ast.Struct):
-            #     llvm_type = var.value.get_llvm_type(self._module)
+            #     llvm_type = var.value.llvm_type
             #     ir.GlobalVariable(self._llvm_module, llvm_type, name)
             elif isinstance(var, ast.Function):
                 for mm in var.type.monomorphizations:
-                    llvm_type = mm.get_llvm_type(self._module)
                     if var.type.is_polymorphic:
                         func_name = f'_Sylva_{mm.type.mangle()}'
                     else:
                         func_name = name
                     mm.llvm_value = ir.Function(
-                        self._llvm_module, llvm_type, func_name
+                        self._llvm_module, mm.llvm_type, func_name
                     )
                     self._compile_function(mm, var.code)
             # elif isinstance(val, ast.CFunctionType):
@@ -279,7 +274,7 @@ class CodeGen:
         llvm_mod_ref = llvmlite.binding.parse_assembly(str(llvm_module))
         llvm_mod_ref.verify()
 
-        return self._module.target.machine.emit_object(llvm_mod_ref), []
+        return get_target().machine.emit_object(llvm_mod_ref), []
 
     def get_identified_type(self, name):
         return self._llvm_module.context.get_identified_type(name)

@@ -4,12 +4,12 @@ from attrs import define, field
 
 from .. import errors, utils
 from .self_referential import SelfReferentialMixIn
-from .sylva_type import LLVMTypeMixIn, SylvaType
+from .sylva_type import SylvaType
 from .type_mapping import Field
 
 
 @define(eq=False, slots=True)
-class BaseUnionType(SylvaType, LLVMTypeMixIn, SelfReferentialMixIn):
+class BaseUnionType(SylvaType, SelfReferentialMixIn):
     name: str | None
     implementations: typing.List = []
     fields: typing.List[Field] = field(default=[])
@@ -21,12 +21,12 @@ class BaseUnionType(SylvaType, LLVMTypeMixIn, SelfReferentialMixIn):
         if dupes:
             raise errors.DuplicateFields(self, dupes)
 
-    def get_largest_field(self, module):
+    def get_largest_field(self):
         largest_field = self.fields[0]
         for f in self.fields[1:]:
-            if f.get_size(module) > largest_field.get_size(module):
+            if f.get_size() > largest_field.get_size():
                 largest_field = f
-        return largest_field.get_llvm_type(module)
+        return largest_field.llvm_type
 
     # pylint: disable=unused-argument
     def get_attribute(self, location, name):

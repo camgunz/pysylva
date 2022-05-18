@@ -4,11 +4,11 @@ from attrs import define, field
 
 from .. import errors, utils
 from .expr import Expr
-from .sylva_type import LLVMTypeMixIn, SylvaType
+from .sylva_type import SylvaType
 
 
 @define(eq=False, slots=True)
-class EnumType(SylvaType, LLVMTypeMixIn):
+class EnumType(SylvaType):
     values: typing.List[Expr] = field()
     implementations: typing.List = []
 
@@ -27,9 +27,10 @@ class EnumType(SylvaType, LLVMTypeMixIn):
             if value.type != first_type:
                 raise errors.MismatchedEnumMemberType(first_type, value)
 
-    def get_llvm_type(self, module):
+    @llvm_type.default
+    def _llvm_type_factory(self):
         # pylint: disable=unsubscriptable-object
-        return self.values[0].type.get_llvm_type(module)
+        return self.values[0].type.llvm_type
 
     def get_attribute(self, location, name):
         for val in self.values: # pylint: disable=not-an-iterable

@@ -2,51 +2,52 @@ import typing
 
 from attrs import define
 
-from . import ast
+from .base import Node
+from .expr import Expr
 
 
 @define(eq=False, slots=True)
-class Stmt(ast.ASTNode):
+class Stmt(Node):
     pass
+
+
+@define(eq=False, slots=True)
+class StmtBlock(Stmt):
+    code: typing.List[Expr | Stmt]
 
 
 @define(eq=False, slots=True)
 class LetStmt(Stmt):
     name: str
-    expr: ast.Expr
+    expr: Expr
 
 
 @define(eq=False, slots=True)
-class StmtBlock(Stmt):
-    code: typing.List[ast.Expr | Stmt]
-
-
-@define(eq=False, slots=True)
-class Break(Stmt):
+class BreakStmt(Stmt):
     pass
 
 
 @define(eq=False, slots=True)
-class Continue(Stmt):
+class ContinueStmt(Stmt):
     pass
 
 
 @define(eq=False, slots=True)
-class Return(Stmt):
-    expr: ast.Expr
+class ReturnStmt(Stmt):
+    expr: Expr
 
 
 @define(eq=False, slots=True)
-class If(StmtBlock):
-    conditional_expr: ast.Expr
-    else_code: typing.List[ast.Expr | Stmt]
+class IfStmt(StmtBlock):
+    conditional_expr: Expr
+    else_code: typing.List[Expr | Stmt]
 
 
 @define(eq=False, slots=True)
-class Loop(StmtBlock):
+class LoopStmt(StmtBlock):
     pass
 
 
 @define(eq=False, slots=True)
-class While(StmtBlock):
-    conditional_expr: ast.Expr
+class WhileStmt(StmtBlock):
+    conditional_expr: Expr

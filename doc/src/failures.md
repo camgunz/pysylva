@@ -2,16 +2,16 @@
 
 Sometimes things don't go your way. While we can't anticipate everything (gamma
 rays, children), it is within our power to anticipate a great number of
-failures. Sylva does this using variants, specifically a `Result` `variant`,
-very similar to Rust:
+failures. Sylva does this using variants, specifically a `Result` variant, very
+similar to Rust:
 
 ```sylva
-variant Result<ok_type> {
+variant Result(ok_type) {
   OK: ok_type,
   Fail: Stringable,
 }
 
-fn on_failure<ok_type> (
+fn on_failure(ok_type) (
   r: Result(ok_type),
   handler: fntype(s: Stringable)
 ): Result(ok_type, failed_type) {
@@ -23,7 +23,7 @@ fn on_failure<ok_type> (
   return r
 }
 
-fn ok_or_die<ok_type> (
+fn ok_or_die(ok_type) (
   r: Result(ok_type)
 ): ok_type {
   match (r) {
@@ -35,10 +35,10 @@ fn ok_or_die<ok_type> (
 
 [Errors are values](https://blog.golang.org/errors-are-values); we would go so
 far as to not call them "errors"--which are *mistakes*--but rather "failures",
-which are a *lack of success*. Sylva knows what is and isn't valid Sylva and is
-thus qualified to judge errors there (say at lex or parse time), but is too
-polite to say what is or isn't a mistake in an application's behavior. To that
-end, it provides facilities to group results into successes or failures:
+which are *the absence of success*. Sylva knows what is and isn't valid Sylva
+and is thus qualified to judge errors there (say at lex or parse time), but is
+too polite to say what is or isn't a mistake in an application's behavior. To
+that end, it provides facilities to group results into successes or failures:
 
 ```sylva
 req sys
@@ -58,7 +58,7 @@ fn main() {
 This simple function `increment` attempts to return the result of `age +
 Age(1)`, and this surprisingly yields an error. This is because that expression
 has the potential to extend the value beyond its range--imagine if `age` were
-already `Age(250u8)`--and the operation returns a `Result<age>`, but
+already `Age(250u8)`--and the operation returns a `Result(age)`, but
 `increment`'s return value is `Age`. Simply changing the function's return type
 fixes this error:
 
@@ -67,7 +67,7 @@ req sys
 
 range Age 0u8..250u8
 
-fn increment(age: Age): Result<age> {
+fn increment(age: Age): Result(age) {
   return age++ # Potential failure!
 }
 
@@ -143,7 +143,7 @@ enum MathFailure {
   NegativeSquareRoot: "Negative square root"
 }
 
-alias MathResult: Result<f64>
+alias MathResult: Result(f64)
 
 fn div(x: f64, y: f64): MathResult {
   if (y == 0f64) {
@@ -208,7 +208,7 @@ mod checked {
         NegativeSquareRoot,
     }
 
-    pub type MathResult = Result<f64, MathError>;
+    pub type MathResult = Result(f64, MathError);
 
     pub fn div(x: f64, y: f64) -> MathResult {
         if y == 0.0 {

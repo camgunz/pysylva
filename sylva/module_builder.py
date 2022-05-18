@@ -214,7 +214,7 @@ class ModuleBuilder(lark.Visitor):
 
             is_exclusive = len(expr.children) >= 2 and expr.children[1] == '!'
 
-            return ast.CPointerCastExpr(
+            return ast.CPointerExpr(
                 location=location,
                 type=ast.CPointerType(
                     location=location,
@@ -227,30 +227,30 @@ class ModuleBuilder(lark.Visitor):
             )
 
         if expr.data == 'cvoid_expr':
-            return ast.CVoidCastExpr(
+            return ast.CVoidExpr(
                 location=location,
                 expr=self._handle_expr(expr.children[0], scope)
             )
 
         if expr.data == 'bool_expr':
             raw_value = expr.children[0].value
-            return ast.BooleanScalarExpr.FromRawValue(location, raw_value)
+            return ast.BoolLiteralExpr.FromRawValue(location, raw_value)
 
         if expr.data == 'complex_expr':
             raw_value = expr.children[0].value
-            return ast.ComplexScalarExpr.FromRawValue(location, raw_value)
+            return ast.ComplexLiteralExpr.FromRawValue(location, raw_value)
 
         if expr.data == 'float_expr':
             raw_value = expr.children[0].value
-            return ast.FloatScalarExpr.FromRawValue(location, raw_value)
+            return ast.FloatLiteralExpr.FromRawValue(location, raw_value)
 
         if expr.data == 'int_expr':
             raw_value = expr.children[0].value
-            return ast.IntegerScalarExpr.FromRawValue(location, raw_value)
+            return ast.IntLiteralExpr.FromRawValue(location, raw_value)
 
         if expr.data == 'rune_expr':
             raw_value = expr.children[0].value
-            return ast.RuneScalarExpr.FromRawValue(location, raw_value)
+            return ast.RuneLiteralExpr.FromRawValue(location, raw_value)
 
         if expr.data == 'string_expr':
             raw_value = expr.children[0].value
@@ -291,7 +291,9 @@ class ModuleBuilder(lark.Visitor):
                 if reflection:
                     raise errors.ImpossibleReflection(location)
 
-                new_type = type.lookup_attribute(
+                # [NOTE] This seems like the wrong place to do this, but
+                #        Modules are special
+                new_type = type.emit_attribute_lookup(
                     location, attribute_name, self._module
                 )
 
@@ -658,15 +660,18 @@ class ModuleBuilder(lark.Visitor):
                     index=i,
                 )
             )
+
+        c_struct_type = ast.CStructType(
+            location=Location.FromTree(tree, self._stream),
+            name=tree.children[0].value,
+            fields=fields
+        )
+
         self._module.define(
             ast.CStruct(
                 location=Location.FromTree(tree, self._stream),
                 name=tree.children[0].value,
-                type=ast.CStructType(
-                    location=Location.FromTree(tree, self._stream),
-                    name=tree.children[0].value,
-                    fields=fields
-                )
+                type=c_struct_type
             )
         )
 

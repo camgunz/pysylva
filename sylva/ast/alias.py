@@ -1,7 +1,7 @@
 from attrs import define, field
 
 from .. import errors
-from .decl import Decl
+from .base import Decl
 from .sylva_type import SylvaType
 
 

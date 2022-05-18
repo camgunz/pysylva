@@ -3,41 +3,6 @@ import enum
 from attrs import define
 
 
-@define(eq=False, slots=True)
-class LookupMixIn:
-    pass
-
-
-@define(eq=False, slots=True)
-class AttributeLookupMixIn(LookupMixIn):
-
-    def get_attribute(self, location, name):
-        pass
-
-    def lookup_attribute(self, location, name, module):
-        raise NotImplementedError()
-
-
-@define(eq=False, slots=True)
-class IndexMixIn:
-
-    def get_slot(self, location, index):
-        pass
-
-    def index_slot(self, location, index):
-        raise NotImplementedError()
-
-
-@define(eq=False, slots=True)
-class ReflectionLookupMixIn(LookupMixIn):
-
-    def get_reflection_attribute_type(self, location, name, module):
-        pass
-
-    def reflect_attribute(self, location, name, module):
-        raise NotImplementedError()
-
-
 @enum.unique
 class Operator(str, enum.Enum):
 

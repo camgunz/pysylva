@@ -4,9 +4,9 @@ from attrs import define
 from llvmlite import ir # type: ignore
 
 from .. import utils
-from .defs import Def, ParamLLVMDefMixIn
+from .defs import ParamDef
 from .operator import AttributeLookupMixIn
-from .sylva_type import ParamTypeMixIn, SylvaType
+from .sylva_type import SylvaParamType
 from .union import BaseUnionType
 from .type_mapping import Field
 
@@ -23,20 +23,21 @@ class MonoVariantType(BaseUnionType, AttributeLookupMixIn):
             if f.name == name:
                 return f
 
-    def get_llvm_type(self, module):
+    @llvm_type.default
+    def _llvm_type_factory(self):
         tag_bit_width = utils.round_up_to_multiple(len(self.fields), 8)
         return ir.LiteralStructType([
-            self.get_largest_field(module), ir.IntType(tag_bit_width)
+            self.get_largest_field(), ir.IntType(tag_bit_width)
         ])
 
 
 @define(eq=False, slots=True)
-class VariantType(SylvaType, ParamTypeMixIn):
+class VariantType(SylvaParamType):
     name: str
     monomorphizations: typing.List[MonoVariantType] = []
     implementations: typing.List = []
 
 
 @define(eq=False, slots=True)
-class VariantDef(Def, ParamLLVMDefMixIn):
-    pass
+class VariantDef(ParamDef):
+    type: VariantType

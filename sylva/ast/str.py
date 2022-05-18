@@ -5,9 +5,9 @@ from attrs import define
 from .array import MonoArrayType
 from .expr import LiteralExpr
 from .function import FunctionExpr, FunctionType
-from .number import IntegerType, IntegerLiteralExpr
+from .number import IntType, IntLiteralExpr
 from .operator import AttributeLookupMixIn
-from .statement import Return
+from .statement import ReturnStmt
 from .type_mapping import Attribute
 from .type_singleton import TypeSingletons
 from ..location import Location
@@ -16,7 +16,7 @@ from ..location import Location
 @define(eq=False, slots=True)
 class StrType(MonoArrayType):
     value: bytearray
-    element_type: IntegerType = TypeSingletons.I8.value
+    element_type: IntType = TypeSingletons.I8.value
     implementations: typing.List = []
 
     def mangle(self):
@@ -28,11 +28,11 @@ class StrType(MonoArrayType):
         return cls(location=location, element_count=len(value), value=value)
 
     def get_value_expr(self, location):
-        return StrExpr(location=location, type=self, value=self.value)
+        return StrLiteralExpr(location=location, type=self, value=self.value)
 
 
 @define(eq=False, slots=True)
-class StrExpr(LiteralExpr, AttributeLookupMixIn):
+class StrLiteralExpr(LiteralExpr, AttributeLookupMixIn):
     type: StrType
 
     # pylint: disable=arguments-differ
@@ -58,16 +58,16 @@ class StrExpr(LiteralExpr, AttributeLookupMixIn):
                 )
             )
 
-    def lookup_attribute(self, location, name, module):
+    def emit_attribute_lookup(self, location, name, module):
         if name == 'get_length':
             return FunctionExpr(
                 name='get_length',
                 location=Location.Generate(),
                 type=self.get_attribute(location, 'get_length')[1],
                 code=[
-                    Return(
+                    ReturnStmt(
                         location=Location.Generate(),
-                        expr=IntegerLiteralExpr.Platform(
+                        expr=IntLiteralExpr.Platform(
                             location=location,
                             signed=False,
                             value=len(self.value)

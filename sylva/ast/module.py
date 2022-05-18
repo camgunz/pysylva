@@ -9,7 +9,7 @@ from ..module_builder import ModuleBuilder
 from ..parser import Parser
 from ..program import Program
 from ..stream import Stream
-from .decl import Decl
+from .base import Decl
 from .defs import Def
 from .operator import AttributeLookupMixIn
 from .requirement import RequirementDecl
@@ -39,7 +39,7 @@ class ModuleDecl(Decl):
 
 
 @define(eq=False, slots=True)
-class Module(Def, AttributeLookupMixIn):
+class ModuleDef(Def, AttributeLookupMixIn):
     program: Program
     streams: typing.List[Stream]
     requirement_statements: typing.List[RequirementDecl]
@@ -58,10 +58,6 @@ class Module(Def, AttributeLookupMixIn):
     @type.default
     def _type_factory(self):
         self.type = ModuleType(Location.Generate(), self)
-
-    @property
-    def target(self):
-        return self.program.target
 
     def __repr__(self):
         return 'Module(%r, %r, %r, %r)' % (

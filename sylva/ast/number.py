@@ -2,16 +2,16 @@ import typing
 
 from llvmlite import ir # type: ignore
 
-from attrs import define
+from attrs import define, field
 
 from .expr import LiteralExpr, ValueExpr
-from .sylva_type import LLVMTypeMixIn, SylvaType
+from .sylva_type import SylvaType
 from .. import _SIZE_SIZE, utils
 from ..location import Location
 
 
 @define(eq=False, slots=True)
-class NumericType(SylvaType, LLVMTypeMixIn):
+class NumericType(SylvaType):
     pass
 
 
@@ -23,6 +23,7 @@ class SizedNumericType(NumericType):
 
 @define(eq=False, slots=True)
 class ComplexType(SizedNumericType):
+    llvm_type = field(init=False)
 
     def mangle(self):
         base = f'c{self.bits}'
@@ -31,22 +32,24 @@ class ComplexType(SizedNumericType):
     def get_value_expr(self, location):
         return ComplexExpr(location=location, type=self)
 
-    def get_llvm_type(self, module):
+    @llvm_type.default
+    def _llvm_type_factory(self):
         if self.bits == 8:
-            return ir.HalfType()
+            self.llvm_type = ir.HalfType()
         if self.bits == 16:
-            return ir.FloatType()
+            self.llvm_type = ir.FloatType()
         if self.bits == 32:
-            return ir.DoubleType()
+            self.llvm_type = ir.DoubleType()
         # [NOTE] llvmlite won't do float types > 64 bits
         if self.bits == 64:
-            return ir.DoubleType()
+            self.llvm_type = ir.DoubleType()
         if self.bits == 128:
-            return ir.DoubleType()
+            self.llvm_type = ir.DoubleType()
 
 
 @define(eq=False, slots=True)
 class FloatType(SizedNumericType):
+    llvm_type = field(init=False)
 
     def mangle(self):
         base = f'f{self.bits}'
@@ -55,24 +58,26 @@ class FloatType(SizedNumericType):
     def get_value_expr(self, location):
         return FloatExpr(location=location, type=self)
 
-    def get_llvm_type(self, module):
+    @llvm_type.default
+    def _llvm_type_factory(self):
         # [NOTE] llvmlite won't do float types < 16 bits
         if self.bits == 8:
-            return ir.HalfType()
+            self.llvm_type = ir.HalfType()
         if self.bits == 16:
-            return ir.HalfType()
+            self.llvm_type = ir.HalfType()
         if self.bits == 32:
-            return ir.FloatType()
+            self.llvm_type = ir.FloatType()
         if self.bits == 64:
-            return ir.DoubleType()
+            self.llvm_type = ir.DoubleType()
         # [NOTE] llvmlite won't do float types > 64 bits
         if self.bits == 128:
-            return ir.DoubleType()
+            self.llvm_type = ir.DoubleType()
 
 
 @define(eq=False, slots=True)
-class IntegerType(SizedNumericType):
+class IntType(SizedNumericType):
     signed: bool
+    llvm_type = field(init=False)
     implementations: typing.List = []
 
     def mangle(self):
@@ -89,9 +94,10 @@ class IntegerType(SizedNumericType):
         return cls(Location.Generate(), bits=_SIZE_SIZE, signed=signed)
 
     def get_value_expr(self, location):
-        return IntegerExpr(location=location, type=self)
+        return IntExpr(location=location, type=self)
 
-    def get_llvm_type(self, module):
+    @llvm_type.default
+    def _llvm_type_factory(self):
         return ir.IntType(self.bits)
 
 
@@ -101,16 +107,16 @@ class NumericLiteralExpr(LiteralExpr):
 
 
 @define(eq=False, slots=True)
-class IntegerLiteralExpr(NumericLiteralExpr):
-    type: IntegerType
+class IntLiteralExpr(NumericLiteralExpr):
+    type: IntType
 
     @classmethod
     def Platform(cls, location, signed, value):
-        return cls(location, IntegerType(_SIZE_SIZE, signed=signed), value)
+        return cls(location, IntType(_SIZE_SIZE, signed=signed), value)
 
     @classmethod
     def SmallestThatHolds(cls, location, value):
-        type = IntegerType(size=utils.smallest_uint(value), signed=False)
+        type = IntType(size=utils.smallest_uint(value), signed=False)
         return cls(location=location, type=type, value=value)
 
     @classmethod
@@ -149,11 +155,11 @@ class IntegerLiteralExpr(NumericLiteralExpr):
         elif raw_value.endswith('u128'):
             signed, size, value = False, 128, int(raw_value[:-4], base)
         else: # [NOTE] Warn here?
-            raise ValueError('Integer missing signedness and/or size')
+            raise ValueError('Int missing signedness and/or size')
 
         return cls(
             location=location,
-            type=IntegerType(location=location, bits=size, signed=signed),
+            type=IntType(location=location, bits=size, signed=signed),
             value=value
         )
 
@@ -167,8 +173,8 @@ class IntegerLiteralExpr(NumericLiteralExpr):
 
 
 @define(eq=False, slots=True)
-class IntegerExpr(ValueExpr):
-    type: IntegerType
+class IntExpr(ValueExpr):
+    type: IntType
 
 
 @define(eq=False, slots=True)

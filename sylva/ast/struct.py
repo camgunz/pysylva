@@ -4,18 +4,16 @@ from attrs import define, field
 from llvmlite import ir # type: ignore
 
 from .. import errors, utils
+from .defs import Def
 from .operator import AttributeLookupMixIn
-from .pointer import BasePointerType
+from .pointer import BasePointerType, GetElementPointerExpr
 from .self_referential import SelfReferentialMixIn
-from .sylva_type import LLVMTypeMixIn, ParamTypeMixIn, SylvaType
+from .sylva_type import SylvaParamType, SylvaType
 from .type_mapping import Field
 
 
 @define(eq=False, slots=True)
-class BaseStructType(SylvaType,
-                     LLVMTypeMixIn,
-                     AttributeLookupMixIn,
-                     SelfReferentialMixIn):
+class BaseStructType(SylvaType, AttributeLookupMixIn, SelfReferentialMixIn):
     name: str | None
     fields: typing.List[Field] = field()
     implementations: typing.List = []
@@ -45,31 +43,6 @@ class BaseStructType(SylvaType,
             if f.name == name:
                 return f
 
-    def get_llvm_type(self, module):
-        if self.name is None:
-            for f in self.fields:
-                if not isinstance(f.type, BasePointerType):
-                    continue
-                if not f.type.referenced_type == self:
-                    continue
-                raise Exception('Cannot have self-referential struct literals')
-            return ir.LiteralStructType([
-                f.type.get_llvm_type(module) for f in self.fields
-            ])
-
-        struct = module.get_identified_type(self.name)
-        fields = []
-        for f in self.fields:
-            if not isinstance(f.type, BasePointerType):
-                fields.append(f.type.get_llvm_type(module))
-            elif not f.type.referenced_type == self:
-                fields.append(f.type.get_llvm_type(module))
-            else:
-                fields.append(ir.PointerType(struct))
-        struct.set_body(*fields)
-
-        return struct
-
 
 @define(eq=False, slots=True)
 class MonoStructType(BaseStructType):
@@ -77,7 +50,7 @@ class MonoStructType(BaseStructType):
 
 
 @define(eq=False, slots=True)
-class StructType(SylvaType, ParamTypeMixIn):
+class StructType(SylvaParamType):
     name: str | None
     monomorphizations: typing.List[MonoStructType] = []
     implementations: typing.List = []
@@ -100,7 +73,8 @@ class StructType(SylvaType, ParamTypeMixIn):
 
 
 @define(eq=False, slots=True)
-class Struct(TypeDef, AttributeLookupMixIn):
+class StructDef(Def, AttributeLookupMixIn):
+    type: MonoStructType # [FIXME]
     llvm_value: None | ir.Value = None
 
     def get_attribute(self, location, name):
@@ -109,11 +83,12 @@ class Struct(TypeDef, AttributeLookupMixIn):
             raise errors.NoSuchField(location, name)
         return f
 
-    def lookup_attribute(self, location, name, module):
+    # pylint: disable=unused-argument
+    def lookup_attribute(self, location, name):
         f = self.get_attribute(location, name)
         if not f:
             raise errors.NoSuchField(location, name)
-        return ast.GetElementPointerExpr(
+        return GetElementPointerExpr(
             location, type=f.type, obj=self, index=f.index, name=name
         )
 

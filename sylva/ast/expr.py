@@ -5,7 +5,9 @@ from llvmlite import ir # type: ignore
 
 from .. import errors
 from .base import Node
+from .bool import BoolType
 from .operator import AttributeLookupMixIn, Operator, ReflectionLookupMixIn
+from .number import IntType, NumericType
 from .sylva_type import LLVMTypeMixIn, SylvaType
 
 
@@ -14,99 +16,42 @@ class Expr(Node, ReflectionLookupMixIn):
     type = field()
 
     # pylint: disable=no-self-use
-    def get_reflection_attribute_type(self, location, name, module):
+    def get_reflection_attribute_type(self, location, name):
         from .array import ArrayType
         if name == 'type':
             return SylvaType
         if name == 'bytes':
             return ArrayType
 
-    def reflect_attribute(self, location, name, module):
+    def reflect_attribute(self, location, name):
         if name == 'type':
             return self.type
         if name == 'bytes':
             pass
 
-
-@define(eq=False, slots=True)
-class LLVMExprMixIn:
-
-    def emit_llvm_expr(self, module, builder):
+    def emit(self, module, builder):
         raise NotImplementedError()
 
 
 @define(eq=False, slots=True)
-class LLVMValueExprMixIn(LLVMExprMixIn):
+class ValueExpr(Expr):
     llvm_value: None | ir.Value
 
-    def emit_llvm_expr(self, module, builder):
+    def emit(self, module, builder):
         return builder.load(self.llvm_value)
 
 
 @define(eq=False, slots=True)
-class LLVMLiteralExprMixIn(LLVMExprMixIn):
-    type: LLVMTypeMixIn
-    value: typing.Any
-
-    def emit_llvm_expr(self, module, builder):
-        return self.type.get_llvm_type(module)(self.value)
-
-
-@define(eq=False, slots=True)
-class LiteralExpr(Expr, LLVMLiteralExprMixIn):
+class LiteralExpr(Expr):
+    type: SylvaType
     value: bool | float | int | str
 
-
-class ValueExpr(Expr, LLVMValueExprMixIn):
-    pass
-
-
-@define(eq=False, slots=True)
-class BaseLookupExpr(Expr, AttributeLookupMixIn, ReflectionLookupMixIn):
-
-    def get_attribute(self, location, name):
-        return self.type.get_attribute(location, name)
-
-    def get_reflection_attribute_type(self, location, name, module):
-        return self.type.get_reflection_attribute_type(location, name, module)
+    def emit(self, module, builder):
+        return self.type.llvm_type(self.value)
 
 
 @define(eq=False, slots=True)
-class LookupExpr(BaseLookupExpr):
-    name: str
-
-
-@define(eq=False, slots=True)
-class AttributeLookupExpr(BaseLookupExpr):
-    expr: Expr
-    attribute: str | int
-    reflection: bool
-
-
-@define(eq=False, slots=True)
-class FieldIndexLookupExpr(Expr):
-    expr: Expr
-    index: int
-
-    # def emit(self, builder, name=None):
-    #     indices = [self.index]
-    #     expr = self.expr # struct, cstruct... array?
-    #     while isinstance(expr, FieldIndexLookupExpr):
-    #         expr = expr.expr
-    #         indices.insert(0, expr.index)
-    #     return builder.gep(
-    #         self.expr.eval(scope), indices, inbounds=True, name=name
-    #     )
-
-
-@define(eq=False, slots=True)
-class ReflectionLookupExpr(Expr):
-    expr: Expr
-    name: str
-
-
-@define(eq=False, slots=True)
-class CallExpr(LLVMExpr):
+class CallExpr(Expr):
     function: Expr
     arguments: typing.List[Expr]
     monomorphization_index: int | None = None
@@ -125,7 +70,7 @@ class CallExpr(LLVMExpr):
             monomorphization_index=monomorphization_index
         )
 
-    def emit_llvm_expr(self, module, builder):
+    def emit(self, module, builder):
         return builder.call(
             self.llvm_function, self.llvm_arguments, cconv='fastcc'
         )
@@ -144,14 +89,14 @@ class UnaryExpr(Expr):
 
     # pylint: disable=unused-argument
     @operator.validator
-    def check_value(self, attribute, operator):
-        if operator == '+' and not isinstance(self.expr.type, NumericType):
+    def check_value(self, attribute, op):
+        if op == '+' and not isinstance(self.expr.type, NumericType):
             raise errors.InvalidExpressionType(self.location, 'number')
-        if operator == '-' and not isinstance(self.expr.type, NumericType):
+        if op == '-' and not isinstance(self.expr.type, NumericType):
             raise errors.InvalidExpressionType(self.location, 'number')
-        if operator == '~' and not isinstance(self.expr.type, IntegerType):
+        if op == '~' and not isinstance(self.expr.type, IntType):
             raise errors.InvalidExpressionType(self.location, 'integer')
-        if operator == '!' and not isinstance(self.expr.type, BooleanType):
+        if op == '!' and not isinstance(self.expr.type, BoolType):
             raise errors.InvalidExpressionType(self.location, 'bool')
 
 

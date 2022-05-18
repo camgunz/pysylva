@@ -1,6 +1,9 @@
 import ctypes
 
-import llvmlite.binding
+import llvmlite.binding # type: ignore
+
+
+_TARGET = None
 
 
 class Target:
@@ -27,3 +30,15 @@ class Target:
     @property
     def size_size(self):
         return self._size_size
+
+
+def get_target():
+    if _TARGET is None:
+        raise NameError('Target undefined')
+    return _TARGET
+
+
+def make_target(target_triple=None):
+    # pylint: disable=global-statement
+    global _TARGET
+    _TARGET = Target(target_triple=target_triple)

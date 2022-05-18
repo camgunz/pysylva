@@ -1,6 +1,6 @@
 from attrs import define
 
-from .decl import Decl
+from .base import Decl
 
 
 @define(eq=False, slots=True)
