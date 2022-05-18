@@ -1,5 +1,14 @@
 # To Do
 
+## `lookup_attribute`
+
+Something here about "look at fields, then impls, then fail" or whatever.
+
+## Dynarray
+
+ `dynarray` must be special, we must guarantee its `length` and `capacity`
+ members are correct, `[<type>...]` means `dynarray`.
+
 ## `str`s
 
 `str`s are odd types. Here's what we know:
@@ -45,7 +54,7 @@ of a string literal", I think all of our problems go away:
 say UTF-8 here)
 - We always know byte length
 - We can add an `element_count` specifier to a `str`:
-  - `struct Person { name: str(8), age: u8(0) }`
+  - `struct Person { name: str(8)(""), age: u8(0) }`
 
 ## Sized types
 
@@ -120,3 +129,13 @@ exprs? No, because const exprs have dynamic stringified sizes.
     - Memscope analysis depends on looking into functions, but we won't always
       have them. How can module definition files notate functions with their
       scoping requirements?
+
+- can't exref a ref
+- can't ref an exref
+- can't copy an exref
+- can't copy an aggregate
+- can't copy a pointer
+
+`self[i]`: ImpossibleCopy (could be exref, aggregate, or pointer)
+`&self[i]`: Duplicate reference (is an exref)
+`&self[i]!`: Duplicate reference (is a ref)

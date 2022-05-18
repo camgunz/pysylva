@@ -243,6 +243,14 @@ class DuplicateFields(LocationError):
         super().__init__(obj.location, f'Duplicate fields: {strlist(dupes)}')
 
 
+class DuplicateParameters(LocationError):
+
+    def __init__(self, obj, dupes):
+        super().__init__(
+            obj.location, f'Duplicate parameters: {strlist(dupes)}'
+        )
+
+
 class UnsizedCArray(LocationError):
 
     def __init__(self, location):

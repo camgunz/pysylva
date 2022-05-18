@@ -3,7 +3,8 @@ from collections import defaultdict
 import lark
 
 from . import errors
-from .ast import ModuleDecl, RequirementDecl
+from .ast.module import ModuleDecl
+from .ast.requirement import RequirementDecl
 from .location import Location
 from .module import Module
 from .parser import Parser

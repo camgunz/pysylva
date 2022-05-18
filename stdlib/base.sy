@@ -1,4 +1,123 @@
+mod base.dynarray
+
+impl dynarray(element_type) {
+  fn append_slot(self: &dynarray) {
+  }
+
+  fn assign(self: &dynarray) {
+  }
+
+  fn clear(self: &dynarray) {
+  }
+
+  fn compact(self: &dynarray) {
+  }
+
+  fn copy(self: &dynarray!, other: &dynarray!) {
+    other.ensure_capacity(self.length)
+    other.clear()
+    for (i: 0..self.length) {
+      other.set(i, self
+    }
+  }
+
+  fn delete(self: &dynarray) {
+  }
+
+  fn delete_unordered(self: &dynarray) {
+  }
+
+  fn delete_until(self: &dynarray) {
+  }
+
+  fn ends_with(self: &dynarray) {
+  }
+
+  fn ensure_capacity(self: &dynarray) {
+  }
+
+  fn equals(self: &dynarray) {
+  }
+
+  fn find(self: &dynarray) {
+  }
+
+  fn find_index(self: &dynarray) {
+  }
+
+  # OK, these are magic methods.
+
+  # fn index(self: &dynarray!, i: uint): IndexResult(element_type)
+  # fn index_ref(self: &dynarray!, i: uint): IndexResult(&element_type)
+  # fn index_ex(self: &dynarray!, i: uint): IndexResult(&element_type!)
+
+  fn init(self: &dynarray) {
+  }
+
+  fn init_capacity(self: &dynarray) {
+  }
+
+  fn init_length(self: &dynarray) {
+  }
+
+  fn init_length_capacity(self: &dynarray) {
+  }
+
+  fn insert_slot(self: &dynarray) {
+  }
+
+  fn move_left(self: &dynarray) {
+  }
+
+  fn move_right(self: &dynarray) {
+  }
+
+  fn pop(self: &dynarray) {
+  }
+
+  fn pop_left(self: &dynarray) {
+  }
+
+  fn pop_right(self: &dynarray) {
+  }
+
+  fn pop_unordered(self: &dynarray) {
+  }
+
+  fn prepend_slot(self: &dynarray) {
+  }
+
+  fn replace(self: &dynarray) {
+  }
+
+  fn seek(self: &dynarray) {
+  }
+
+  fn set(self: &dynarray) {
+  }
+
+  fn set_capacity(self: &dynarray) {
+  }
+
+  fn set_length(self: &dynarray) {
+  }
+
+  fn skip(self: &dynarray) {
+  }
+
+  fn starts_with(self: &dynarray) {
+  }
+
+  fn truncate(self: &dynarray) {
+  }
+
+  fn zero(self: &dynarray) {
+  }
+}
+
 mod base.string
+
+alias string: dynarray(u8)
 
 iface String {
   fn get_length(self: &String): uint
@@ -6,15 +125,13 @@ iface String {
 
 impl String(str) {
   fn get_length(self: &str): uint {
-    return self.length
+    return self::element_count
   }
 }
 
-alias constr: [u8...]
-
-impl str([u8...]) {
-  get_length: (self: &constr) {
-    return self::type::length
+impl String(string) {
+  fn get_length(self: &string): uint {
+    return self.length
   }
 }
 
