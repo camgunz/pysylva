@@ -4,10 +4,10 @@ from llvmlite import ir # type: ignore
 
 from attrs import define, field
 
-from .expr import LiteralExpr, ValueExpr
-from .sylva_type import SylvaType
 from .. import _SIZE_SIZE, utils
 from ..location import Location
+from .expr import LiteralExpr, ValueExpr
+from .sylva_type import SylvaType
 
 
 @define(eq=False, slots=True)

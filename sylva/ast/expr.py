@@ -6,9 +6,10 @@ from llvmlite import ir # type: ignore
 from .. import errors
 from .base import Node
 from .bool import BoolType
-from .operator import AttributeLookupMixIn, Operator, ReflectionLookupMixIn
+from .operator import Operator
 from .number import IntType, NumericType
-from .sylva_type import LLVMTypeMixIn, SylvaType
+from .reflection_lookup import ReflectionLookupMixIn
+from .sylva_type import SylvaType
 
 
 @define(eq=False, slots=True)

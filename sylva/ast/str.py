@@ -3,10 +3,10 @@ import typing
 from attrs import define
 
 from .array import MonoArrayType
+from .attribute_lookup import AttributeLookupMixIn
 from .expr import LiteralExpr
 from .function import FunctionExpr, FunctionType
 from .number import IntType, IntLiteralExpr
-from .operator import AttributeLookupMixIn
 from .statement import ReturnStmt
 from .type_mapping import Attribute
 from .type_singleton import TypeSingletons
@@ -58,7 +58,7 @@ class StrLiteralExpr(LiteralExpr, AttributeLookupMixIn):
                 )
             )
 
-    def emit_attribute_lookup(self, location, name, module):
+    def emit_attribute_lookup(self, location, name):
         if name == 'get_length':
             return FunctionExpr(
                 name='get_length',
@@ -76,14 +76,12 @@ class StrLiteralExpr(LiteralExpr, AttributeLookupMixIn):
                 ]
             )
 
-    def get_reflection_attribute_type(self, location, name, module):
+    def get_reflection_attribute_type(self, location, name):
         # pylint: disable=consider-using-in
         if name == 'size' or name == 'count':
-            return self.type.get_reflection_attribute_type(
-                location, name, module
-            )
+            return self.type.get_reflection_attribute_type(location, name)
 
-    def reflect_attribute(self, location, name, module):
+    def reflect_attribute(self, location, name):
         if name == 'size':
             return len(self.value)
         if name == 'count':

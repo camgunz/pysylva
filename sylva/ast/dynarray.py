@@ -7,10 +7,10 @@ from .array import ArrayType
 from .expr import LiteralExpr, ValueExpr
 from .function import FunctionType
 from .number import IntType
-from .operator import ReflectionLookupMixIn
 from .pointer import (
     GetElementPointerExpr, ReferencePointerExpr, ReferencePointerType
 )
+from .reflection_lookup import ReflectionLookupMixIn
 from .str import StrType
 from .type_singleton import TypeSingletons
 from .sylva_type import SylvaParamType, SylvaType

@@ -147,7 +147,7 @@ class ModuleBuilder(lark.Visitor):
                 while isinstance(ale.expr, ast.AttributeLookupExpr):
                     ale = func_expr.expr
                 func_type = ale.type
-            elif isinstance(func_expr, ast.LookupExpr):
+            elif isinstance(func_expr, ast.AttributeLookupExpr):
                 func_type = func_expr.type
             else:
                 raise Exception(
@@ -205,7 +205,9 @@ class ModuleBuilder(lark.Visitor):
         if expr.data == 'cpointer_expr':
             referenced_expr = self._handle_expr(expr.children[0], scope)
 
-            if not isinstance(referenced_expr, ast.BasePointerExpr):
+            if not isinstance(
+                    referenced_expr,
+                (ast.ReferencePointerExpr, ast.OwnedPointerExpr)):
                 referenced_type = referenced_expr.type
                 referenced_type_is_exclusive = True
             else:
@@ -254,7 +256,7 @@ class ModuleBuilder(lark.Visitor):
 
         if expr.data == 'string_expr':
             raw_value = expr.children[0].value
-            return ast.StrExpr.FromRawValue(location, raw_value)
+            return ast.StrLiteralExpr.FromRawValue(location, raw_value)
 
         if expr.data == 'array_expr':
             pass
@@ -301,7 +303,7 @@ class ModuleBuilder(lark.Visitor):
                     raise errors.NoSuchAttribute(location, attribute_name)
                 type = new_type
 
-            lookup_expr = ast.LookupExpr(
+            lookup_expr = ast.AttributeLookupExpr(
                 location=location, type=type, name=name
             )
 
@@ -314,7 +316,7 @@ class ModuleBuilder(lark.Visitor):
                 attribute_name = attribute_token.value
 
                 if reflection:
-                    if not isinstance(type, ast.Reflectable):
+                    if not isinstance(type, ast.ReflectionLookupMixIn):
                         raise errors.ImpossibleReflection(location)
 
                     attribute_type = type.get_reflection_attribute_type(
@@ -323,7 +325,7 @@ class ModuleBuilder(lark.Visitor):
                     if not attribute_type:
                         raise errors.NoSuchAttribute(location, attribute_name)
                 else:
-                    if not isinstance(type, ast.Dotable):
+                    if not isinstance(type, ast.AttributeLookupMixIn):
                         raise errors.ImpossibleLookup(location)
 
                     attribute = type.get_attribute(location, attribute_name)
@@ -581,40 +583,34 @@ class ModuleBuilder(lark.Visitor):
         raise NotImplementedError
 
     def alias_def(self, tree):
-        self._module.define(
-            ast.Alias(
-                location=Location.FromTree(tree, self._stream),
-                name=tree.children[0].value,
-                value=self._get_type(tree.children[1])
-            )
-        )
+        ast.AliasDef(
+            location=Location.FromTree(tree, self._stream),
+            name=tree.children[0].value,
+            value=self._get_type(tree.children[1])
+        ).define(self._module)
 
     def const_def(self, tree):
         value = self._handle_expr(tree.children[1], {})
-        self._module.define(
-            ast.Const(
-                location=Location.FromTree(tree, self._stream),
-                name=tree.children[0].value,
-                value=value,
-                type=value.type
-            )
-        )
+        ast.ConstDef(
+            location=Location.FromTree(tree, self._stream),
+            name=tree.children[0].value,
+            value=value,
+            type=value.type
+        ).define(self._module)
 
     def c_array_type_def(self, tree):
         debug('defer', 'Making array')
-        self._module.define(
-            ast.CArray(
+        ast.CArrayDef(
+            location=Location.FromTree(tree, self._stream),
+            name=tree.children[0].value,
+            type=ast.CArrayType(
                 location=Location.FromTree(tree, self._stream),
-                name=tree.children[0].value,
-                type=ast.CArrayType(
-                    location=Location.FromTree(tree, self._stream),
-                    element_type=self._get_type(
-                        tree.children[1].children[0], deferrable=True
-                    ),
-                    element_count=int(tree.children[1].children[2])
-                )
+                element_type=self._get_type(
+                    tree.children[1].children[0], deferrable=True
+                ),
+                element_count=int(tree.children[1].children[2])
             )
-        )
+        ).define(self._module)
 
     def c_function_type_def(self, tree):
         param_objs = tree.children[1].children[:-1]
@@ -635,17 +631,15 @@ class ModuleBuilder(lark.Visitor):
         else:
             return_type = None
 
-        self._module.define(
-            ast.CFunction(
+        ast.CFunctionDef(
+            location=Location.FromTree(tree, self._stream),
+            name=tree.children[0].value,
+            type=ast.CFunctionType(
                 location=Location.FromTree(tree, self._stream),
-                name=tree.children[0].value,
-                type=ast.CFunctionType(
-                    location=Location.FromTree(tree, self._stream),
-                    parameters=parameters,
-                    return_type=return_type
-                )
+                parameters=parameters,
+                return_type=return_type
             )
-        )
+        ).define(self._module)
 
     def c_struct_type_def(self, tree):
         fields = []
@@ -667,13 +661,11 @@ class ModuleBuilder(lark.Visitor):
             fields=fields
         )
 
-        self._module.define(
-            ast.CStruct(
-                location=Location.FromTree(tree, self._stream),
-                name=tree.children[0].value,
-                type=c_struct_type
-            )
-        )
+        ast.CStructDef(
+            location=Location.FromTree(tree, self._stream),
+            name=tree.children[0].value,
+            type=c_struct_type
+        ).define(self._module)
 
     def c_union_type_def(self, tree):
         fields = []
@@ -688,16 +680,13 @@ class ModuleBuilder(lark.Visitor):
                     index=i
                 )
             )
-        self._module.define(
-            ast.CUnion(
-                location=Location.FromTree(tree, self._stream),
-                name=tree.children[0].value,
-                type=ast.CUnionType(
-                    location=Location.FromTree(tree, self._stream),
-                    fields=fields
-                )
+        ast.CUnionDef(
+            location=Location.FromTree(tree, self._stream),
+            name=tree.children[0].value,
+            type=ast.CUnionType(
+                location=Location.FromTree(tree, self._stream), fields=fields
             )
-        )
+        ).define(self._module)
 
     def function_def(self, tree):
         function_type_def, code_block = tree.children
@@ -724,15 +713,13 @@ class ModuleBuilder(lark.Visitor):
         code = self._process_code_block(code_block, scope=scope)
 
         # [TODO] Monomorphize based on params (not strings) here
-        self._module.define(
-            ast.Function(
+        ast.FunctionDef(
+            location=Location.FromTree(tree, self._stream),
+            name=function_type_def.children[0].value,
+            type=ast.FunctionType.Def(
                 location=Location.FromTree(tree, self._stream),
-                name=function_type_def.children[0].value,
-                type=ast.FunctionType.Def(
-                    location=Location.FromTree(tree, self._stream),
-                    parameters=parameters,
-                    return_type=return_type
-                ),
-                code=code
-            )
-        )
+                parameters=parameters,
+                return_type=return_type
+            ),
+            code=code
+        ).define(self._module)

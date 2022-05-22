@@ -1,7 +1,7 @@
 from attrs import define, field
 from llvmlite import ir # type: ignore
 
-from .defs import Def
+from .defs import SelfReferentialDef
 from .union import BaseUnionType
 
 
@@ -15,5 +15,5 @@ class CUnionType(BaseUnionType):
 
 
 @define(eq=False, slots=True)
-class CUnionDef(Def):
+class CUnionDef(SelfReferentialDef):
     llvm_value: None | ir.Value = None

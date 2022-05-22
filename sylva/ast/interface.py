@@ -3,8 +3,8 @@ import typing
 from attrs import define, field
 
 from .. import errors, utils
+from .attribute_lookup import AttributeLookupMixIn
 from .defs import Def
-from .operator import AttributeLookupMixIn
 from .sylva_type import SylvaType
 from .type_mapping import Attribute
 

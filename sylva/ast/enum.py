@@ -9,8 +9,9 @@ from .sylva_type import SylvaType
 
 @define(eq=False, slots=True)
 class EnumType(SylvaType):
-    values: typing.List[Expr] = field()
+    llvm_type = field(init=False)
     implementations: typing.List = []
+    values: typing.List[Expr] = field(default=[])
 
     # pylint: disable=unused-argument
     @values.validator

@@ -1,4 +1,4 @@
-from attrs import define
+from attrs import define, field
 
 from .expr import Expr
 from .number import IntType
@@ -8,8 +8,9 @@ from .sylva_type import SylvaType
 
 @define(eq=False, slots=True)
 class CVoidType(SylvaType):
+    llvm_type = field(init=False)
 
-    # pylint: disable=unused-argument
+    # pylint: disable=unused-argument,no-self-use
     @llvm_type.default
     def _llvm_type_factory(self):
         raise RuntimeError('Cannot get the LLVM type of CVoid')

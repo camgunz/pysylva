@@ -3,7 +3,7 @@ import typing
 from attrs import define
 
 from .array import MonoArrayType
-from .defs import Def, LLVMDefMixIn
+from .defs import Def
 
 
 @define(eq=False, slots=True)
@@ -14,5 +14,5 @@ class CArrayType(MonoArrayType):
 
 
 @define(eq=False, slots=True)
-class CArrayDef(Def, LLVMDefMixIn):
+class CArrayDef(Def):
     pass

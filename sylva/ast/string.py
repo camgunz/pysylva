@@ -1,11 +1,11 @@
 import typing
 
-from attrs import define
+from attrs import define, field
 
+from .attribute_lookup import AttributeLookupMixIn
 from .dynarray import DynarrayExpr, MonoDynarrayType
 from .function import FunctionType
 from .number import IntType
-from .operator import AttributeLookupMixIn
 from .str import StrType
 from .type_mapping import Attribute
 from .type_singleton import TypeSingletons
@@ -14,6 +14,7 @@ from ..location import Location
 
 @define(eq=False, slots=True)
 class StringType(MonoDynarrayType, AttributeLookupMixIn):
+    llvm_type = field(init=False)
 
     def mangle(self):
         return '6string'

@@ -1,12 +1,12 @@
-from attrs import define, field
+from attrs import define
 
 from .. import errors
-from .base import Decl
+from .defs import Def
 from .sylva_type import SylvaType
 
 
 @define(eq=False, slots=True)
-class AliasDecl(Decl):
+class AliasDef(Def):
     value: str | SylvaType = field()
 
     # pylint: disable=unused-argument

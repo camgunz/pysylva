@@ -4,16 +4,15 @@ from attrs import define, field
 from llvmlite import ir # type: ignore
 
 from .. import errors, utils
-from .defs import Def
-from .operator import AttributeLookupMixIn
-from .pointer import BasePointerType, GetElementPointerExpr
-from .self_referential import SelfReferentialMixIn
+from .attribute_lookup import AttributeLookupMixIn
+from .defs import SelfReferentialParamDef
+from .pointer import GetElementPointerExpr
 from .sylva_type import SylvaParamType, SylvaType
 from .type_mapping import Field
 
 
 @define(eq=False, slots=True)
-class BaseStructType(SylvaType, AttributeLookupMixIn, SelfReferentialMixIn):
+class BaseStructType(SylvaType, AttributeLookupMixIn):
     name: str | None
     fields: typing.List[Field] = field()
     implementations: typing.List = []
@@ -73,8 +72,7 @@ class StructType(SylvaParamType):
 
 
 @define(eq=False, slots=True)
-class StructDef(Def, AttributeLookupMixIn):
-    type: MonoStructType # [FIXME]
+class StructDef(SelfReferentialParamDef, AttributeLookupMixIn):
     llvm_value: None | ir.Value = None
 
     def get_attribute(self, location, name):

@@ -1,11 +1,11 @@
 import typing
 
-from attrs import define
+from attrs import define, field
 from llvmlite import ir # type: ignore
 
 from .. import utils
-from .defs import ParamDef
-from .operator import AttributeLookupMixIn
+from .attribute_lookup import AttributeLookupMixIn
+from .defs import SelfReferentialParamDef
 from .sylva_type import SylvaParamType
 from .union import BaseUnionType
 from .type_mapping import Field
@@ -14,6 +14,7 @@ from .type_mapping import Field
 @define(eq=False, slots=True)
 class MonoVariantType(BaseUnionType, AttributeLookupMixIn):
     name: str
+    llvm_type = field(init=False)
     fields: typing.List[Field] = []
     implementations: typing.List = []
 
@@ -39,5 +40,5 @@ class VariantType(SylvaParamType):
 
 
 @define(eq=False, slots=True)
-class VariantDef(ParamDef):
-    type: VariantType
+class VariantDef(SelfReferentialParamDef):
+    pass

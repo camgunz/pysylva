@@ -9,9 +9,9 @@ from ..module_builder import ModuleBuilder
 from ..parser import Parser
 from ..program import Program
 from ..stream import Stream
+from .attribute_lookup import AttributeLookupMixIn
 from .base import Decl
 from .defs import Def
-from .operator import AttributeLookupMixIn
 from .requirement import RequirementDecl
 from .self_referential import SelfReferentialMixIn
 from .sylva_type import SylvaType
@@ -158,7 +158,7 @@ class ModuleDef(Def, AttributeLookupMixIn):
             location=location, name=name, type=attribute_type, index=None
         )
 
-    def lookup_attribute(self, location, name, module):
+    def emit_attribute_lookup(self, location, name):
         aliased_value = self.aliases.get(name)
         if aliased_value is not None:
             return aliased_value.value

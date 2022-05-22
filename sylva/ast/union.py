@@ -3,13 +3,12 @@ import typing
 from attrs import define, field
 
 from .. import errors, utils
-from .self_referential import SelfReferentialMixIn
 from .sylva_type import SylvaType
 from .type_mapping import Field
 
 
 @define(eq=False, slots=True)
-class BaseUnionType(SylvaType, SelfReferentialMixIn):
+class BaseUnionType(SylvaType):
     name: str | None
     implementations: typing.List = []
     fields: typing.List[Field] = field(default=[])

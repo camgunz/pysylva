@@ -1,7 +1,5 @@
 import enum
 
-from attrs import define
-
 
 @enum.unique
 class Operator(str, enum.Enum):

@@ -21,4 +21,4 @@ class IndexExpr(Expr):
 
     @type.default
     def _type_factory(self):
-        return self.expr.get_index_type(self.location, self.name)
+        return self.expr.get_index_type(self.location, self.index)

@@ -2,8 +2,8 @@ import typing
 
 from attrs import define, field
 
+from .attribute_lookup import AttributeLookupMixIn
 from .number import NumericType
-from .operator import AttributeLookupMixIn
 from .sylva_type import SylvaType
 
 

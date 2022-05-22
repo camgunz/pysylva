@@ -2,8 +2,8 @@ from attrs import define
 from llvmlite import ir # type: ignore
 
 from .. import errors
-from .defs import Def, LLVMDefMixIn
-from .operator import AttributeLookupMixIn
+from .attribute_lookup import AttributeLookupMixIn
+from .defs import Def
 from .pointer import GetElementPointerExpr
 from .struct import BaseStructType
 
@@ -14,7 +14,7 @@ class CStructType(BaseStructType):
 
 
 @define(eq=False, slots=True)
-class CStructDef(Def, LLVMDefMixIn, AttributeLookupMixIn):
+class CStructDef(Def, AttributeLookupMixIn):
     llvm_value: None | ir.Value = None
 
     def get_attribute(self, location, name):
@@ -23,7 +23,7 @@ class CStructDef(Def, LLVMDefMixIn, AttributeLookupMixIn):
             raise errors.NoSuchField(location, name)
         return f
 
-    def lookup_attribute(self, location, name, module):
+    def emit_attribute_lookup(self, location, name):
         f = self.get_attribute(location, name)
         if not f:
             raise errors.NoSuchField(location, name)

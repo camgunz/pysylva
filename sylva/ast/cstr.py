@@ -1,4 +1,4 @@
-from attrs import define
+from attrs import define, field
 from llvmlite import ir # type: ignore
 
 from .expr import LiteralExpr, ValueExpr
@@ -8,8 +8,9 @@ from .sylva_type import SylvaType
 
 @define(eq=False, slots=True)
 class CStrType(SylvaType):
+    llvm_type = field(init=False)
 
-    # pylint: disable=unused-argument
+    # pylint: disable=unused-argument,no-self-use
     @llvm_type.default
     def _llvm_type_factory(self):
         return ir.PointerType(ir.IntType(8))

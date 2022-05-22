@@ -1,11 +1,12 @@
 import typing
 
-from attrs import define
+from attrs import define, field
 from llvmlite import ir # type: ignore
 
 from .. import errors
-from .expr import Expr, LLVMExprMixIn, ValueExpr
-from .operator import AttributeLookupMixIn, ReflectionLookupMixIn
+from .expr import Expr, ValueExpr
+from .attribute_lookup import AttributeLookupMixIn
+from .reflection_lookup import ReflectionLookupMixIn
 from .sylva_type import SylvaType
 
 
@@ -14,6 +15,7 @@ class BasePointerType(SylvaType, AttributeLookupMixIn, ReflectionLookupMixIn):
     referenced_type: SylvaType
     is_exclusive: bool
     implementations: typing.List = []
+    llvm_type: ir.Type | None = field(init=False)
 
     @llvm_type.default
     def _llvm_type_factory(self):

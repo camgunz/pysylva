@@ -5,9 +5,9 @@ from llvmlite import ir # type: ignore
 
 from .expr import LiteralExpr, ValueExpr
 from .number import IntType
-from .operator import ReflectionLookupMixIn
 from .pointer import ReferencePointerExpr, ReferencePointerType
 from .range import RangeType
+from .reflection_lookup import ReflectionLookupMixIn
 from .str import StrType
 from .sylva_type import SylvaParamType, SylvaType
 from .. import errors

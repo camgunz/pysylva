@@ -1,4 +1,4 @@
-from .alias import AliasDecl
+from .alias import AliasDef
 from .array import MonoArrayType, ArrayType, ArrayLiteralExpr, ArrayExpr
 from .bool import BoolType, BoolLiteralExpr, BoolExpr
 from .carray import CArrayType, CArrayDef
@@ -16,6 +16,7 @@ from .cstr import CStrType, CStrLiteralExpr, CStrExpr
 from .cstruct import CStructType, CStructDef
 from .cunion import CUnionType, CUnionDef
 from .cvoid import CVoidType, CVoidExpr
+from .defs import DeferredTypeLookup
 from .dynarray import (
     MonoDynarrayType, DynarrayType, DynarrayLiteralExpr, DynarrayExpr
 )
@@ -47,7 +48,6 @@ from .pointer import (
 from .range import RangeType
 from .requirement import RequirementDecl
 from .rune import RuneType, RuneLiteralExpr, RuneExpr
-from .self_referential import DeferredTypeLookup
 from .statement import (
     LetStmt, BreakStmt, ContinueStmt, ReturnStmt, IfStmt, LoopStmt, WhileStmt
 )
@@ -59,7 +59,7 @@ from .type_singleton import TypeSingletons
 from .variant import MonoVariantType, VariantType, VariantDef
 
 # __all__ = [
-#     'AliasDecl',
+#     'AliasDef',
 #     'MonoArrayType',
 #     'ArrayType',
 #     'ArrayLiteralExpr',
