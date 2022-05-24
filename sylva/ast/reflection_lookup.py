@@ -1,23 +1,50 @@
 from attrs import define, field
 
+from .. import errors
 from .expr import Expr
+from .type_mapping import Attribute
+
+
+@define(eq=False, slots=True)
+class ReflectionAttribute(Attribute):
+    func = field()
+    index = field(init=False, default=None)
+
+    def __call__(self, obj, location):
+        return self.func(obj, location)
 
 
 @define(eq=False, slots=True)
 class ReflectionLookupMixIn:
+    reflection_attributes = field(init=False, default=[])
 
-    def get_reflection_attribute_type(self, location, name):
-        raise NotImplementedError()
+    def get_reflection_attribute(self, name):
+        for ra in self.reflection_attributes:
+            if ra.name == name:
+                return ra
+
+    def set_reflection_attribute(self, attribute):
+        existing_attribute = self.get_reflection_attribute(attribute.name)
+        if existing_attribute:
+            raise errors.DuplicateDefinition(
+                attribute.name,
+                attribute.location,
+                existing_attribute.location
+            )
+        self.reflection_attributes.append(attribute)
 
     def reflect_attribute(self, location, name):
-        raise NotImplementedError()
+        ra = self.get_reflection_attribute(name)
+        if ra is None:
+            raise errors.NoSuchAttribute(location, name)
+        return ra(self, location)
 
 
 @define(eq=False, slots=True)
 class ReflectionLookupExpr(Expr):
     type = field(init=False)
-    expr: Expr | ReflectionLookupMixIn
-    name: str
+    expr = field()
+    name = field()
 
     @type.default
     def _type_factory(self):
@@ -25,6 +52,5 @@ class ReflectionLookupExpr(Expr):
             self.location, self.name
         )
 
-    # pylint: disable=unused-argument
     def emit(self, module, builder, scope):
         return self.expr.reflect_attribute(self.location, self.name)

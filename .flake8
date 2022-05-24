@@ -1,0 +1,5 @@
+[flake8]
+ignore =
+    # Comment spaces
+    E261
+exclude = .git,sbuild,build,dist

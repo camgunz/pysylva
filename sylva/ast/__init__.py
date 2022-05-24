@@ -2,7 +2,7 @@ from .alias import AliasDef
 from .array import MonoArrayType, ArrayType, ArrayLiteralExpr, ArrayExpr
 from .bool import BoolType, BoolLiteralExpr, BoolExpr
 from .call import CallExpr
-from .carray import CArrayType, CArrayDef
+from .carray import CArrayType
 from .cbitfield import CBitFieldType
 from .cfunction import (
     CFunctionType,
@@ -24,7 +24,7 @@ from .dynarray import (
 from .enum import EnumType
 from .function import MonoFunctionType, FunctionType, FunctionExpr, FunctionDef
 from .implementation import Implementation
-from .interface import InterfaceType, InterfaceDef
+from .iface import IfaceType
 from .attribute_lookup import AttributeLookupExpr, AttributeLookupMixIn
 from .module import ModuleType, ModuleDecl, ModuleDef
 from .number import (
@@ -57,6 +57,6 @@ from .str import StrType, StrLiteralExpr
 from .string import StringType, StringExpr
 from .struct import MonoStructType, StructType, StructDef
 from .type_mapping import Attribute, Field, Parameter
-from .type_singleton import TypeSingletons
+from .type_singleton import IfaceSingletons, TypeSingletons
 from .unary import UnaryExpr
 from .variant import MonoVariantType, VariantType, VariantDef

@@ -8,10 +8,9 @@ from .number import IntType, NumericType
 
 @define(eq=False, slots=True)
 class UnaryExpr(Expr):
-    operator: str = field()
-    expr: Expr
+    operator = field()
+    expr = field()
 
-    # pylint: disable=unused-argument
     @operator.validator
     def check_value(self, attribute, op):
         if op == '+' and not isinstance(self.expr.type, NumericType):

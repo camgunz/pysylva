@@ -1,9 +1,6 @@
-import typing
-
-from attrs import define
+from attrs import define, field
 
 from .base import Node
-from .expr import Expr
 
 
 @define(eq=False, slots=True)
@@ -15,13 +12,13 @@ class Stmt(Node):
 
 @define(eq=False, slots=True)
 class StmtBlock(Stmt):
-    code: typing.List[Expr | Stmt]
+    code = field()
 
 
 @define(eq=False, slots=True)
 class LetStmt(Stmt):
-    name: str
-    expr: Expr
+    name = field()
+    expr = field()
 
 
 @define(eq=False, slots=True)
@@ -36,13 +33,13 @@ class ContinueStmt(Stmt):
 
 @define(eq=False, slots=True)
 class ReturnStmt(Stmt):
-    expr: Expr
+    expr = field()
 
 
 @define(eq=False, slots=True)
 class IfStmt(StmtBlock):
-    conditional_expr: Expr
-    else_code: typing.List[Expr | Stmt]
+    conditional_expr = field()
+    else_code = field()
 
 
 @define(eq=False, slots=True)
@@ -52,4 +49,4 @@ class LoopStmt(StmtBlock):
 
 @define(eq=False, slots=True)
 class WhileStmt(StmtBlock):
-    conditional_expr: Expr
+    conditional_expr = field()

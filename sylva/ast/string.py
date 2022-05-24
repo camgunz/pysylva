@@ -1,26 +1,73 @@
-import typing
-
 from functools import cached_property
 
 from attrs import define, field
 
 from ..location import Location
-from .attribute_lookup import AttributeLookupMixIn
+from .attribute_lookup import AttributeLookupExpr, AttributeLookupMixIn
 from .dynarray import DynarrayExpr, MonoDynarrayType
+from .function import FunctionDef, MonoFunctionType
+from .implementation import Implementation
+from .pointer import ReferencePointerType
+from .statement import ReturnStmt
 from .str import StrType
-from .type_singleton import TypeSingletons
+from .type_mapping import Parameter
+from .type_singleton import IfaceSingletons, TypeSingletons
+
+
+def string_implementation_builder(string_type):
+    get_length = FunctionDef(
+        name='get_length',
+        type=MonoFunctionType(
+            parameters=[
+                Parameter(
+                    location=Location.Generate(),
+                    name='self',
+                    type=ReferencePointerType(
+                        referenced_type=string_type,
+                        is_exclusive=False,
+                    )
+                )
+            ],
+            return_type=TypeSingletons.UINT.value
+        ),
+        code=[
+            ReturnStmt(
+                expr=AttributeLookupExpr(
+                    location=Location.Generate(),
+                    type=TypeSingletons.UINT.value,
+                    attribute='len',
+                    expr=LookupExpr( # yapf: disable
+                        location=Location.Generate(),
+                        name='self'
+                    ),
+                    reflection=False
+                )
+            )
+        ]
+    )
+
+    string_impl = Implementation(
+        location=Location.Generate(),
+        interface=IfaceSingletons.STRING.value,
+        implementing_type=string_type,
+        funcs=[get_length]
+    )
+
+    IfaceSingletons.STRING.value.add_implementation(string_impl)
+    string_type.add_implementation(string_impl)
 
 
 @define(eq=False, slots=True)
 class StringType(MonoDynarrayType, AttributeLookupMixIn):
-    llvm_type = field(init=False)
+    implementations = field(
+        init=False, default=[string_implementation_builder]
+    )
 
-    @llvm_type.default
+    @llvm_type.default # noqa: F821
     def _llvm_type_factory(self):
         return MonoDynarrayType(element_type=TypeSingletons.U8.value).llvm_type
 
     def get_reflection_attribute_type(self, location, name):
-        # pylint: disable=consider-using-in
         if name == 'name':
             return StrType(
                 location=Location.Generate(),
@@ -45,4 +92,4 @@ class StringType(MonoDynarrayType, AttributeLookupMixIn):
 
 @define(eq=False, slots=True)
 class StringExpr(DynarrayExpr, AttributeLookupMixIn):
-    type: typing.Any
+    pass

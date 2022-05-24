@@ -1,18 +1,23 @@
 # To Do
 
-* Figure out name mangling
-  * This is important so that we can lookup parameterized types without having
-    to store them separately from each other
-* Figure out automatically adding impls to monomorphizations
-  * I think doing this through `implementation_builders` makes the most sense
-- Figure out registering monomorphizations in the module
-  - We should just never be constructing types in ast-land, then we can do it
-    manually in `module_builder`
-    - A big problem with this is `get_reflection_attribute_type` and friends.
-      They need to either construct types, or get/create them from/in their
-      current module context.
-    - I think the solution to this is to dynamically add reflection attributes.
+## The great de-typing
+
+- Look for `pass` and remove classes that were only different by types
+- Toss pylint directives
+
+## General
+
+- Dynamically register reflection attributes.
+  - I think for non-reflection attributes we're OK to just look through fields
+    and impls
+- Never construct types in ast-land, manually do it in `module_builder`
+  - Various pointer types need to act as parameterizable types
+    - Oh, I guess we've been implicitly saying `iface` and `impl` only work
+      with a non-pointer type, because the methods might take various pointer
+      types.
 - Fix `emit_attribute_lookup` to look through impls also
+  - I think this will end up having base-class behavior that might... never be
+    overridden
 - Add `Lookup` expr
 - Add an `element_count` specifier to a `str`:
   - `struct Person { name: str(8)(""), age: u8(0) }`

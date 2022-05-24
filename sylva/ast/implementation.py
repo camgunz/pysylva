@@ -1,15 +1,10 @@
-import typing
-
-from attrs import define
+from attrs import define, field
 
 from .base import Node
-from .function import FunctionDef
-from .interface import InterfaceType
-from .sylva_type import SylvaType
 
 
 @define(eq=False, slots=True)
 class Implementation(Node):
-    interface: InterfaceType
-    implementing_type: SylvaType
-    funcs: typing.List[FunctionDef]
+    interface = field()
+    implementing_type = field()
+    funcs = field()

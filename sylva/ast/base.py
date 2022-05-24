@@ -1,13 +1,11 @@
-from attrs import define
-
-from ..location import Location
+from attrs import define, field
 
 
 @define(eq=False, slots=True)
 class Node:
-    location: Location
+    location = field()
 
 
 @define(eq=False, slots=True)
 class Decl(Node):
-    name: str
+    name = field()

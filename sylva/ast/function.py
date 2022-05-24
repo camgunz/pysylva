@@ -1,26 +1,19 @@
-import typing
-
 from functools import cached_property
 
 from attrs import define, field
-from llvmlite import ir # type: ignore
+from llvmlite import ir
 
 from .. import errors, utils
 from .defs import ParamTypeDef
-from .expr import Expr, ValueExpr
-from .statement import Stmt
+from .expr import ValueExpr
 from .sylva_type import SylvaParamType, SylvaType
-from .type_mapping import Parameter
 
 
 @define(eq=False, slots=True)
 class MonoFunctionType(SylvaType):
-    parameters: typing.List[Parameter] = field(default=[])
-    return_type: SylvaType | None
-    implementations: typing.List = []
-    llvm_type = field(init=False)
+    parameters = field(default=[])
+    return_type = field(default=None)
 
-    # pylint: disable=unused-argument
     @parameters.validator
     def check_parameters(self, attribute, parameters):
         dupes = utils.get_dupes(p.name for p in parameters)
@@ -29,39 +22,36 @@ class MonoFunctionType(SylvaType):
 
     @cached_property
     def mname(self):
-        # pylint: disable=not-an-iterable
         return ''.join([
             '2fn',
             ''.join(p.type.mname for p in self.parameters),
             self.return_type.mname
         ])
 
-    @llvm_type.default
+    @llvm_type.default # noqa: F821
     def _llvm_type_factory(self):
         return ir.FunctionType( # yapf: disable
             (
                 self.return_type.llvm_type
                 if self.return_type else ir.VoidType()
             ),
-            # pylint: disable=not-an-iterable
             [p.type.llvm_type for p in self.parameters]
         )
 
 
 @define(eq=False, slots=True)
 class FunctionType(SylvaParamType):
-    monomorphizations: typing.List[MonoFunctionType] = []
+    pass
 
 
 @define(eq=False, slots=True)
 class FunctionExpr(ValueExpr):
-    type: typing.Any
+    pass
 
 
 @define(eq=False, slots=True)
 class FunctionDef(ParamTypeDef):
-    type: FunctionType
-    code: typing.List[Expr | Stmt]
+    code = field()
 
     def llvm_define(self, llvm_module):
         llvm_func_type = self.type.emit(llvm_module)

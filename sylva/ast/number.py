@@ -1,8 +1,6 @@
-import typing
-
 from functools import cached_property
 
-from llvmlite import ir # type: ignore
+from llvmlite import ir
 
 from attrs import define, field
 
@@ -19,13 +17,11 @@ class NumericType(SylvaType):
 
 @define(eq=False, slots=True)
 class SizedNumericType(NumericType):
-    bits: int
-    implementations: typing.List = []
+    bits = field()
 
 
 @define(eq=False, slots=True)
 class ComplexType(SizedNumericType):
-    llvm_type = field(init=False)
 
     @cached_property
     def mname(self):
@@ -34,7 +30,7 @@ class ComplexType(SizedNumericType):
     def get_value_expr(self, location):
         return ComplexExpr(location=location, type=self)
 
-    @llvm_type.default
+    @llvm_type.default # noqa: F821
     def _llvm_type_factory(self):
         if self.bits == 8:
             return ir.HalfType()
@@ -51,7 +47,6 @@ class ComplexType(SizedNumericType):
 
 @define(eq=False, slots=True)
 class FloatType(SizedNumericType):
-    llvm_type = field(init=False)
 
     @cached_property
     def mname(self):
@@ -60,7 +55,7 @@ class FloatType(SizedNumericType):
     def get_value_expr(self, location):
         return FloatExpr(location=location, type=self)
 
-    @llvm_type.default
+    @llvm_type.default # noqa: F821
     def _llvm_type_factory(self):
         # [NOTE] llvmlite won't do float types < 16 bits
         if self.bits == 8:
@@ -78,9 +73,7 @@ class FloatType(SizedNumericType):
 
 @define(eq=False, slots=True)
 class IntType(SizedNumericType):
-    signed: bool
-    llvm_type = field(init=False)
-    implementations: typing.List = []
+    signed = field()
 
     @cached_property
     def mname(self):
@@ -97,7 +90,7 @@ class IntType(SizedNumericType):
     def get_value_expr(self, location):
         return IntExpr(location=location, type=self)
 
-    @llvm_type.default
+    @llvm_type.default # noqa: F821
     def _llvm_type_factory(self):
         return ir.IntType(self.bits)
 
@@ -109,7 +102,6 @@ class NumericLiteralExpr(LiteralExpr):
 
 @define(eq=False, slots=True)
 class IntLiteralExpr(NumericLiteralExpr):
-    type: IntType
 
     @classmethod
     def FromRawValue(cls, location, raw_value):
@@ -168,12 +160,11 @@ class IntLiteralExpr(NumericLiteralExpr):
 
 @define(eq=False, slots=True)
 class IntExpr(ValueExpr):
-    type: IntType
+    pass
 
 
 @define(eq=False, slots=True)
 class FloatLiteralExpr(NumericLiteralExpr):
-    type: FloatType
 
     @classmethod
     def FromRawValue(cls, location, raw_value):
@@ -196,12 +187,11 @@ class FloatLiteralExpr(NumericLiteralExpr):
 
 @define(eq=False, slots=True)
 class FloatExpr(ValueExpr):
-    type: FloatType
+    pass
 
 
 @define(eq=False, slots=True)
 class ComplexLiteralExpr(NumericLiteralExpr):
-    type: ComplexType
 
     @classmethod
     def FromRawValue(cls, location, raw_value):
@@ -226,4 +216,4 @@ class ComplexLiteralExpr(NumericLiteralExpr):
 
 @define(eq=False, slots=True)
 class ComplexExpr(ValueExpr):
-    type: ComplexType
+    pass

@@ -1,11 +1,9 @@
-import typing
-
 from functools import cached_property
 
 from attrs import define, field
-from llvmlite import ir # type: ignore
+from llvmlite import ir
 
-from .. import errors, utils
+from .. import errors
 from .expr import Expr, ValueExpr
 from .attribute_lookup import AttributeLookupMixIn
 from .reflection_lookup import ReflectionLookupMixIn
@@ -14,12 +12,11 @@ from .sylva_type import SylvaType
 
 @define(eq=False, slots=True)
 class BasePointerType(SylvaType, AttributeLookupMixIn, ReflectionLookupMixIn):
-    referenced_type: SylvaType
-    is_exclusive: bool
-    implementations: typing.List = []
-    llvm_type: ir.Type | None = field(init=False)
+    referenced_type = field()
+    is_exclusive = field()
+    implementations = field(init=False, default=[])
 
-    @llvm_type.default
+    @llvm_type.default # noqa: F821
     def _llvm_type_factory(self):
         return ir.PointerType(self.referenced_type.llvm_type)
 
@@ -36,6 +33,7 @@ class BasePointerType(SylvaType, AttributeLookupMixIn, ReflectionLookupMixIn):
 
 @define(eq=False, slots=True)
 class ReferencePointerType(BasePointerType):
+    is_exclusive = field(init=False, default=False)
 
     @cached_property
     def mname(self):
@@ -44,7 +42,7 @@ class ReferencePointerType(BasePointerType):
 
 @define(eq=False, slots=True)
 class ExclusiveReferencePointerType(BasePointerType):
-    is_exclusive: bool = True
+    is_exclusive = field(init=False, default=True)
 
     @cached_property
     def mname(self):
@@ -53,7 +51,7 @@ class ExclusiveReferencePointerType(BasePointerType):
 
 @define(eq=False, slots=True)
 class OwnedPointerType(BasePointerType):
-    is_exclusive: bool = True
+    is_exclusive = field(init=False, default=True)
 
     @cached_property
     def mname(self):
@@ -62,7 +60,6 @@ class OwnedPointerType(BasePointerType):
 
 @define(eq=False, slots=True)
 class BasePointerExpr(ValueExpr):
-    type: BasePointerType
 
     @property
     def referenced_type(self):
@@ -75,28 +72,25 @@ class BasePointerExpr(ValueExpr):
 
 @define(eq=False, slots=True)
 class ReferencePointerExpr(BasePointerExpr):
-    type: ReferencePointerType
-    value: Expr
+    value = field()
 
 
 @define(eq=False, slots=True)
 class OwnedPointerExpr(BasePointerExpr):
-    type: OwnedPointerType
+    pass
 
 
 @define(eq=False, slots=True)
 class MovePointerExpr(BasePointerExpr):
-    type: OwnedPointerType
-    value: Expr
+    value = field()
 
 
 @define(eq=False, slots=True)
 class GetElementPointerExpr(Expr):
-    obj: Expr
-    index: int
-    name: str | None
+    obj = field()
+    index = field()
+    name = field()
 
-    # pylint: disable=unused-argument
     def emit(self, module, builder, scope):
         return builder.gep(
             self.obj, [self.index], inbounds=True, name=self.name

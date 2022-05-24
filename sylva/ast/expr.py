@@ -1,16 +1,14 @@
-from attrs import define
+from attrs import define, field
 
 from .base import Node
-from .operator import Operator
 from .reflection_lookup import ReflectionLookupMixIn
 from .sylva_type import SylvaType
 
 
 @define(eq=False, slots=True)
 class Expr(Node, ReflectionLookupMixIn):
-    type: SylvaType
+    type = field()
 
-    # pylint: disable=no-self-use
     def get_reflection_attribute_type(self, location, name):
         from .array import ArrayType
         if name == 'type':
@@ -35,22 +33,20 @@ class ValueExpr(Expr):
 
 @define(eq=False, slots=True)
 class LiteralExpr(Expr):
-    type: SylvaType
-    value: bool | float | int | str
+    value = field()
 
-    # pylint: disable=unused-argument
     def emit(self, module, builder, scope):
         return self.type.llvm_type(self.value)
 
 
 @define(eq=False, slots=True)
 class IndexExpr(Expr):
-    indexable: Expr
-    index: Expr
+    indexable = field()
+    index = field()
 
 
 @define(eq=False, slots=True)
 class BinaryExpr(Expr):
-    operator: Operator
-    lhs: Expr
-    rhs: Expr
+    operator = field()
+    lhs = field()
+    rhs = field()

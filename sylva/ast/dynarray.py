@@ -1,9 +1,7 @@
-import typing
-
 from functools import cached_property
 
 from attrs import define, field
-from llvmlite import ir # type: ignore
+from llvmlite import ir
 
 from ..location import Location
 from .array import ArrayType
@@ -22,11 +20,9 @@ from .type_mapping import Attribute
 
 @define(eq=False, slots=True)
 class MonoDynarrayType(SylvaType, ReflectionLookupMixIn):
-    element_type: SylvaType
-    implementations: typing.List = []
-    llvm_type = field(init=False)
+    element_type = field()
 
-    @llvm_type.default
+    @llvm_type.default # noqa: F821
     def _llvm_type_factory(self):
         # yapf: disable
         return ir.LiteralStructType([
@@ -35,7 +31,6 @@ class MonoDynarrayType(SylvaType, ReflectionLookupMixIn):
             self.element_type.llvm_type.as_pointer() # data
         ])
 
-    # pylint: disable=no-self-use
     def get_reflection_attribute_type(self, location, name):
         if name == 'name':
             return StrType
@@ -88,13 +83,11 @@ class MonoDynarrayType(SylvaType, ReflectionLookupMixIn):
 
 @define(eq=False, slots=True)
 class DynarrayType(SylvaParamType):
-    monomorphizations: typing.List[MonoDynarrayType] = []
-    implementations: typing.List = []
+    pass
 
 
 @define(eq=False, slots=True)
 class DynarrayLiteralExpr(LiteralExpr):
-    type: MonoDynarrayType
 
     @classmethod
     def FromRawValue(cls, location, element_type, raw_value):
@@ -105,9 +98,7 @@ class DynarrayLiteralExpr(LiteralExpr):
 
 @define(eq=False, slots=True)
 class DynarrayExpr(ValueExpr, ReflectionLookupMixIn):
-    type: typing.Any
 
-    # pylint: disable=no-self-use,unused-argument
     def get_attribute(self, location, name):
         if name == 'get_length':
             return Attribute(

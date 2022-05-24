@@ -2,10 +2,13 @@ import enum
 
 from .. import _SIZE_SIZE
 from ..location import Location
+from .type_mapping import Attribute
 from .array import ArrayType
 from .bool import BoolType
 from .cstr import CStrType
 from .dynarray import DynarrayType
+from .iface import IfaceType
+from .function import MonoFunctionType
 from .number import ComplexType, FloatType, IntType
 from .rune import RuneType
 from .str import StrType
@@ -15,7 +18,6 @@ from .variant import VariantType
 
 
 class TypeSingletons(enum.Enum):
-    BOOL = BoolType(location=Location.Generate())
     C16 = ComplexType(location=Location.Generate(), bits=16)
     C32 = ComplexType(location=Location.Generate(), bits=32)
     C64 = ComplexType(location=Location.Generate(), bits=64)
@@ -30,21 +32,40 @@ class TypeSingletons(enum.Enum):
     I32 = IntType(location=Location.Generate(), bits=32, signed=True)
     I64 = IntType(location=Location.Generate(), bits=64, signed=True)
     I128 = IntType(location=Location.Generate(), bits=128, signed=True)
-    RUNE = RuneType(location=Location.Generate())
     UINT = IntType(location=Location.Generate(), bits=_SIZE_SIZE, signed=False)
     U8 = IntType(location=Location.Generate(), bits=8, signed=False)
     U16 = IntType(location=Location.Generate(), bits=16, signed=False)
     U32 = IntType(location=Location.Generate(), bits=32, signed=False)
     U64 = IntType(location=Location.Generate(), bits=64, signed=False)
     U128 = IntType(location=Location.Generate(), bits=128, signed=False)
+    BOOL = BoolType(location=Location.Generate())
+    RUNE = RuneType(location=Location.Generate())
     CSTR = CStrType(location=Location.Generate())
     CVOID = IntType(location=Location.Generate(), bits=8, signed=True)
+    # carray, cptr, cunion?
     ARRAY = ArrayType(location=Location.Generate())
     DYNARRAY = DynarrayType(location=Location.Generate())
     STR = StrType(location=Location.Generate())
     STRING = StringType(location=Location.Generate())
     STRUCT = StructType(location=Location.Generate())
     VARIANT = VariantType(location=Location.Generate())
+
+
+class IfaceSingletons(enum.Enum):
+    STRING = IfaceType(
+        location=Location.Generate(),
+        functions=[
+            Attribute(
+                location=Location.Generate(),
+                name='get_length',
+                type=MonoFunctionType(
+                    location=Location.Generate(),
+                    parameters=[],
+                    return_type=TypeSingletons.UINT.value,
+                )
+            )
+        ]
+    )
 
 
 def get_int_type(bits, signed):

@@ -1,14 +1,13 @@
-from attrs import define
+from attrs import define, field
 
 from .base import Node
-from .sylva_type import SylvaType
 
 
 @define(eq=False, slots=True)
 class BaseTypeMapping(Node):
-    name: str
-    type: SylvaType
-    index: int | None = None
+    name = field()
+    type = field()
+    index = field(default=None)
 
     @property
     def handle(self):

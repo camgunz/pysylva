@@ -1,21 +1,15 @@
-import typing
-
 from functools import cached_property
 
 from attrs import define, field
 
 from .. import errors, utils
-from .expr import Expr
 from .sylva_type import SylvaType
 
 
 @define(eq=False, slots=True)
 class EnumType(SylvaType):
-    llvm_type = field(init=False)
-    implementations: typing.List = []
-    values: typing.List[Expr] = field(default=[])
+    values = field()
 
-    # pylint: disable=unused-argument
     @values.validator
     def check_values(self, attribute, values):
         if len(values) <= 0:
@@ -30,17 +24,15 @@ class EnumType(SylvaType):
             if value.type != first_type:
                 raise errors.MismatchedEnumMemberType(first_type, value)
 
-    @llvm_type.default
+    @llvm_type.default # noqa: F821
     def _llvm_type_factory(self):
-        # pylint: disable=unsubscriptable-object
         return self.values[0].type.llvm_type
 
     def get_attribute(self, location, name):
-        for val in self.values: # pylint: disable=not-an-iterable
+        for val in self.values:
             if val.name == name:
                 return val
 
     @cached_property
     def mname(self):
-        # pylint: disable=unsubscriptable-object
         return ''.join(['1e', self.values[0].type.mname])

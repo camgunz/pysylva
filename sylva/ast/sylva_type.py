@@ -1,9 +1,6 @@
-import typing
-
 from functools import cached_property
 
 from attrs import define, field
-from llvmlite import ir # type: ignore
 
 from ..target import get_target
 from .base import Node
@@ -19,34 +16,30 @@ class BaseSylvaType(Node):
 
 @define(eq=False, slots=True)
 class SylvaType(BaseSylvaType):
-    llvm_type: ir.Type | None = field(init=False, default=None)
-    implementations: typing.List = []
+    llvm_type = field(init=False, default=None)
+    implementations = field(init=False, default=[])
 
     def add_implementation(self, implementation):
         self.implementations.append(implementation)
 
     def make_constant(self, value):
-        # pylint: disable=not-callable
         return self.llvm_type(value)
 
     def get_alignment(self):
-        # pylint: disable=no-member
         llvm_type = self.llvm_type
         return llvm_type.get_abi_alignment(get_target().data)
 
     def get_size(self):
-        # pylint: disable=no-member
         return self.llvm_type.get_abi_size(get_target().data)
 
     def get_pointer(self):
-        # pylint: disable=no-member
         return self.llvm_type.as_pointer()
 
 
 @define(eq=False, slots=True)
 class SylvaParamType(BaseSylvaType):
-    monomorphizations: typing.List = []
-    implementation_builders: typing.List = []
+    monomorphizations = field(init=False, default=[])
+    implementation_builders = field(init=False, default=[])
 
     @property
     def is_polymorphic(self):

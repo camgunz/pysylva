@@ -1,29 +1,45 @@
-import typing
-
 from functools import cached_property
 
 from attrs import define, field
-from llvmlite import ir # type: ignore
+from llvmlite import ir
 
 from .. import errors, utils
 from ..location import Location
 from .defs import TypeDef
 from .expr import LiteralExpr, ValueExpr
-from .number import IntType
 from .pointer import ReferencePointerExpr, ReferencePointerType
-from .range import RangeType
-from .reflection_lookup import ReflectionLookupMixIn
-from .str import StrType
+from .reflection_lookup import ReflectionAttribute, ReflectionLookupMixIn
 from .sylva_type import SylvaParamType, SylvaType
 from .type_singleton import TypeSingletons
 
 
+def array_implementation_builder(array_type):
+    # name         | str(5) | 'array'
+    # size         | uint   | element_count * element_type.size
+    # count        | uint   | element_count
+    # element_type | type   | element_type
+    # indices      | range  | range(0, element_count + 1)
+    str_five = TypeSingletons.STR.value.get_or_create_monomorphization(5)
+
+    array_type.set_reflection_attribute(
+        ReflectionAttribute(
+            name='name', type=str_five, func=lambda obj, location: 'array'
+        )
+    )
+
+    array_type.set_reflection_attribute(
+        ReflectionAttribute( # yapf: disable
+            name='count',
+            type=TypeSingletons.UINT.value,
+            func=lambda obj, location: obj.element_count
+        )
+    )
+
+
 @define(eq=False, slots=True)
 class MonoArrayType(SylvaType, ReflectionLookupMixIn):
-    element_type: SylvaType
-    element_count: int = field()
-    implementations: typing.List = []
-    llvm_type: ir.Type | None = field(init=False)
+    element_type = field()
+    element_count = field()
 
     @cached_property
     def mname(self):
@@ -33,55 +49,40 @@ class MonoArrayType(SylvaType, ReflectionLookupMixIn):
             utils.len_prefix(str(self.element_count))
         ])
 
-    # pylint: disable=unused-argument
     @element_count.validator
     def check_element_count(self, attribute, value):
         if value is not None and value <= 0:
             raise errors.EmptyArray(self.location)
 
-    @llvm_type.default
+    @llvm_type.default # noqa: F821
     def _llvm_type_factory(self):
         return ir.ArrayType(self.element_type.llvm_type, self.element_count)
 
-    # pylint: disable=no-self-use
-    def get_reflection_attribute_type(self, location, name):
-        if name == 'name':
-            return StrType
-        if name == 'size':
-            return IntType
-        if name == 'count':
-            return IntType
-        if name == 'element_type':
-            return SylvaType
-        if name == 'indices':
-            return RangeType
 
-    def reflect_attribute(self, location, name):
-        # [FIXME] These need to be Sylva expressions that evaluate to LLVM
-        #         values
-        if name == 'name':
-            return 'array'
-        if name == 'size':
-            return self.element_count * self.element_type.size # [TODO]
-        if name == 'count':
-            return self.element_count
-        if name == 'element_type':
-            return self.element_type
-        if name == 'indices':
-            return range(0, self.element_count + 1)
-
-
-# Here, we want some way of saying "this type sort of exists without an
-# element_count, but in most contexts it has to have one"
 @define(eq=False, slots=True)
 class ArrayType(SylvaParamType):
-    monomorphizations: typing.List[MonoArrayType] = []
-    implementation_builders: typing.List = []
+    implementation_builders = field(
+        init=False, default=[array_implementation_builder]
+    )
+
+    def get_or_create_monomorphization(self, element_type, element_count):
+        for mm in self.monomorphizations:
+            if mm.element_type != element_type:
+                continue
+            if mm.element_count != element_count:
+                continue
+            return mm
+
+        mm = MonoArrayType(
+            element_type=element_type, element_count=element_count
+        )
+        self.add_monomorphization(mm)
+
+        return mm
 
 
 @define(eq=False, slots=True)
 class ArrayLiteralExpr(LiteralExpr):
-    type: MonoArrayType
 
     @classmethod
     def FromRawValue(cls, location, element_type, raw_value):
@@ -90,9 +91,8 @@ class ArrayLiteralExpr(LiteralExpr):
 
 @define(eq=False, slots=True)
 class ArrayExpr(ValueExpr, ReflectionLookupMixIn):
-    type: MonoArrayType
 
-    def get_reflection_attribute_type(self, location, name):
+    def get_reflection_attribute(self, location, name):
         if name == 'type':
             return self.type
         if name == 'bytes':

@@ -1,21 +1,16 @@
-import typing
-
 from functools import cached_property
 
 from attrs import define, field
-from llvmlite import ir # type: ignore
+from llvmlite import ir
 
 from .. import debug, errors
-from ..location import Location
 from .base import Node
 from .pointer import BasePointerType
-from .sylva_type import SylvaParamType, SylvaType
-from .type_mapping import Field
 
 
 @define(eq=False, slots=True)
 class BaseDef(Node):
-    name: str | None
+    name = field()
     type = field()
 
     def _check_definition(self, module):
@@ -42,7 +37,6 @@ class BaseDef(Node):
         module.vars[self.mname] = self
 
     def llvm_define(self, llvm_module):
-        # pylint: disable=no-member
         return ir.GlobalVariable(llvm_module, self.type.llvm_type, self.mname)
 
     @cached_property
@@ -52,25 +46,22 @@ class BaseDef(Node):
 
 @define(eq=False, slots=True)
 class TypeDef(BaseDef):
-    type: SylvaType
+    pass
 
 
 @define(eq=False, slots=True)
 class ParamTypeDef(BaseDef):
-    type: SylvaParamType
+    pass
 
 
 @define(eq=False, slots=True)
 class DeferredTypeLookup:
-    location: Location
-    value: str
+    location = field()
+    value = field()
 
 
 @define(eq=False, slots=True)
 class SelfReferentialMixIn:
-    name: str | None
-    fields: typing.List[Field] = []
-    llvm_type: ir.Type | None = None
 
     def _resolve_self_references(self):
         missing_field_errors = []
@@ -125,9 +116,6 @@ class SelfReferentialMixIn:
 
 @define(eq=False, slots=True)
 class SelfReferentialTypeDef(SelfReferentialMixIn, TypeDef):
-    name: str
-    fields: typing.List[Field] = []
-    llvm_type: ir.Type | None = None
 
     def define(self, module):
         self._resolve_self_references()
@@ -136,9 +124,6 @@ class SelfReferentialTypeDef(SelfReferentialMixIn, TypeDef):
 
 @define(eq=False, slots=True)
 class SelfReferentialParamTypeDef(SelfReferentialMixIn, ParamTypeDef):
-    name: str
-    fields: typing.List[Field] = []
-    llvm_type: ir.Type | None = None
 
     def define(self, module):
         self._resolve_self_references()

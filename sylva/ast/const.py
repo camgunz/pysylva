@@ -1,15 +1,12 @@
-from attrs import define
-from llvmlite import ir # type: ignore
+from attrs import define, field
+from llvmlite import ir
 
 from .defs import Def
-from .expr import LiteralExpr
-from .sylva_type import SylvaType
 
 
 @define(eq=False, slots=True)
 class ConstDef(Def):
-    type: SylvaType
-    value: LiteralExpr
+    value = field()
 
     def llvm_define(self, llvm_module):
         const = ir.GlobalVariable(llvm_module, self.type.llvm_type, self.name)

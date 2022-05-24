@@ -1,4 +1,5 @@
 -r requirements.txt
-mypy>=0.942
-pylint>=2.4.4
+# mypy>=0.942
+flake8>=4.0.1
+# pylint>=2.13.9
 yapf>=0.32.0

@@ -1,7 +1,7 @@
 from functools import cached_property
 
 from attrs import define, field
-from llvmlite import ir # type: ignore
+from llvmlite import ir
 
 from .expr import LiteralExpr, ValueExpr
 from .type_singleton import TypeSingletons
@@ -10,10 +10,8 @@ from .sylva_type import SylvaType
 
 @define(eq=False, slots=True)
 class CStrType(SylvaType):
-    llvm_type = field(init=False)
 
-    # pylint: disable=unused-argument,no-self-use
-    @llvm_type.default
+    @llvm_type.default # noqa: F821
     def _llvm_type_factory(self):
         return ir.PointerType(ir.IntType(8))
 
@@ -24,7 +22,7 @@ class CStrType(SylvaType):
 
 @define(eq=False, slots=True)
 class CStrLiteralExpr(LiteralExpr):
-    type: CStrType = TypeSingletons.CSTR.value
+    type = field(init=False, default=TypeSingletons.CSTR.value)
 
     @classmethod
     def FromRawValue(cls, location, raw_value):
@@ -33,4 +31,4 @@ class CStrLiteralExpr(LiteralExpr):
 
 @define(eq=False, slots=True)
 class CStrExpr(ValueExpr):
-    type: CStrType = TypeSingletons.CSTR.value
+    type = field(init=False, default=TypeSingletons.CSTR.value)

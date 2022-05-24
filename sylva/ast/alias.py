@@ -8,9 +8,8 @@ from .sylva_type import SylvaType
 
 @attrs_define(eq=False, slots=True)
 class AliasDef(BaseDef):
-    value: str | SylvaType = field()
+    value = field()
 
-    # pylint: disable=unused-argument
     @value.validator
     def check_value(self, attribute, value):
         if isinstance(value, str) and value == self.name:

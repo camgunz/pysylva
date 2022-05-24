@@ -15,9 +15,8 @@ class IndexMixIn:
 
 @define(eq=False, slots=True)
 class IndexExpr(Expr):
-    type = field(init=False)
-    expr: Expr | IndexMixIn
-    index: int
+    expr = field()
+    index = field()
 
     @type.default
     def _type_factory(self):

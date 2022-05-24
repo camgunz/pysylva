@@ -1,5 +1,3 @@
-import typing
-
 from functools import cached_property
 
 from attrs import define, field
@@ -9,14 +7,11 @@ from .attribute_lookup import AttributeLookupMixIn
 from .defs import SelfReferentialParamTypeDef
 from .pointer import GetElementPointerExpr
 from .sylva_type import SylvaParamType, SylvaType
-from .type_mapping import Field
 
 
 @define(eq=False, slots=True)
 class BaseStructType(SylvaType, AttributeLookupMixIn):
-    name: str | None
-    fields: typing.List[Field] = field()
-    implementations: typing.List = []
+    fields = field()
 
     # self._size = 0
     # self._alignment = 1
@@ -30,7 +25,6 @@ class BaseStructType(SylvaType, AttributeLookupMixIn):
     #     self._size += type.size
     # self._size = utils.round_up_to_multiple(self._size, self._alignment)
 
-    # pylint: disable=unused-argument
     @fields.validator
     def check_fields(self, attribute, fields):
         dupes = utils.get_dupes(f.name for f in fields)
@@ -39,10 +33,8 @@ class BaseStructType(SylvaType, AttributeLookupMixIn):
 
     @cached_property
     def mname(self):
-        # pylint: disable=not-an-iterable
         return ''.join(['6struct', ''.join(f.type.mname for f in self.fields)])
 
-    # pylint: disable=unused-argument
     def get_attribute(self, location, name):
         for f in self.fields:
             if f.name == name:
@@ -56,8 +48,7 @@ class MonoStructType(BaseStructType):
 
 @define(eq=False, slots=True)
 class StructType(SylvaParamType):
-    monomorphizations: typing.List[MonoStructType] = []
-    implementations: typing.List = []
+    pass
 
 
 @define(eq=False, slots=True)
@@ -69,7 +60,6 @@ class StructDef(SelfReferentialParamTypeDef, AttributeLookupMixIn):
             raise errors.NoSuchField(location, name)
         return f
 
-    # pylint: disable=unused-argument
     def lookup_attribute(self, location, name):
         f = self.get_attribute(location, name)
         if not f:

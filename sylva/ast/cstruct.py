@@ -14,7 +14,6 @@ class CStructType(BaseStructType):
 
     @cached_property
     def mname(self):
-        # pylint: disable=not-an-iterable
         return ''.join([
             '7cstruct', ''.join(f.type.mname for f in self.fields)
         ])

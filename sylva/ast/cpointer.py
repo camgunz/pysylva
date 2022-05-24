@@ -1,15 +1,13 @@
-import typing
+from functools import cached_property
 
-from attrs import define
+from attrs import define, field
 
-from .expr import Expr
 from .pointer import BasePointerExpr, BasePointerType
 
 
 @define(eq=False, slots=True)
 class CPointerType(BasePointerType):
-    referenced_type_is_exclusive: bool
-    implementations: typing.List = []
+    referenced_type_is_exclusive = field()
 
     @cached_property
     def mname(self):
@@ -21,5 +19,4 @@ class CPointerType(BasePointerType):
 
 @define(eq=False, slots=True)
 class CPointerExpr(BasePointerExpr):
-    type: CPointerType
-    expr: Expr
+    expr = field()

@@ -1,18 +1,13 @@
-import typing
-
 from attrs import define, field
-from llvmlite import ir # type: ignore
+from llvmlite import ir
 
 from .. import errors
 from ..location import Location
 from ..module_builder import ModuleBuilder
 from ..parser import Parser
-from ..program import Program
-from ..stream import Stream
 from .attribute_lookup import AttributeLookupMixIn
 from .base import Decl
 from .defs import TypeDef
-from .requirement import RequirementDecl
 from .sylva_type import SylvaType
 from .type_mapping import Attribute
 
@@ -20,8 +15,7 @@ from .type_mapping import Attribute
 @define(eq=False, slots=True)
 class ModuleType(SylvaType, AttributeLookupMixIn):
     # Module, but we can't because it would be circular
-    value: typing.Any
-    implementations: typing.List = []
+    value = field()
 
     def get_attribute(self, location, name):
         return self.value.get_attribute(location, name)
@@ -37,14 +31,14 @@ class ModuleDecl(Decl):
 
 @define(eq=False, slots=True)
 class ModuleDef(TypeDef, AttributeLookupMixIn):
-    program: Program
-    streams: typing.List[Stream]
-    requirement_statements: typing.List[RequirementDecl]
-    parsed = False
-    errors: typing.List[errors.LocationError] = []
-    aliases: typing.Dict[str, TypeDef] = {}
-    vars: typing.Dict[str, TypeDef] = {}
-    requirements: typing.Set = set()
+    program = field()
+    streams = field()
+    requirement_statements = field()
+    parsed = field(init=False, default=False)
+    errors = field(init=False, default=[])
+    aliases = field(init=False, default={})
+    vars = field(init=False, default={})
+    requirements = field(init=False, default=set())
     type = field(init=False)
 
     @type.default
@@ -116,7 +110,6 @@ class ModuleDef(TypeDef, AttributeLookupMixIn):
 
         return self.vars.get(name)
 
-    # pylint: disable=arguments-differ
     def llvm_define(self):
         llvm_module = ir.Module(name=self.name)
 

@@ -1,14 +1,12 @@
-import typing
-
-from attrs import define
+from attrs import define, field
 
 from .expr import Expr
 
 
 @define(eq=False, slots=True)
 class CallExpr(Expr):
-    function: Expr
-    arguments: typing.List[Expr]
+    function = field()
+    arguments = field()
 
     # monomorphization_index: int | None = None
     # llvm_function: ir.Function | None = None

@@ -1,6 +1,6 @@
 from functools import cached_property
 
-from llvmlite import ir # type: ignore
+from llvmlite import ir
 
 from attrs import define, field
 
@@ -11,17 +11,14 @@ from .sylva_type import SylvaType
 
 @define(eq=False, slots=True)
 class RuneType(SylvaType):
-    llvm_type = field(init=False)
 
     def get_value_expr(self, location):
         return RuneExpr(location=location, type=self)
 
-    # pylint: disable=no-self-use,unused-argument
-    @llvm_type.default
+    @llvm_type.default # noqa: F821
     def _llvm_type_factory(self):
         return ir.IntType(32)
 
-    # pylint: disable=no-self-use
     @cached_property
     def mname(self):
         return '1r'
@@ -29,7 +26,7 @@ class RuneType(SylvaType):
 
 @define(eq=False, slots=True)
 class RuneLiteralExpr(LiteralExpr):
-    type: RuneType = TypeSingletons.RUNE.value
+    type = field(init=False, default=TypeSingletons.RUNE.value)
 
     @classmethod
     def FromRawValue(cls, location, raw_value):
@@ -38,4 +35,4 @@ class RuneLiteralExpr(LiteralExpr):
 
 @define(eq=False, slots=True)
 class RuneExpr(ValueExpr):
-    type: RuneType = TypeSingletons.RUNE.value
+    type = field(init=False, default=TypeSingletons.RUNE.value)
