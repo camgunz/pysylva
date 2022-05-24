@@ -2,10 +2,16 @@ import enum
 
 from .. import _SIZE_SIZE
 from ..location import Location
+from .array import ArrayType
 from .bool import BoolType
 from .cstr import CStrType
-from .rune import RuneType
+from .dynarray import DynarrayType
 from .number import ComplexType, FloatType, IntType
+from .rune import RuneType
+from .str import StrType
+from .string import StringType
+from .struct import StructType
+from .variant import VariantType
 
 
 class TypeSingletons(enum.Enum):
@@ -33,6 +39,12 @@ class TypeSingletons(enum.Enum):
     U128 = IntType(location=Location.Generate(), bits=128, signed=False)
     CSTR = CStrType(location=Location.Generate())
     CVOID = IntType(location=Location.Generate(), bits=8, signed=True)
+    ARRAY = ArrayType(location=Location.Generate())
+    DYNARRAY = DynarrayType(location=Location.Generate())
+    STR = StrType(location=Location.Generate())
+    STRING = StringType(location=Location.Generate())
+    STRUCT = StructType(location=Location.Generate())
+    VARIANT = VariantType(location=Location.Generate())
 
 
 def get_int_type(bits, signed):

@@ -62,3 +62,6 @@ class SylvaParamType(BaseSylvaType):
         for ib in self.implementation_builders:
             ib(mm)
         return index
+
+    def add_implementation_builder(self, ib):
+        self.implementation_builders.append(ib)

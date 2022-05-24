@@ -42,7 +42,6 @@ class MonoVariantType(BaseUnionType, AttributeLookupMixIn):
 
 @define(eq=False, slots=True)
 class VariantType(SylvaParamType):
-    name: str
     monomorphizations: typing.List[MonoVariantType] = []
     implementations: typing.List = []
 

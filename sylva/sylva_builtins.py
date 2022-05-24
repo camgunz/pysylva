@@ -125,12 +125,16 @@ def get_module(program):
         name='u128',
         type=ast.TypeSingletons.U128.value
     ).define(module)
+    ast.TypeDef(
+        location=Location.Generate(),
+        name='string',
+        type=ast.TypeSingletons.STRING.value
+    ).define(module)
     # module.vars['array'] = ast.TypeSingletons.ARRAY.value
     # module.vars['enum'] = ast.TypeSingletons.ENUM.value
     # module.vars['variant'] = ast.TypeSingletons.VARIANT.value
     # module.vars['struct'] = ast.TypeSingletons.STRUCT.value
     # module.vars['str'] = ast.TypeSingletons.STR.value
-    # module.vars['string'] = ast.TypeSingletons.STRING.value
     # module.vars['dynarray'] = ast.TypeSingletons.DYNARRAY.value
     # module.vars['carray'] = ast.TypeSingletons.CARRAY.value
     # module.vars['cbitfield'] = ast.TypeSingletons.CBITFIELD.value
@@ -211,50 +215,56 @@ def get_module(program):
         string_iface.add_implementation(impl)
         new_str_type.add_implementation(impl)
 
-    string_impl = ast.Implementation.Def(
-        location=Location.Generate(),
-        interface=string_iface,
-        implementing_type=ast.TypeSingletons.STRING.value,
-        funcs=[
-            ast.FunctionDef(
-                name='get_length',
-                type=ast.FunctionType(
-                    location=Location.Generate(),
-                    monomorphizations=[
-                        ast.MonoFunctionType(
-                            parameters=[
-                                ast.Parameter(
-                                    location=Location.Generate(),
-                                    name='self',
-                                    type=ast.ReferencePointerType(
-                                        referenced_type=ast.TypeSingletons.STR
-                                        .value,
-                                        is_exclusive=False,
-                                    )
-                                )
-                            ],
-                            return_type=ast.TypeSingletons.UINT.value
-                        )
-                    ]
-                ),
-                code=[
-                    ast.ReturnStmt(
-                        expr=ast.AttributeLookupExpr(
+    ast.TypeSingletons.STR.value.add_implementation_builder(
+        build_str_string_impl
+    )
+
+    get_length = ast.FunctionDef(
+        name='get_length',
+        type=ast.FunctionType(
+            location=Location.Generate(),
+            monomorphizations=[
+                ast.MonoFunctionType(
+                    parameters=[
+                        ast.Parameter(
                             location=Location.Generate(),
-                            type=ast.TypeSingletons.UINT.value,
-                            attribute='len',
-                            expr=ast.LookupExpr(
-                                location=Location.Generate(), name='self'
-                            ),
-                            reflection=False
+                            name='self',
+                            type=ast.ReferencePointerType(
+                                referenced_type=(
+                                    ast.TypeSingletons.STRING.value
+                                ),
+                                is_exclusive=False,
+                            )
                         )
-                    )
-                ]
+                    ],
+                    return_type=ast.TypeSingletons.UINT.value
+                )
+            ]
+        ),
+        code=[
+            ast.ReturnStmt(
+                expr=ast.AttributeLookupExpr(
+                    location=Location.Generate(),
+                    type=ast.TypeSingletons.UINT.value,
+                    attribute='len',
+                    expr=ast.LookupExpr( # yapf: disable
+                        location=Location.Generate(),
+                        name='self'
+                    ),
+                    reflection=False
+                )
             )
         ]
     )
 
+    string_impl = ast.Implementation(
+        location=Location.Generate(),
+        interface=string_iface,
+        implementing_type=ast.TypeSingletons.STRING.value,
+        funcs=[get_length]
+    )
+
     string_iface.add_implementation(string_impl)
-    string_type.add_implementation(string_impl)
+    ast.TypeSingletons.STRING.value.add_implementation(string_impl)
 
     return module

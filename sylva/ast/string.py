@@ -7,9 +7,7 @@ from attrs import define, field
 from ..location import Location
 from .attribute_lookup import AttributeLookupMixIn
 from .dynarray import DynarrayExpr, MonoDynarrayType
-from .function import FunctionType, MonoFunctionType
 from .str import StrType
-from .type_mapping import Attribute
 from .type_singleton import TypeSingletons
 
 
@@ -20,23 +18,6 @@ class StringType(MonoDynarrayType, AttributeLookupMixIn):
     @llvm_type.default
     def _llvm_type_factory(self):
         return MonoDynarrayType(element_type=TypeSingletons.U8.value).llvm_type
-
-    def get_attribute(self, location, name):
-        if name == 'get_length':
-            return Attribute(
-                location=Location.Generate(),
-                name='get_length',
-                type=FunctionType(
-                    location=Location.Generate(),
-                    monomorphizations=[
-                        MonoFunctionType(
-                            location=Location.Generate(),
-                            parameters=[],
-                            return_type=TypeSingletons.UINT.value
-                        )
-                    ]
-                )
-            )
 
     def get_reflection_attribute_type(self, location, name):
         # pylint: disable=consider-using-in

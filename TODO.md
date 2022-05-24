@@ -8,6 +8,10 @@
 - Figure out registering monomorphizations in the module
   - We should just never be constructing types in ast-land, then we can do it
     manually in `module_builder`
+    - A big problem with this is `get_reflection_attribute_type` and friends.
+      They need to either construct types, or get/create them from/in their
+      current module context.
+    - I think the solution to this is to dynamically add reflection attributes.
 - Fix `emit_attribute_lookup` to look through impls also
 - Add `Lookup` expr
 - Add an `element_count` specifier to a `str`:

@@ -75,7 +75,7 @@ class MonoArrayType(SylvaType, ReflectionLookupMixIn):
 # element_count, but in most contexts it has to have one"
 @define(eq=False, slots=True)
 class ArrayType(SylvaParamType):
-    monomorphizations: typing.List[MonoArrayType]
+    monomorphizations: typing.List[MonoArrayType] = []
     implementation_builders: typing.List = []
 
 

@@ -88,7 +88,7 @@ class MonoDynarrayType(SylvaType, ReflectionLookupMixIn):
 
 @define(eq=False, slots=True)
 class DynarrayType(SylvaParamType):
-    monomorphizations: typing.List[MonoDynarrayType]
+    monomorphizations: typing.List[MonoDynarrayType] = []
     implementations: typing.List = []
 
 

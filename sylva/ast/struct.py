@@ -56,7 +56,6 @@ class MonoStructType(BaseStructType):
 
 @define(eq=False, slots=True)
 class StructType(SylvaParamType):
-    name: str | None
     monomorphizations: typing.List[MonoStructType] = []
     implementations: typing.List = []
 
