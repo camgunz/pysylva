@@ -1,59 +1,16 @@
 # To Do
 
-## `lookup_attribute`
-
-Something here about "look at fields, then impls, then fail" or whatever.
-
-## Dynarray
-
- `dynarray` must be special, we must guarantee its `length` and `capacity`
- members are correct, `[<type>...]` means `dynarray`.
-
-## `str`s
-
-`str`s are odd types. Here's what we know:
-- They're literals
-- They're syntax sugar for `array`s
-  - Their element type is `u8`
-- Their size is known at compile time
-- Don't want them to be passable as `array`s
-  - Unless it's as an interface
-- They basically will never be function parameters
-
-There's something here about allowing constants as type parameters. Like, in
-this case you could define a `str` enum that just had a bunch of different
-element counts:
-
-```sylva
-enum str {
-  one: [u8 * 1],
-  two: [u8 * 2],
-  three: [u8 * 3],
-  four: [u8 * 4],
-  # ...
-}
-```
-
-The friction here is that `enum`s are constants, so you can't create them on
-the fly as needed, and you thus don't get multiple copies.
-
-Generally you don't consider a value as part of a type, but if you want it to
-be available at compile time, it has to be. That's why leaving it to be set at
-runtime is insufficient.
-
-Fortunately for `str`s they're `array`s, so.
-
-Wait, are we coming out against the `str` type? I think so? The differentiator
-is that `str` has to contain encoded string data, which we can't at all enforce
-with types.
-
-OK well, I think maybe all this comes out of starting from the wrong place
-(function parameters). If we think of `str` as the answer to "what is the type
-of a string literal", I think all of our problems go away:
-- Encoding is whatever the source file is encoded in (probably bite it and just
-say UTF-8 here)
-- We always know byte length
-- We can add an `element_count` specifier to a `str`:
+* Figure out name mangling
+  * This is important so that we can lookup parameterized types without having
+    to store them separately from each other
+* Figure out automatically adding impls to monomorphizations
+  * I think doing this through `implementation_builders` makes the most sense
+- Figure out registering monomorphizations in the module
+  - We should just never be constructing types in ast-land, then we can do it
+    manually in `module_builder`
+- Fix `emit_attribute_lookup` to look through impls also
+- Add `Lookup` expr
+- Add an `element_count` specifier to a `str`:
   - `struct Person { name: str(8)(""), age: u8(0) }`
 
 ## Sized types
@@ -62,13 +19,12 @@ There's a conflict between "must specify the size of a(n) array/string value"
 and "can't possibly specify every length for a(n) array/string parameter".
 We're smoothing this over with interfaces.
 
-## Stdlib
-
-- Need an in-compiler interface for `String`
-- Need a base `impl String(str)` that has at least `get_length`
-- Need a base `impl String(string)` that has at least `get_length`
-
 ## Language
+
+### `str`
+
+- Add an `element_count` specifier:
+  - `struct Person { name: str(8)(""), age: u8(0) }`
 
 ### Generics
 

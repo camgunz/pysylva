@@ -1,10 +1,11 @@
 import typing
 
+from functools import cached_property
+
 from attrs import define, field
 
 from .. import errors, utils
 from .attribute_lookup import AttributeLookupMixIn
-from .defs import Def
 from .sylva_type import SylvaType
 from .type_mapping import Attribute
 
@@ -31,7 +32,7 @@ class InterfaceType(SylvaType, AttributeLookupMixIn):
     def add_implementation(self, implementation):
         self.implementations.append(implementation)
 
-
-@define(eq=False, slots=True)
-class InterfaceDef(Def):
-    type: InterfaceType
+    @cached_property
+    def mname(self):
+        # pylint: disable=not-an-iterable
+        return ''.join(['if', ''.join(f.type.mname for f in self.functions)])

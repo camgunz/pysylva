@@ -1,10 +1,12 @@
 import typing
 
+from functools import cached_property
+
 from attrs import define, field
 from llvmlite import ir # type: ignore
 
 from .. import errors, utils
-from .defs import ParamDef
+from .defs import ParamTypeDef
 from .expr import Expr, ValueExpr
 from .statement import Stmt
 from .sylva_type import SylvaParamType, SylvaType
@@ -14,8 +16,7 @@ from .type_mapping import Parameter
 @define(eq=False, slots=True)
 class MonoFunctionType(SylvaType):
     parameters: typing.List[Parameter] = field(default=[])
-    return_type: SylvaType
-    llvm_value: None | ir.Function = None
+    return_type: SylvaType | None
     implementations: typing.List = []
     llvm_type = field(init=False)
 
@@ -26,11 +27,14 @@ class MonoFunctionType(SylvaType):
         if dupes:
             raise errors.DuplicateParameters(self, dupes)
 
-    def mangle(self):
+    @cached_property
+    def mname(self):
         # pylint: disable=not-an-iterable
-        params = ''.join(p.type.mangle() for p in self.parameters)
-        base = f'fn{params}{self.return_type.mangle()}'
-        return f'{len(base)}{base}'
+        return ''.join([
+            '2fn',
+            ''.join(p.type.mname for p in self.parameters),
+            self.return_type.mname
+        ])
 
     @llvm_type.default
     def _llvm_type_factory(self):
@@ -48,33 +52,26 @@ class MonoFunctionType(SylvaType):
 class FunctionType(SylvaParamType):
     monomorphizations: typing.List[MonoFunctionType] = []
 
-    @classmethod
-    def Def(cls, location, parameters, return_type):
-        return cls(
-            location=location,
-            monomorphizations=[
-                MonoFunctionType(location, parameters, return_type)
-            ]
-        )
-
-    def add_monomorphization(self, mono_function_type):
-        index = len(self.monomorphizations)
-        self.monomorphizations.append(mono_function_type)
-        return index
-
 
 @define(eq=False, slots=True)
 class FunctionExpr(ValueExpr):
-    type: FunctionType
+    type: typing.Any
 
 
 @define(eq=False, slots=True)
-class FunctionDef(ParamDef):
+class FunctionDef(ParamTypeDef):
     type: FunctionType
     code: typing.List[Expr | Stmt]
 
-    def get_llvm_value(self, index):
-        return self.type.monomorphizations[index].llvm_value
-
-    def set_llvm_value(self, index, llvm_value):
-        self.type.monomorphizations[index].llvm_value = llvm_value
+    def llvm_define(self, llvm_module):
+        llvm_func_type = self.type.emit(llvm_module)
+        llvm_func = ir.Function(llvm_module, llvm_func_type, name=self.name)
+        block = llvm_func.append_basic_block()
+        builder = ir.IRBuilder(block=block)
+        scope = {}
+        for arg, param in zip(llvm_func_type.args, self.type.parameters):
+            llvm_param = builder.alloca(param.type.llvm_type, name=param.name)
+            builder.store(arg, llvm_param)
+            scope[param.name] = llvm_param
+        for node in self.code:
+            node.emit(llvm_module, builder, scope)

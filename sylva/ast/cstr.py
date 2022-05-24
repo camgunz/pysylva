@@ -1,3 +1,5 @@
+from functools import cached_property
+
 from attrs import define, field
 from llvmlite import ir # type: ignore
 
@@ -14,6 +16,10 @@ class CStrType(SylvaType):
     @llvm_type.default
     def _llvm_type_factory(self):
         return ir.PointerType(ir.IntType(8))
+
+    @cached_property
+    def mname(self):
+        return '4cstr'
 
 
 @define(eq=False, slots=True)

@@ -1,9 +1,13 @@
 import typing
 
-from attrs import define
+from functools import cached_property
 
+from attrs import define
+from llvmlite import ir # type: ignore
+
+from .. import utils
 from .array import MonoArrayType
-from .defs import Def
+from .defs import TypeDef
 
 
 @define(eq=False, slots=True)
@@ -12,7 +16,10 @@ class CArrayType(MonoArrayType):
     element_count: int
     implementations: typing.List = []
 
-
-@define(eq=False, slots=True)
-class CArrayDef(Def):
-    pass
+    @cached_property
+    def mname(self):
+        return ''.join([
+            '2ca',
+            self.element_type.mname,
+            utils.len_prefix(str(self.element_count))
+        ])

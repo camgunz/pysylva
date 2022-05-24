@@ -1,9 +1,9 @@
 import typing
 
 from attrs import define, field
+from llvmlite import ir # type: ignore
 
-from .. import debug, errors
-from ..code_gen import CodeGen
+from .. import errors
 from ..location import Location
 from ..module_builder import ModuleBuilder
 from ..parser import Parser
@@ -11,13 +11,10 @@ from ..program import Program
 from ..stream import Stream
 from .attribute_lookup import AttributeLookupMixIn
 from .base import Decl
-from .defs import Def
+from .defs import TypeDef
 from .requirement import RequirementDecl
-from .self_referential import SelfReferentialMixIn
 from .sylva_type import SylvaType
 from .type_mapping import Attribute
-from .alias import AliasDecl
-from .const import ConstDef
 
 
 @define(eq=False, slots=True)
@@ -39,25 +36,20 @@ class ModuleDecl(Decl):
 
 
 @define(eq=False, slots=True)
-class ModuleDef(Def, AttributeLookupMixIn):
+class ModuleDef(TypeDef, AttributeLookupMixIn):
     program: Program
     streams: typing.List[Stream]
     requirement_statements: typing.List[RequirementDecl]
     parsed = False
     errors: typing.List[errors.LocationError] = []
-    aliases: typing.Dict[str, Def] = {}
-    code_gen = field(init=False)
-    vars: typing.Dict[str, Def] = {}
+    aliases: typing.Dict[str, TypeDef] = {}
+    vars: typing.Dict[str, TypeDef] = {}
     requirements: typing.Set = set()
     type = field(init=False)
 
-    @code_gen.default
-    def _code_gen_factory(self):
-        self.code_gen = CodeGen(self)
-
     @type.default
     def _type_factory(self):
-        self.type = ModuleType(Location.Generate(), self)
+        return ModuleType(Location.Generate(), self)
 
     def __repr__(self):
         return 'Module(%r, %r, %r, %r)' % (
@@ -66,24 +58,6 @@ class ModuleDef(Def, AttributeLookupMixIn):
 
     def __str__(self):
         return f'<Module {self.name}>'
-
-    def _check_definition(self, definition):
-        existing_alias = self.aliases.get(definition.name)
-        if existing_alias:
-            raise errors.DuplicateAlias(
-                definition.location, existing_alias.location, definition.name
-            )
-
-        # if definition.name in ast.BUILTIN_TYPES:
-        #     raise errors.RedefinedBuiltIn(definition)
-
-        existing_definition = self.vars.get(definition.name)
-        if existing_definition:
-            raise errors.DuplicateDefinition(
-                definition.name,
-                definition.location,
-                existing_definition.location,
-            )
 
     def resolve_requirements(self, seen=None):
         if len(self.requirements) == len(self.requirement_statements):
@@ -110,32 +84,9 @@ class ModuleDef(Def, AttributeLookupMixIn):
         for s in self.streams:
             ModuleBuilder(self, s).visit(Parser().parse(s.data))
 
-        for _, obj in self.vars.items():
-            # if name in ast.BUILTIN_TYPES:
-            #     continue
-
-            if isinstance(obj.type, SelfReferentialMixIn):
-                self.errors.extend(obj.type.resolve_self_references())
-
         self.parsed = True
 
         return self.errors
-
-    def get_llvm_module(self):
-        self.parse()
-
-        if self.errors:
-            return None, self.errors
-
-        return self.code_gen.get_llvm_module()
-
-    def get_object_code(self):
-        self.parse()
-
-        if self.errors:
-            return None, self.errors
-
-        return self.code_gen.get_object_code()
 
     def get_attribute(self, location, name):
         aliased_value = self.aliases.get(name)
@@ -165,6 +116,15 @@ class ModuleDef(Def, AttributeLookupMixIn):
 
         return self.vars.get(name)
 
+    # pylint: disable=arguments-differ
+    def llvm_define(self):
+        llvm_module = ir.Module(name=self.name)
+
+        for var in self.vars.values():
+            var.llvm_define(llvm_module)
+
+        return llvm_module, []
+
     # def lookup_field(self, location, name):
     #     aliased_value = self.aliases.get(name)
     #     if aliased_value is not None:
@@ -188,18 +148,3 @@ class ModuleDef(Def, AttributeLookupMixIn):
     #             raise errors.NoSuchAttribute(location, field)
 
     #     return value
-
-    def define(self, definition):
-        self._check_definition(definition)
-        if isinstance(definition, AliasDecl):
-            debug('define', f'Alias {definition.name} -> {definition}')
-            self.aliases[definition.name] = definition
-        elif isinstance(definition, ConstDef):
-            debug('define', f'Const {definition.name} -> {definition.value}')
-            self.vars[definition.name] = definition
-        else:
-            debug('define', f'Define {definition.name} -> {definition}')
-            self.vars[definition.name] = definition
-
-    def get_identified_type(self, name):
-        return self.code_gen.get_identified_type(name)

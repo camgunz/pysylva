@@ -8,7 +8,7 @@ class Operator(str, enum.Enum):
         obj = str.__new__(cls, value)
         obj._value_ = value
         obj.arity = arity
-        obj.assignment = value.endswith('=')
+        obj.is_assignment = value.endswith('=')
 
     AttributeLookup = ('.', 2)
     ReflectionLookup = ('::', 2)

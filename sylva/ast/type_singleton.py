@@ -35,7 +35,7 @@ class TypeSingletons(enum.Enum):
     CVOID = IntType(location=Location.Generate(), bits=8, signed=True)
 
 
-def get_integer_type(bits, signed):
+def get_int_type(bits, signed):
     if bits == 8:
         return TypeSingletons.I8.value if signed else TypeSingletons.U8.value
     if bits == 16:

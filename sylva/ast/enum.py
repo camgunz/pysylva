@@ -1,5 +1,7 @@
 import typing
 
+from functools import cached_property
+
 from attrs import define, field
 
 from .. import errors, utils
@@ -37,3 +39,8 @@ class EnumType(SylvaType):
         for val in self.values: # pylint: disable=not-an-iterable
             if val.name == name:
                 return val
+
+    @cached_property
+    def mname(self):
+        # pylint: disable=unsubscriptable-object
+        return ''.join(['1e', self.values[0].type.mname])

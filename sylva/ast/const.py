@@ -10,7 +10,11 @@ from .sylva_type import SylvaType
 class ConstDef(Def):
     type: SylvaType
     value: LiteralExpr
-    llvm_value: None | ir.Value = None
 
-    def get_llvm_value(self, module):
-        return self.value.get_llvm_value(module)
+    def llvm_define(self, llvm_module):
+        const = ir.GlobalVariable(llvm_module, self.type.llvm_type, self.name)
+        const.initializer = ir.Constant(
+            self.type.llvm_type, self.value.emit(llvm_module, None, None)
+        )
+        const.global_constant = True
+        return const

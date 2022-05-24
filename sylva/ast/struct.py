@@ -1,11 +1,12 @@
 import typing
 
+from functools import cached_property
+
 from attrs import define, field
-from llvmlite import ir # type: ignore
 
 from .. import errors, utils
 from .attribute_lookup import AttributeLookupMixIn
-from .defs import SelfReferentialParamDef
+from .defs import SelfReferentialParamTypeDef
 from .pointer import GetElementPointerExpr
 from .sylva_type import SylvaParamType, SylvaType
 from .type_mapping import Field
@@ -36,6 +37,11 @@ class BaseStructType(SylvaType, AttributeLookupMixIn):
         if dupes:
             raise errors.DuplicateFields(self, dupes)
 
+    @cached_property
+    def mname(self):
+        # pylint: disable=not-an-iterable
+        return ''.join(['6struct', ''.join(f.type.mname for f in self.fields)])
+
     # pylint: disable=unused-argument
     def get_attribute(self, location, name):
         for f in self.fields:
@@ -54,26 +60,9 @@ class StructType(SylvaParamType):
     monomorphizations: typing.List[MonoStructType] = []
     implementations: typing.List = []
 
-    @classmethod
-    def Def(cls, location, name, fields):
-        return cls(
-            location=location,
-            name=name,
-            monomorphizations=[
-                MonoStructType(location=location, name=name, field=fields)
-            ]
-        )
-
-    def add_monomorphization(self, fields):
-        index = len(self.monomorphizations)
-        mst = MonoStructType(name=self.name, fields=fields)
-        self.monomorphizations.append(mst)
-        return index
-
 
 @define(eq=False, slots=True)
-class StructDef(SelfReferentialParamDef, AttributeLookupMixIn):
-    llvm_value: None | ir.Value = None
+class StructDef(SelfReferentialParamTypeDef, AttributeLookupMixIn):
 
     def get_attribute(self, location, name):
         f = self.type.get_attribute(location, name)
@@ -97,3 +86,6 @@ class StructDef(SelfReferentialParamDef, AttributeLookupMixIn):
 
     def index_slot(self, location, index):
         return self.get_slot(location, index).get_value_expr(location=location)
+
+    def llvm_define(self, llvm_module):
+        pass

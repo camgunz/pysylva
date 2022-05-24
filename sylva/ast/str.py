@@ -1,8 +1,12 @@
 import typing
 
+from functools import cached_property
+
 from attrs import define
 
-from .array import MonoArrayType
+from ..location import Location
+from ..utils import mangle
+from .array import ArrayType, MonoArrayType
 from .attribute_lookup import AttributeLookupMixIn
 from .expr import LiteralExpr
 from .function import FunctionExpr, FunctionType
@@ -10,18 +14,13 @@ from .number import IntType, IntLiteralExpr
 from .statement import ReturnStmt
 from .type_mapping import Attribute
 from .type_singleton import TypeSingletons
-from ..location import Location
 
 
 @define(eq=False, slots=True)
-class StrType(MonoArrayType):
+class MonoStrType(MonoArrayType):
     value: bytearray
     element_type: IntType = TypeSingletons.I8.value
     implementations: typing.List = []
-
-    def mangle(self):
-        base = f'str{self.element_type.mangle()}{self.element_count}'
-        return f'{len(base)}{base}'
 
     @classmethod
     def FromValue(cls, location, value):
@@ -30,10 +29,20 @@ class StrType(MonoArrayType):
     def get_value_expr(self, location):
         return StrLiteralExpr(location=location, type=self, value=self.value)
 
+    @cached_property
+    def mname(self):
+        return mangle(['str', self.element_count])
+
+
+@define(eq=False, slots=True)
+class StrType(ArrayType):
+    monomorphizations: typing.List[typing.Any] = []
+    implementation_builders: typing.List = []
+
 
 @define(eq=False, slots=True)
 class StrLiteralExpr(LiteralExpr, AttributeLookupMixIn):
-    type: StrType
+    type: MonoStrType
 
     # pylint: disable=arguments-differ
     @classmethod
@@ -43,7 +52,7 @@ class StrLiteralExpr(LiteralExpr, AttributeLookupMixIn):
         encoded_data = bytearray(raw_value[1:-1], encoding='utf-8')
         return cls(
             location,
-            type=StrType.FromValue(location, encoded_data),
+            type=MonoStrType.FromValue(location, encoded_data),
             value=encoded_data
         )
 
@@ -67,9 +76,9 @@ class StrLiteralExpr(LiteralExpr, AttributeLookupMixIn):
                 code=[
                     ReturnStmt(
                         location=Location.Generate(),
-                        expr=IntLiteralExpr.Platform(
+                        expr=IntLiteralExpr(
                             location=location,
-                            signed=False,
+                            type=TypeSingletons.UINT.value,
                             value=len(self.value)
                         )
                     )

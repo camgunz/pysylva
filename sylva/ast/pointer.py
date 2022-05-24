@@ -1,9 +1,11 @@
 import typing
 
+from functools import cached_property
+
 from attrs import define, field
 from llvmlite import ir # type: ignore
 
-from .. import errors
+from .. import errors, utils
 from .expr import Expr, ValueExpr
 from .attribute_lookup import AttributeLookupMixIn
 from .reflection_lookup import ReflectionLookupMixIn
@@ -34,12 +36,28 @@ class BasePointerType(SylvaType, AttributeLookupMixIn, ReflectionLookupMixIn):
 
 @define(eq=False, slots=True)
 class ReferencePointerType(BasePointerType):
-    pass
+
+    @cached_property
+    def mname(self):
+        return ''.join(['2rp', self.referenced_type.mname])
+
+
+@define(eq=False, slots=True)
+class ExclusiveReferencePointerType(BasePointerType):
+    is_exclusive: bool = True
+
+    @cached_property
+    def mname(self):
+        return ''.join(['2xp', self.referenced_type.mname])
 
 
 @define(eq=False, slots=True)
 class OwnedPointerType(BasePointerType):
     is_exclusive: bool = True
+
+    @cached_property
+    def mname(self):
+        return ''.join(['2op', self.referenced_type.mname])
 
 
 @define(eq=False, slots=True)
@@ -79,7 +97,7 @@ class GetElementPointerExpr(Expr):
     name: str | None
 
     # pylint: disable=unused-argument
-    def emit(self, module, builder):
+    def emit(self, module, builder, scope):
         return builder.gep(
             self.obj, [self.index], inbounds=True, name=self.name
         )

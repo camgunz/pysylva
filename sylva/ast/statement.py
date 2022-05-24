@@ -8,7 +8,9 @@ from .expr import Expr
 
 @define(eq=False, slots=True)
 class Stmt(Node):
-    pass
+
+    def emit(self, module, builder, scope):
+        raise NotImplementedError()
 
 
 @define(eq=False, slots=True)

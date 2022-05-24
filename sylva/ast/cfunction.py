@@ -1,10 +1,12 @@
 import typing
 
+from functools import cached_property
+
 from attrs import define, field
 from llvmlite import ir # type: ignore
 
 from .. import errors, utils
-from .defs import Def
+from .defs import TypeDef
 from .sylva_type import SylvaType
 from .type_mapping import Parameter
 
@@ -35,6 +37,15 @@ class BaseCFunctionType(SylvaType):
             params
         )
 
+    @cached_property
+    def mname(self):
+        # pylint: disable=not-an-iterable
+        return ''.join([
+            '3cfn',
+            ''.join(p.type.mname for p in self.parameters),
+            self.return_type.mname
+        ])
+
 
 @define(eq=False, slots=True)
 class CFunctionType(BaseCFunctionType):
@@ -58,10 +69,27 @@ class CFunctionPointerType(BaseCFunctionType):
             params
         ).as_pointer()
 
+    @cached_property
+    def mname(self):
+        # pylint: disable=not-an-iterable
+        return ''.join([
+            '4cfnp',
+            ''.join(p.type.mname for p in self.parameters),
+            self.return_type.mname
+        ])
+
 
 @define(eq=False, slots=True)
 class CBlockFunctionType(BaseCFunctionType):
-    pass
+
+    @cached_property
+    def mname(self):
+        # pylint: disable=not-an-iterable
+        return ''.join([
+            '4cbfn',
+            ''.join(p.type.mname for p in self.parameters),
+            self.return_type.mname
+        ])
 
 
 @define(eq=False, slots=True)
@@ -81,8 +109,19 @@ class CBlockFunctionPointerType(BaseCFunctionType):
             params
         ).as_pointer()
 
+    @cached_property
+    def mname(self):
+        # pylint: disable=not-an-iterable
+        return ''.join([
+            '5cbfnp',
+            ''.join(p.type.mname for p in self.parameters),
+            self.return_type.mname
+        ])
+
 
 @define(eq=False, slots=True)
-class CFunctionDef(Def):
+class CFunctionDef(TypeDef):
     type: CFunctionType
-    llvm_value: None | ir.Function = None
+
+    def llvm_define(self, llvm_module):
+        return ir.Function(llvm_module, self.type.llvm_type, self.name)

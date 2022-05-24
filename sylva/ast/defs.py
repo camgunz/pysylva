@@ -1,5 +1,7 @@
 import typing
 
+from functools import cached_property
+
 from attrs import define, field
 from llvmlite import ir # type: ignore
 
@@ -36,17 +38,25 @@ class BaseDef(Node):
 
     def define(self, module):
         self._check_definition(module)
-        debug('define', f'Define {self.name} -> {self}')
-        module.vars[self.name] = self
+        debug('define', f'Define {self.name} ({self.mname}) -> {self}')
+        module.vars[self.mname] = self
+
+    def llvm_define(self, llvm_module):
+        # pylint: disable=no-member
+        return ir.GlobalVariable(llvm_module, self.type.llvm_type, self.mname)
+
+    @cached_property
+    def mname(self):
+        return self.name
 
 
 @define(eq=False, slots=True)
-class Def(BaseDef):
+class TypeDef(BaseDef):
     type: SylvaType
 
 
 @define(eq=False, slots=True)
-class ParamDef(BaseDef):
+class ParamTypeDef(BaseDef):
     type: SylvaParamType
 
 
@@ -83,9 +93,7 @@ class SelfReferentialMixIn:
 
         return missing_field_errors
 
-    def define(self, module):
-        self._resolve_self_references()
-        # [TODO] Actually write
+    def llvm_define(self, llvm_module):
         if self.name is None:
             for f in self.fields:
                 if not isinstance(f.type, BasePointerType):
@@ -99,7 +107,7 @@ class SelfReferentialMixIn:
                 f.type.llvm_type for f in self.fields
             ])
         else:
-            struct = module.get_identified_type(self.name)
+            struct = llvm_module.context.get_identified_type(self.name)
             fields = []
             for f in self.fields:
                 if not isinstance(f.type, BasePointerType):
@@ -116,14 +124,22 @@ class SelfReferentialMixIn:
 
 
 @define(eq=False, slots=True)
-class SelfReferentialDef(SelfReferentialMixIn, Def):
+class SelfReferentialTypeDef(SelfReferentialMixIn, TypeDef):
     name: str
     fields: typing.List[Field] = []
     llvm_type: ir.Type | None = None
+
+    def define(self, module):
+        self._resolve_self_references()
+        super().define(module)
 
 
 @define(eq=False, slots=True)
-class SelfReferentialParamDef(SelfReferentialMixIn, ParamDef):
+class SelfReferentialParamTypeDef(SelfReferentialMixIn, ParamTypeDef):
     name: str
     fields: typing.List[Field] = []
     llvm_type: ir.Type | None = None
+
+    def define(self, module):
+        self._resolve_self_references()
+        super().define(module)

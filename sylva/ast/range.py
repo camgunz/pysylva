@@ -1,5 +1,7 @@
 import typing
 
+from functools import cached_property
+
 from attrs import define, field
 
 from .attribute_lookup import AttributeLookupMixIn
@@ -15,8 +17,9 @@ class RangeType(SylvaType, AttributeLookupMixIn):
     llvm_type = field(init=False)
     implementations: typing.List = []
 
-    def mangle(self):
-        return self.type.mangle()
+    @cached_property
+    def mname(self):
+        return self.type.mname
 
     @llvm_type.default
     def _llvm_type_factory(self):

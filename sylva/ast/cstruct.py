@@ -1,21 +1,27 @@
+from functools import cached_property
+
 from attrs import define
-from llvmlite import ir # type: ignore
 
 from .. import errors
 from .attribute_lookup import AttributeLookupMixIn
-from .defs import Def
+from .defs import SelfReferentialTypeDef
 from .pointer import GetElementPointerExpr
 from .struct import BaseStructType
 
 
 @define(eq=False, slots=True)
 class CStructType(BaseStructType):
-    pass
+
+    @cached_property
+    def mname(self):
+        # pylint: disable=not-an-iterable
+        return ''.join([
+            '7cstruct', ''.join(f.type.mname for f in self.fields)
+        ])
 
 
 @define(eq=False, slots=True)
-class CStructDef(Def, AttributeLookupMixIn):
-    llvm_value: None | ir.Value = None
+class CStructDef(SelfReferentialTypeDef, AttributeLookupMixIn):
 
     def get_attribute(self, location, name):
         f = self.type.get_attribute(location, name)

@@ -1,5 +1,7 @@
 import typing
 
+from functools import cached_property
+
 from llvmlite import ir # type: ignore
 
 from attrs import define, field
@@ -25,9 +27,9 @@ class SizedNumericType(NumericType):
 class ComplexType(SizedNumericType):
     llvm_type = field(init=False)
 
-    def mangle(self):
-        base = f'c{self.bits}'
-        return f'{len(base)}{base}'
+    @cached_property
+    def mname(self):
+        return utils.mangle(['c', self.bits])
 
     def get_value_expr(self, location):
         return ComplexExpr(location=location, type=self)
@@ -35,25 +37,25 @@ class ComplexType(SizedNumericType):
     @llvm_type.default
     def _llvm_type_factory(self):
         if self.bits == 8:
-            self.llvm_type = ir.HalfType()
+            return ir.HalfType()
         if self.bits == 16:
-            self.llvm_type = ir.FloatType()
+            return ir.FloatType()
         if self.bits == 32:
-            self.llvm_type = ir.DoubleType()
+            return ir.DoubleType()
         # [NOTE] llvmlite won't do float types > 64 bits
         if self.bits == 64:
-            self.llvm_type = ir.DoubleType()
+            return ir.DoubleType()
         if self.bits == 128:
-            self.llvm_type = ir.DoubleType()
+            return ir.DoubleType()
 
 
 @define(eq=False, slots=True)
 class FloatType(SizedNumericType):
     llvm_type = field(init=False)
 
-    def mangle(self):
-        base = f'f{self.bits}'
-        return f'{len(base)}{base}'
+    @cached_property
+    def mname(self):
+        return utils.mangle(['f', self.bits])
 
     def get_value_expr(self, location):
         return FloatExpr(location=location, type=self)
@@ -62,16 +64,16 @@ class FloatType(SizedNumericType):
     def _llvm_type_factory(self):
         # [NOTE] llvmlite won't do float types < 16 bits
         if self.bits == 8:
-            self.llvm_type = ir.HalfType()
+            return ir.HalfType()
         if self.bits == 16:
-            self.llvm_type = ir.HalfType()
+            return ir.HalfType()
         if self.bits == 32:
-            self.llvm_type = ir.FloatType()
+            return ir.FloatType()
         if self.bits == 64:
-            self.llvm_type = ir.DoubleType()
+            return ir.DoubleType()
         # [NOTE] llvmlite won't do float types > 64 bits
         if self.bits == 128:
-            self.llvm_type = ir.DoubleType()
+            return ir.DoubleType()
 
 
 @define(eq=False, slots=True)
@@ -80,10 +82,9 @@ class IntType(SizedNumericType):
     llvm_type = field(init=False)
     implementations: typing.List = []
 
-    def mangle(self):
-        prefix = 'i' if self.signed else 'u'
-        base = f'{prefix}{self.bits}'
-        return f'{len(base)}{base}'
+    @cached_property
+    def mname(self):
+        return utils.mangle(['i' if self.signed else 'u', self.bits])
 
     @classmethod
     def SmallestThatHolds(cls, x):
@@ -111,16 +112,9 @@ class IntLiteralExpr(NumericLiteralExpr):
     type: IntType
 
     @classmethod
-    def Platform(cls, location, signed, value):
-        return cls(location, IntType(_SIZE_SIZE, signed=signed), value)
-
-    @classmethod
-    def SmallestThatHolds(cls, location, value):
-        type = IntType(size=utils.smallest_uint(value), signed=False)
-        return cls(location=location, type=type, value=value)
-
-    @classmethod
     def FromRawValue(cls, location, raw_value):
+        from .type_singleton import get_int_type
+
         if raw_value.startswith('0b') or raw_value.startswith('0B'):
             base = 2
         elif raw_value.startswith('0o') or raw_value.startswith('0O'):
@@ -159,7 +153,7 @@ class IntLiteralExpr(NumericLiteralExpr):
 
         return cls(
             location=location,
-            type=IntType(location=location, bits=size, signed=signed),
+            type=get_int_type(bits=size, signed=signed),
             value=value
         )
 
@@ -183,14 +177,16 @@ class FloatLiteralExpr(NumericLiteralExpr):
 
     @classmethod
     def FromRawValue(cls, location, raw_value):
+        from .type_singleton import get_float_type
+
         if raw_value.endswith('f16'):
-            return cls(location, FloatType(16), float(raw_value[:-3]))
+            return cls(location, get_float_type(16), float(raw_value[:-3]))
         if raw_value.endswith('f32'):
-            return cls(location, FloatType(32), float(raw_value[:-3]))
+            return cls(location, get_float_type(32), float(raw_value[:-3]))
         if raw_value.endswith('f64'):
-            return cls(location, FloatType(64), float(raw_value[:-3]))
+            return cls(location, get_float_type(64), float(raw_value[:-3]))
         if raw_value.endswith('f128'):
-            return cls(location, FloatType(128), float(raw_value[:-4]))
+            return cls(location, get_float_type(128), float(raw_value[:-4]))
         raise Exception(f'Malformed float value {raw_value}')
 
     @property
@@ -209,14 +205,18 @@ class ComplexLiteralExpr(NumericLiteralExpr):
 
     @classmethod
     def FromRawValue(cls, location, raw_value):
+        from .type_singleton import get_complex_type
+
         if raw_value.endswith('f16'):
-            return cls(location, ComplexType(16), complex(raw_value[:-3]))
+            return cls(location, get_complex_type(16), complex(raw_value[:-3]))
         if raw_value.endswith('f32'):
-            return cls(location, ComplexType(32), complex(raw_value[:-3]))
+            return cls(location, get_complex_type(32), complex(raw_value[:-3]))
         if raw_value.endswith('f64'):
-            return cls(location, ComplexType(64), complex(raw_value[:-3]))
+            return cls(location, get_complex_type(64), complex(raw_value[:-3]))
         if raw_value.endswith('f128'):
-            return cls(location, ComplexType(128), complex(raw_value[:-4]))
+            return cls(
+                location, get_complex_type(128), complex(raw_value[:-4])
+            )
         raise Exception(f'Malformed complex value {raw_value}')
 
     @property

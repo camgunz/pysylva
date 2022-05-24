@@ -1,5 +1,7 @@
 import typing
 
+from functools import cached_property
+
 from attrs import define, field
 from llvmlite import ir # type: ignore
 
@@ -9,18 +11,19 @@ from .base import Node
 
 @define(eq=False, slots=True)
 class BaseSylvaType(Node):
-    implementations: typing.List = []
 
-    def mangle(self):
+    @cached_property
+    def mname(self):
         raise NotImplementedError()
-
-    def add_implementation(self, implementation):
-        self.implementations.append(implementation)
 
 
 @define(eq=False, slots=True)
 class SylvaType(BaseSylvaType):
-    llvm_type: ir.Type | None = field(init=False)
+    llvm_type: ir.Type | None = field(init=False, default=None)
+    implementations: typing.List = []
+
+    def add_implementation(self, implementation):
+        self.implementations.append(implementation)
 
     def make_constant(self, value):
         # pylint: disable=not-callable
@@ -43,6 +46,7 @@ class SylvaType(BaseSylvaType):
 @define(eq=False, slots=True)
 class SylvaParamType(BaseSylvaType):
     monomorphizations: typing.List = []
+    implementation_builders: typing.List = []
 
     @property
     def is_polymorphic(self):
@@ -51,3 +55,10 @@ class SylvaParamType(BaseSylvaType):
     @property
     def llvm_types(self):
         return [mm.llvm_type for mm in self.monomorphizations]
+
+    def add_monomorphization(self, mm):
+        index = len(self.monomorphizations)
+        self.monomorphizations.append(mm)
+        for ib in self.implementation_builders:
+            ib(mm)
+        return index

@@ -1,8 +1,10 @@
+import llvmlite # type: ignore
+
 from . import sylva, sylva_builtins
 
 from .module_loader import ModuleLoader
 from .stdlib import Stdlib
-from .target import make_target
+from .target import get_target, make_target
 
 
 class Program:
@@ -56,12 +58,23 @@ class Program:
     def compile(self, output_folder):
         errors = []
         for module in self.modules.values():
-            module_object_code, module_errors = module.get_object_code()
-            if module_errors:
-                errors.extend(module_errors)
+            parse_errors = module.parse()
+            if parse_errors:
+                errors.extend(parse_errors)
             else:
-                with open(output_folder / module.name, 'wb') as fobj:
-                    fobj.write(module_object_code)
+                llvm_module, compilation_errors = module.llvm_define()
+                if compilation_errors:
+                    errors.extend(compilation_errors)
+                else:
+                    llvm_mod_ref = (
+                        llvmlite.binding.parse_assembly(str(llvm_module))
+                    )
+                    llvm_mod_ref.verify()
+                    object_code = (
+                        get_target().machine.emit_object(llvm_mod_ref)
+                    )
+                    with open(output_folder / module.name, 'wb') as fobj:
+                        fobj.write(object_code)
         return errors
 
     def get_module(self, name):

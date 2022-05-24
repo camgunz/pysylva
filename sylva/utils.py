@@ -37,3 +37,26 @@ def round_up_to_multiple(x, base):
     if rem == 0:
         return x
     return x + base - rem
+
+
+def len_prefix(s):
+    return f'{len(s)}{s}'
+
+
+def mangle(seq):
+    return ''.join(len_prefix(s) for s in map(str, seq))
+
+
+def demangle(s):
+    length = []
+    tokens = []
+    seq = list(s)
+    while seq:
+        if not seq[0].isdigit():
+            tlen = int(''.join(length))
+            tokens.append(seq[:tlen])
+            seq = seq[tlen:]
+            length = []
+        else:
+            length.append(seq.pop(0))
+    return tokens

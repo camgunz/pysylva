@@ -163,7 +163,7 @@ class ModuleBuilder(lark.Visitor):
                     f'{func_type}'
                 )
 
-            return ast.CallExpr.Def(
+            return ast.CallExpr(
                 location=location,
                 type=func_type.type.return_type,
                 function=func_expr,
@@ -514,10 +514,15 @@ class ModuleBuilder(lark.Visitor):
             else:
                 return_type = None
 
-            return ast.FunctionType.Def(
+            return ast.FunctionType(
                 location=location,
-                parameters=parameters,
-                return_type=return_type,
+                monomorphizations=[
+                    ast.MonoFunctionType(
+                        location=location,
+                        parameters=parameters,
+                        return_type=return_type
+                    )
+                ]
             )
 
         if type_obj.data == 'identifier':
@@ -583,24 +588,28 @@ class ModuleBuilder(lark.Visitor):
         raise NotImplementedError
 
     def alias_def(self, tree):
-        ast.AliasDef(
+        ad = ast.AliasDef(
             location=Location.FromTree(tree, self._stream),
             name=tree.children[0].value,
             value=self._get_type(tree.children[1])
-        ).define(self._module)
+        )
+        ad.define(self._module)
+        ad.llvm_define(self._module.llvm_module)
 
     def const_def(self, tree):
         value = self._handle_expr(tree.children[1], {})
-        ast.ConstDef(
+        cd = ast.ConstDef(
             location=Location.FromTree(tree, self._stream),
             name=tree.children[0].value,
             value=value,
             type=value.type
-        ).define(self._module)
+        )
+        cd.define(self._module)
+        cd.llvm_define(self._module.llvm_module)
 
     def c_array_type_def(self, tree):
         debug('defer', 'Making array')
-        ast.CArrayDef(
+        cad = ast.CArrayDef(
             location=Location.FromTree(tree, self._stream),
             name=tree.children[0].value,
             type=ast.CArrayType(
@@ -610,7 +619,9 @@ class ModuleBuilder(lark.Visitor):
                 ),
                 element_count=int(tree.children[1].children[2])
             )
-        ).define(self._module)
+        )
+        cad.define(self._module)
+        cad.llvm_define(self._module.llvm_module)
 
     def c_function_type_def(self, tree):
         param_objs = tree.children[1].children[:-1]
@@ -631,7 +642,7 @@ class ModuleBuilder(lark.Visitor):
         else:
             return_type = None
 
-        ast.CFunctionDef(
+        cfd = ast.CFunctionDef(
             location=Location.FromTree(tree, self._stream),
             name=tree.children[0].value,
             type=ast.CFunctionType(
@@ -639,7 +650,9 @@ class ModuleBuilder(lark.Visitor):
                 parameters=parameters,
                 return_type=return_type
             )
-        ).define(self._module)
+        )
+        cfd.define(self._module)
+        cfd.llvm_define(self._module.llvm_module)
 
     def c_struct_type_def(self, tree):
         fields = []
@@ -661,11 +674,13 @@ class ModuleBuilder(lark.Visitor):
             fields=fields
         )
 
-        ast.CStructDef(
+        csd = ast.CStructDef(
             location=Location.FromTree(tree, self._stream),
             name=tree.children[0].value,
             type=c_struct_type
-        ).define(self._module)
+        )
+        csd.define(self._module)
+        csd.llvm_define(self._module.llvm_module)
 
     def c_union_type_def(self, tree):
         fields = []
@@ -680,13 +695,15 @@ class ModuleBuilder(lark.Visitor):
                     index=i
                 )
             )
-        ast.CUnionDef(
+        cud = ast.CUnionDef(
             location=Location.FromTree(tree, self._stream),
             name=tree.children[0].value,
             type=ast.CUnionType(
                 location=Location.FromTree(tree, self._stream), fields=fields
             )
-        ).define(self._module)
+        )
+        cud.define(self._module)
+        cud.llvm_define(self._module.llvm_module)
 
     def function_def(self, tree):
         function_type_def, code_block = tree.children
@@ -713,13 +730,21 @@ class ModuleBuilder(lark.Visitor):
         code = self._process_code_block(code_block, scope=scope)
 
         # [TODO] Monomorphize based on params (not strings) here
-        ast.FunctionDef(
-            location=Location.FromTree(tree, self._stream),
+        location = Location.FromTree(tree, self._stream),
+        fd = ast.FunctionDef(
+            location=location,
             name=function_type_def.children[0].value,
-            type=ast.FunctionType.Def(
-                location=Location.FromTree(tree, self._stream),
-                parameters=parameters,
-                return_type=return_type
+            type=ast.FunctionType(
+                location=location,
+                monomorphizations=[
+                    ast.MonoFunctionType(
+                        location=location,
+                        parameters=parameters,
+                        return_type=return_type
+                    )
+                ]
             ),
             code=code
-        ).define(self._module)
+        )
+        fd.define(self._module)
+        fd.llvm_define(self._module, self._module.llvm_module)

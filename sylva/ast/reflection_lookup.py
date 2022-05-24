@@ -26,5 +26,5 @@ class ReflectionLookupExpr(Expr):
         )
 
     # pylint: disable=unused-argument
-    def emit(self, module, builder):
+    def emit(self, module, builder, scope):
         return self.expr.reflect_attribute(self.location, self.name)

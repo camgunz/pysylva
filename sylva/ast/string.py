@@ -1,38 +1,40 @@
 import typing
 
+from functools import cached_property
+
 from attrs import define, field
 
+from ..location import Location
 from .attribute_lookup import AttributeLookupMixIn
 from .dynarray import DynarrayExpr, MonoDynarrayType
-from .function import FunctionType
-from .number import IntType
+from .function import FunctionType, MonoFunctionType
 from .str import StrType
 from .type_mapping import Attribute
 from .type_singleton import TypeSingletons
-from ..location import Location
 
 
 @define(eq=False, slots=True)
 class StringType(MonoDynarrayType, AttributeLookupMixIn):
     llvm_type = field(init=False)
 
-    def mangle(self):
-        return '6string'
-
     @llvm_type.default
     def _llvm_type_factory(self):
-        u8 = IntType(Location.Generate(), 8, signed=False)
-        return MonoDynarrayType(element_type=u8).llvm_type
+        return MonoDynarrayType(element_type=TypeSingletons.U8.value).llvm_type
 
     def get_attribute(self, location, name):
         if name == 'get_length':
             return Attribute(
                 location=Location.Generate(),
                 name='get_length',
-                type=FunctionType.Def(
+                type=FunctionType(
                     location=Location.Generate(),
-                    parameters=[],
-                    return_type=TypeSingletons.UINT.value
+                    monomorphizations=[
+                        MonoFunctionType(
+                            location=Location.Generate(),
+                            parameters=[],
+                            return_type=TypeSingletons.UINT.value
+                        )
+                    ]
                 )
             )
 
@@ -54,6 +56,10 @@ class StringType(MonoDynarrayType, AttributeLookupMixIn):
 
     def get_value_expr(self, location):
         return StringExpr(location=location, type=self)
+
+    @cached_property
+    def mname(self):
+        return '6string'
 
 
 @define(eq=False, slots=True)

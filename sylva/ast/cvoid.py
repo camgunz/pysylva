@@ -1,3 +1,5 @@
+from functools import cached_property
+
 from attrs import define, field
 
 from .expr import Expr
@@ -14,6 +16,10 @@ class CVoidType(SylvaType):
     @llvm_type.default
     def _llvm_type_factory(self):
         raise RuntimeError('Cannot get the LLVM type of CVoid')
+
+    @cached_property
+    def mname(self):
+        return '5cvoid'
 
 
 @define(eq=False, slots=True)

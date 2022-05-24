@@ -1,7 +1,9 @@
+from functools import cached_property
+
 from attrs import define, field
 from llvmlite import ir # type: ignore
 
-from .defs import SelfReferentialDef
+from .defs import SelfReferentialTypeDef
 from .union import BaseUnionType
 
 
@@ -13,7 +15,12 @@ class CUnionType(BaseUnionType):
     def _llvm_type_factory(self):
         return ir.LiteralStructType([self.get_largest_field()])
 
+    @cached_property
+    def mname(self):
+        # pylint: disable=not-an-iterable
+        return ''.join(['6cunion', ''.join(f.type.mname for f in self.fields)])
+
 
 @define(eq=False, slots=True)
-class CUnionDef(SelfReferentialDef):
-    llvm_value: None | ir.Value = None
+class CUnionDef(SelfReferentialTypeDef):
+    pass

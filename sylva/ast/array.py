@@ -1,8 +1,13 @@
 import typing
 
+from functools import cached_property
+
 from attrs import define, field
 from llvmlite import ir # type: ignore
 
+from .. import errors, utils
+from ..location import Location
+from .defs import TypeDef
 from .expr import LiteralExpr, ValueExpr
 from .number import IntType
 from .pointer import ReferencePointerExpr, ReferencePointerType
@@ -10,8 +15,7 @@ from .range import RangeType
 from .reflection_lookup import ReflectionLookupMixIn
 from .str import StrType
 from .sylva_type import SylvaParamType, SylvaType
-from .. import errors
-from ..location import Location
+from .type_singleton import TypeSingletons
 
 
 @define(eq=False, slots=True)
@@ -21,9 +25,13 @@ class MonoArrayType(SylvaType, ReflectionLookupMixIn):
     implementations: typing.List = []
     llvm_type: ir.Type | None = field(init=False)
 
-    def mangle(self):
-        base = f'a{self.element_type.mangle()}{self.element_count}'
-        return f'{len(base)}{base}'
+    @cached_property
+    def mname(self):
+        return ''.join([
+            '1a',
+            self.element_type.mangle(),
+            utils.len_prefix(str(self.element_count))
+        ])
 
     # pylint: disable=unused-argument
     @element_count.validator
@@ -67,30 +75,8 @@ class MonoArrayType(SylvaType, ReflectionLookupMixIn):
 # element_count, but in most contexts it has to have one"
 @define(eq=False, slots=True)
 class ArrayType(SylvaParamType):
-    monomorphizations: typing.List[MonoArrayType] = []
-
-    @classmethod
-    def Def(cls, location, element_type, element_count):
-        return cls(
-            location=location,
-            monomorphizations=[
-                MonoArrayType(
-                    location=location,
-                    element_type=element_type,
-                    element_count=element_count
-                )
-            ]
-        )
-
-    def add_monomorphization(self, location, element_type, element_count):
-        index = len(self.monomorphizations)
-        mat = MonoArrayType(
-            location=location,
-            element_type=element_type,
-            element_count=element_count
-        )
-        self.monomorphizations.append(mat)
-        return index
+    monomorphizations: typing.List[MonoArrayType]
+    implementation_builders: typing.List = []
 
 
 @define(eq=False, slots=True)
@@ -113,7 +99,7 @@ class ArrayExpr(ValueExpr, ReflectionLookupMixIn):
             return ReferencePointerType(
                 referenced_type=MonoArrayType(
                     Location.Generate(),
-                    element_type=IntType(Location.Generate(), 8, signed=False),
+                    element_type=TypeSingletons.U8,
                     element_count=self.type.get_size()
                 )
             )
@@ -131,11 +117,17 @@ class ArrayExpr(ValueExpr, ReflectionLookupMixIn):
                 type=ReferencePointerType(
                     referenced_type=MonoArrayType(
                         Location.Generate(),
-                        element_type=IntType(
-                            Location.Generate(), 8, signed=False
-                        ),
+                        element_type=TypeSingletons.U8,
                         element_count=self.type.get_size()
                     )
                 ),
                 expr=self
             )
+
+
+@define(eq=False, slots=True)
+class ArrayDef(TypeDef):
+
+    @cached_property
+    def mname(self):
+        return ''.join([utils.len_prefix(self.name), self.type.mname])

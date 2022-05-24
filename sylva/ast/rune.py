@@ -1,3 +1,5 @@
+from functools import cached_property
+
 from llvmlite import ir # type: ignore
 
 from attrs import define, field
@@ -5,16 +7,11 @@ from attrs import define, field
 from .expr import LiteralExpr, ValueExpr
 from .type_singleton import TypeSingletons
 from .sylva_type import SylvaType
-from ..location import Location
 
 
 @define(eq=False, slots=True)
 class RuneType(SylvaType):
     llvm_type = field(init=False)
-
-    # pylint: disable=no-self-use
-    def mangle(self):
-        return '1r'
 
     def get_value_expr(self, location):
         return RuneExpr(location=location, type=self)
@@ -24,10 +21,15 @@ class RuneType(SylvaType):
     def _llvm_type_factory(self):
         return ir.IntType(32)
 
+    # pylint: disable=no-self-use
+    @cached_property
+    def mname(self):
+        return '1r'
+
 
 @define(eq=False, slots=True)
 class RuneLiteralExpr(LiteralExpr):
-    type: RuneType = RuneType(Location.Generate())
+    type: RuneType = TypeSingletons.RUNE.value
 
     @classmethod
     def FromRawValue(cls, location, raw_value):

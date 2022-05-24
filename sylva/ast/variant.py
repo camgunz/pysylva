@@ -1,11 +1,13 @@
 import typing
 
+from functools import cached_property
+
 from attrs import define, field
 from llvmlite import ir # type: ignore
 
 from .. import utils
 from .attribute_lookup import AttributeLookupMixIn
-from .defs import SelfReferentialParamDef
+from .defs import SelfReferentialParamTypeDef
 from .sylva_type import SylvaParamType
 from .union import BaseUnionType
 from .type_mapping import Field
@@ -31,6 +33,12 @@ class MonoVariantType(BaseUnionType, AttributeLookupMixIn):
             self.get_largest_field(), ir.IntType(tag_bit_width)
         ])
 
+    @cached_property
+    def mname(self):
+        return ''.join([
+            '7variant', ''.join(f.type.mname for f in self.fields)
+        ])
+
 
 @define(eq=False, slots=True)
 class VariantType(SylvaParamType):
@@ -40,5 +48,7 @@ class VariantType(SylvaParamType):
 
 
 @define(eq=False, slots=True)
-class VariantDef(SelfReferentialParamDef):
-    pass
+class VariantDef(SelfReferentialParamTypeDef):
+
+    def llvm_define(self, llvm_module):
+        pass
