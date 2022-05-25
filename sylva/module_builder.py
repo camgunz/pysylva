@@ -154,7 +154,7 @@ class ModuleBuilder(lark.Visitor):
                     f'{func_expr}'
                 )
 
-            if not isinstance(func_type, (ast.Function, ast.CFunction)):
+            if not isinstance(func_type, (ast.FnType, ast.CFnType)):
                 # [FIXME] Make this an actual semantic Sylva error to try and
                 #         call something that isn't a function
                 raise Exception(
@@ -215,9 +215,9 @@ class ModuleBuilder(lark.Visitor):
 
             is_exclusive = len(expr.children) >= 2 and expr.children[1] == '!'
 
-            return ast.CPointerExpr(
+            return ast.CPtrExpr(
                 location=location,
-                type=ast.CPointerType(
+                type=ast.CPtrType(
                     location=location,
                     referenced_type=referenced_type,
                     referenced_type_is_exclusive=referenced_type_is_exclusive,
@@ -281,7 +281,7 @@ class ModuleBuilder(lark.Visitor):
             # Modules aren't 1st class, so we can really never use them in an
             # expression. They can only appear as the 1st name, so we can fix
             # this with a preliminary `while`
-            while isinstance(type, ast.ModuleType):
+            while isinstance(type, ast.ModType):
                 debug('lookup', f'_handle_expr skipping module {name}')
                 connector = expr.children.pop(0)
                 reflection = connector.value == '::'
@@ -460,12 +460,12 @@ class ModuleBuilder(lark.Visitor):
                 return_type = None
 
             if type_obj.data == 'c_function_type_expr':
-                return ast.CFunctionPointerType(
+                return ast.CFnPointerType(
                     location=location,
                     parameters=parameters,
                     return_type=return_type,
                 )
-            return ast.CBlockFunctionPointerType(
+            return ast.CBlockFnPointerType(
                 location=location,
                 parameters=parameters,
                 return_type=return_type,
@@ -479,7 +479,7 @@ class ModuleBuilder(lark.Visitor):
                 len(type_obj.children) >= 3 and type_obj.children[2] == '!'
             )
 
-            return ast.CPointerType(
+            return ast.CPtrType(
                 location=location,
                 referenced_type=self._get_type(
                     type_obj.children[0], deferrable=deferrable
@@ -513,10 +513,10 @@ class ModuleBuilder(lark.Visitor):
             else:
                 return_type = None
 
-            return ast.FunctionType(
+            return ast.FnType(
                 location=location,
                 monomorphizations=[
-                    ast.MonoFunctionType(
+                    ast.MonoFnType(
                         location=location,
                         parameters=parameters,
                         return_type=return_type
@@ -550,7 +550,7 @@ class ModuleBuilder(lark.Visitor):
             else:
                 return_type = None
 
-            return ast.CFunctionType(
+            return ast.CFnType(
                 location=location,
                 parameters=parameters,
                 return_type=return_type,
@@ -641,10 +641,10 @@ class ModuleBuilder(lark.Visitor):
         else:
             return_type = None
 
-        cfd = ast.CFunctionDef(
+        cfd = ast.CFnDef(
             location=Location.FromTree(tree, self._stream),
             name=tree.children[0].value,
-            type=ast.CFunctionType(
+            type=ast.CFnType(
                 location=Location.FromTree(tree, self._stream),
                 parameters=parameters,
                 return_type=return_type
@@ -730,13 +730,13 @@ class ModuleBuilder(lark.Visitor):
 
         # [TODO] Monomorphize based on params (not strings) here
         location = Location.FromTree(tree, self._stream),
-        fd = ast.FunctionDef(
+        fd = ast.FnDef(
             location=location,
             name=function_type_def.children[0].value,
-            type=ast.FunctionType(
+            type=ast.FnType(
                 location=location,
                 monomorphizations=[
-                    ast.MonoFunctionType(
+                    ast.MonoFnType(
                         location=location,
                         parameters=parameters,
                         return_type=return_type
