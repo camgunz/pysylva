@@ -13,7 +13,7 @@ req sys
 range Age 0u8..250u8
 
 struct Person {
-  name: str(""),
+  name: *str(""),
   age: Age(0u8),
 }
 
@@ -45,7 +45,7 @@ fn main() {
 
   match (name_index_result) {
     case (name: OK) {
-      person.name = name
+      person.name = *name
     }
     case (f: Fail) {
       print_usage()
@@ -96,7 +96,7 @@ Sylva should be familiar to most programmers.  Where possible, it defers to
 what the programmer is likely to know.
 
 Lastly, Sylva is readable. We pay careful attention to how the syntax and
-organization scan, but also to how constructs draw focus and shape thought.
+organization scan, as well as to how constructs draw focus and shape thought.
 
 These values are in order. If something would be faster but isn't safe, Sylva
 prioritizes safety. If something would be more readable but is inconsistent,

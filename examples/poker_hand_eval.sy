@@ -8,7 +8,7 @@ range Value 1u8..14u8
 
 range DeckSize 0u8..52u8
 
-variant RankVariant {
+variant Rank {
   Single: {
     name: str,
     score: Score,
@@ -24,19 +24,19 @@ variant RankVariant {
 }
 
 enum Rank {
-  Ace:   RankVariant.Double{"Ace",   Score(1), Score(10), Value(1), Value(14)},
-  Two:   RankVariant.Single{"Two",   Score(2),            Value(2)},
-  Three: RankVariant.Single{"Three", Score(3),            Value(3)},
-  Four:  RankVariant.Single{"Four",  Score(4),            Value(4)},
-  Five:  RankVariant.Single{"Five",  Score(5),            Value(5)},
-  Six:   RankVariant.Single{"Six",   Score(6),            Value(6)},
-  Seven: RankVariant.Single{"Seven", Score(7),            Value(7)},
-  Eight: RankVariant.Single{"Eight", Score(8),            Value(8)},
-  Nine:  RankVariant.Single{"Nine",  Score(9),            Value(9)},
-  Ten:   RankVariant.Single{"Ten",   Score(10),           Value(10)},
-  Jack:  RankVariant.Single{"Jack",  Score(10),           Value(11)},
-  Queen: RankVariant.Single{"Queen", Score(10),           Value(12)},
-  King:  RankVariant.Single{"King",  Score(10),           Value(13)},
+  Ace:   Rank.Double{"Ace",   Score(1), Score(10), Value(1), Value(14)},
+  Two:   Rank.Single{"Two",   Score(2),            Value(2)},
+  Three: Rank.Single{"Three", Score(3),            Value(3)},
+  Four:  Rank.Single{"Four",  Score(4),            Value(4)},
+  Five:  Rank.Single{"Five",  Score(5),            Value(5)},
+  Six:   Rank.Single{"Six",   Score(6),            Value(6)},
+  Seven: Rank.Single{"Seven", Score(7),            Value(7)},
+  Eight: Rank.Single{"Eight", Score(8),            Value(8)},
+  Nine:  Rank.Single{"Nine",  Score(9),            Value(9)},
+  Ten:   Rank.Single{"Ten",   Score(10),           Value(10)},
+  Jack:  Rank.Single{"Jack",  Score(10),           Value(11)},
+  Queen: Rank.Single{"Queen", Score(10),           Value(12)},
+  King:  Rank.Single{"King",  Score(10),           Value(13)},
 }
 
 enum Suit {
@@ -46,96 +46,96 @@ enum Suit {
   Heart:   3u8,
 }
 
-struct CardStruct {
+struct Card {
   suit: Suit,
   rank: Rank
 }
 
 enum Cards {
-  AceOfSpades:     CardStruct{Suit.Spade,   Rank.Ace},
-  TwofSpades:      CardStruct{Suit.Spade,   Rank.Two},
-  ThreeOfSpades:   CardStruct{Suit.Spade,   Rank.Three},
-  FourOfSpades:    CardStruct{Suit.Spade,   Rank.Four},
-  FiveOfSpades:    CardStruct{Suit.Spade,   Rank.Five},
-  SixOfSpades:     CardStruct{Suit.Spade,   Rank.Six},
-  SevenOfSpades:   CardStruct{Suit.Spade,   Rank.Seven},
-  EightOfSpades:   CardStruct{Suit.Spade,   Rank.Eight},
-  NineOfSpades:    CardStruct{Suit.Spade,   Rank.Nine},
-  TenOfSpades:     CardStruct{Suit.Spade,   Rank.Ten},
-  JackOfSpades:    CardStruct{Suit.Spade,   Rank.Jack},
-  QueenOfSpades:   CardStruct{Suit.Spade,   Rank.Queen},
-  KingOfSpades:    CardStruct{Suit.Spade,   Rank.King},
-  AceOfClubs:      CardStruct{Suit.Club,    Rank.Ace},
-  TwoOfClubs:      CardStruct{Suit.Club,    Rank.Two},
-  ThreeOfClubs:    CardStruct{Suit.Club,    Rank.Three},
-  FourOfClubs:     CardStruct{Suit.Club,    Rank.Four},
-  FiveOfClubs:     CardStruct{Suit.Club,    Rank.Five},
-  SixOfClubs:      CardStruct{Suit.Club,    Rank.Six},
-  SevenOfClubs:    CardStruct{Suit.Club,    Rank.Seven},
-  EightOfClubs:    CardStruct{Suit.Club,    Rank.Eight},
-  NineOfClubs:     CardStruct{Suit.Club,    Rank.Nine},
-  TenOfClubs:      CardStruct{Suit.Club,    Rank.Ten},
-  JackOfClubs:     CardStruct{Suit.Club,    Rank.Jack},
-  QueenOfClubs:    CardStruct{Suit.Club,    Rank.Queen},
-  KingOfClubs:     CardStruct{Suit.Club,    Rank.King},
-  AceOfHearts:     CardStruct{Suit.Heart,   Rank.Ace},
-  TwoOfHearts:     CardStruct{Suit.Heart,   Rank.Two},
-  ThreeOfHearts:   CardStruct{Suit.Heart,   Rank.Three},
-  FourOfHearts:    CardStruct{Suit.Heart,   Rank.Four},
-  FiveOfHearts:    CardStruct{Suit.Heart,   Rank.Five},
-  SixOfHearts:     CardStruct{Suit.Heart,   Rank.Six},
-  SevenOfHearts:   CardStruct{Suit.Heart,   Rank.Seven},
-  EightOfHearts:   CardStruct{Suit.Heart,   Rank.Eight},
-  NineOfHearts:    CardStruct{Suit.Heart,   Rank.Nine},
-  TenOfHearts:     CardStruct{Suit.Heart,   Rank.Ten},
-  JackOfHearts:    CardStruct{Suit.Heart,   Rank.Jack},
-  QueenOfHearts:   CardStruct{Suit.Heart,   Rank.Queen},
-  KingOfHearts:    CardStruct{Suit.Heart,   Rank.King},
-  AceOfDiamonds:   CardStruct{Suit.Diamond, Rank.Ace},
-  TwoOfDiamonds:   CardStruct{Suit.Diamond, Rank.Two},
-  ThreeOfDiamonds: CardStruct{Suit.Diamond, Rank.Three},
-  FourOfDiamonds:  CardStruct{Suit.Diamond, Rank.Four},
-  FiveOfDiamonds:  CardStruct{Suit.Diamond, Rank.Five},
-  SixOfDiamonds:   CardStruct{Suit.Diamond, Rank.Six},
-  SevenOfDiamonds: CardStruct{Suit.Diamond, Rank.Seven},
-  EightOfDiamonds: CardStruct{Suit.Diamond, Rank.Eight},
-  NineOfDiamonds:  CardStruct{Suit.Diamond, Rank.Nine},
-  TenOfDiamonds:   CardStruct{Suit.Diamond, Rank.Ten},
-  JackOfDiamonds:  CardStruct{Suit.Diamond, Rank.Jack},
-  QueenOfDiamonds: CardStruct{Suit.Diamond, Rank.Queen},
-  KingOfDiamonds:  CardStruct{Suit.Diamond, Rank.King},
+  AceOfSpades:     Card{Suit.Spade,   Rank.Ace},
+  TwofSpades:      Card{Suit.Spade,   Rank.Two},
+  ThreeOfSpades:   Card{Suit.Spade,   Rank.Three},
+  FourOfSpades:    Card{Suit.Spade,   Rank.Four},
+  FiveOfSpades:    Card{Suit.Spade,   Rank.Five},
+  SixOfSpades:     Card{Suit.Spade,   Rank.Six},
+  SevenOfSpades:   Card{Suit.Spade,   Rank.Seven},
+  EightOfSpades:   Card{Suit.Spade,   Rank.Eight},
+  NineOfSpades:    Card{Suit.Spade,   Rank.Nine},
+  TenOfSpades:     Card{Suit.Spade,   Rank.Ten},
+  JackOfSpades:    Card{Suit.Spade,   Rank.Jack},
+  QueenOfSpades:   Card{Suit.Spade,   Rank.Queen},
+  KingOfSpades:    Card{Suit.Spade,   Rank.King},
+  AceOfClubs:      Card{Suit.Club,    Rank.Ace},
+  TwoOfClubs:      Card{Suit.Club,    Rank.Two},
+  ThreeOfClubs:    Card{Suit.Club,    Rank.Three},
+  FourOfClubs:     Card{Suit.Club,    Rank.Four},
+  FiveOfClubs:     Card{Suit.Club,    Rank.Five},
+  SixOfClubs:      Card{Suit.Club,    Rank.Six},
+  SevenOfClubs:    Card{Suit.Club,    Rank.Seven},
+  EightOfClubs:    Card{Suit.Club,    Rank.Eight},
+  NineOfClubs:     Card{Suit.Club,    Rank.Nine},
+  TenOfClubs:      Card{Suit.Club,    Rank.Ten},
+  JackOfClubs:     Card{Suit.Club,    Rank.Jack},
+  QueenOfClubs:    Card{Suit.Club,    Rank.Queen},
+  KingOfClubs:     Card{Suit.Club,    Rank.King},
+  AceOfHearts:     Card{Suit.Heart,   Rank.Ace},
+  TwoOfHearts:     Card{Suit.Heart,   Rank.Two},
+  ThreeOfHearts:   Card{Suit.Heart,   Rank.Three},
+  FourOfHearts:    Card{Suit.Heart,   Rank.Four},
+  FiveOfHearts:    Card{Suit.Heart,   Rank.Five},
+  SixOfHearts:     Card{Suit.Heart,   Rank.Six},
+  SevenOfHearts:   Card{Suit.Heart,   Rank.Seven},
+  EightOfHearts:   Card{Suit.Heart,   Rank.Eight},
+  NineOfHearts:    Card{Suit.Heart,   Rank.Nine},
+  TenOfHearts:     Card{Suit.Heart,   Rank.Ten},
+  JackOfHearts:    Card{Suit.Heart,   Rank.Jack},
+  QueenOfHearts:   Card{Suit.Heart,   Rank.Queen},
+  KingOfHearts:    Card{Suit.Heart,   Rank.King},
+  AceOfDiamonds:   Card{Suit.Diamond, Rank.Ace},
+  TwoOfDiamonds:   Card{Suit.Diamond, Rank.Two},
+  ThreeOfDiamonds: Card{Suit.Diamond, Rank.Three},
+  FourOfDiamonds:  Card{Suit.Diamond, Rank.Four},
+  FiveOfDiamonds:  Card{Suit.Diamond, Rank.Five},
+  SixOfDiamonds:   Card{Suit.Diamond, Rank.Six},
+  SevenOfDiamonds: Card{Suit.Diamond, Rank.Seven},
+  EightOfDiamonds: Card{Suit.Diamond, Rank.Eight},
+  NineOfDiamonds:  Card{Suit.Diamond, Rank.Nine},
+  TenOfDiamonds:   Card{Suit.Diamond, Rank.Ten},
+  JackOfDiamonds:  Card{Suit.Diamond, Rank.Jack},
+  QueenOfDiamonds: Card{Suit.Diamond, Rank.Queen},
+  KingOfDiamonds:  Card{Suit.Diamond, Rank.King},
 }
 
-array Deck [*Card * DeckSize::count]
+array Deck [*Card * DeckSize.count]
 
 array Hand [&Card * 5]
 
 # Generics
 alias DealResult: Result(&Card, str)
 
-fn rank_value_comparer(value1: Value, value2: RankValue): bool
+fn rank_value_comparer(value1: Value, value2: Value): bool
 
-fn rank_value_less_than(value1: Value, value2: RankValue): bool {
+fn rank_value_less_than(value1: Value, value2: Value): bool {
   return value1 < value2
 }
 
-fn rank_value_greater_than(value1: Value, value2: RankValue): bool {
+fn rank_value_greater_than(value1: Value, value2: Value): bool {
   return value1 > value2
 }
 
-fn rank_value_equal(value1: Value, value2: RankValue): bool {
+fn rank_value_equal(value1: Value, value2: Value): bool {
   return value1 == value2
 }
 
-fn rank_value_precedes(value1: Value, value2: RankValue): bool {
+fn rank_value_precedes(value1: Value, value2: Value): bool {
   return value1 == value2 - 1
 }
 
-fn rank_value_succeeds(value1: Value, value2: RankValue): bool {
+fn rank_value_succeeds(value1: Value, value2: Value): bool {
   return (value1 == (value2 + 1))
 }
 
-fn compare_ranks(cmp: rank_value_comparer, r1: &Rank, r2: &rank): bool {
+fn compare_ranks(cmp: rank_value_comparer, r1: &Rank, r2: &Rank): bool {
   match (r1) {
     case (s1: Single) {
       match (r2) {
@@ -163,184 +163,186 @@ fn compare_ranks(cmp: rank_value_comparer, r1: &Rank, r2: &rank): bool {
   }
 }
 
-fn rank_less_than(rank: &rank, other: &rank): bool {
-  return compare_ranks(rank_value_less_than, rank, other)
-}
+impl Rank {
+  fn less_than(self: &Rank, other: &Rank): bool {
+    return compare_ranks(rank_value_less_than, self, other)
+  }
 
-fn rank_greater_than(rank: &rank, other: &rank): bool {
-  return compare_ranks(rank_value_greater_than, rank, other)
-}
+  fn greater_than(self: &Rank, other: &Rank): bool {
+    return compare_ranks(rank_value_greater_than, self, other)
+  }
 
-fn rank_equals(rank: &rank, other: &rank): bool {
-  return compare_ranks(rank_value_equals, rank, other)
-}
+  fn equals(self: &Rank, other: &Rank): bool {
+    return compare_ranks(rank_value_equals, self, other)
+  }
 
-fn rank_precedes(rank: &rank, other: &rank): bool {
-  return compare_ranks(rank_value_precedes, rank, other)
-}
+  fn precedes(self: &Rank, other: &Rank): bool {
+    return compare_ranks(rank_value_precedes, self, other)
+  }
 
-fn rank_succeeds(rank: &rank, other: &rank): bool {
-  return compare_ranks(rank_value_succeeds, rank, other)
-}
-
-fn card_less_than(card: &Card, other: &Card): bool {
-  return (
-    card.suit < other.suit ||
-    (card.suit == other.suit && card.rank < other.rank)
-  )
-}
-
-fn card_greater_than(card: &Card, other: &Card): bool {
-  return (
-    card.suit > other.suit ||
-    (card.suit == other.suit && card.rank > other.rank)
-  )
-}
-
-fn card_equals(card: &Card, other: &Card): bool {
-  return card.suit == other.suit && card.rank == other.rank
-}
-
-fn shuffle_deck(deck: &Deck!) {
-  # Generics
-  random.shuffle(&Deck)(deck)
-}
-
-fn deal_from_deck(deck: &Deck!): DealResult {
-  let res: deck.pop(0)
-
-  match (res) {
-    case (*card: OK) {
-      return DealResult.OK(*card)
-    }
-    default {
-      return DealResult.Fail("No more cards")
-    }
+  fn succeeds(self: &Rank, other: &Rank): bool {
+    return compare_ranks(rank_value_succeeds, self, other)
   }
 }
 
-fn build_hand(hand: &Hand!, deck: &Deck!, count: DeckSize) {
-  for (i: Hand::indices) {
-    let res: deal_from_deck(deck)
+impl Card {
+  fn less_than(self: &Card, other: &Card): bool {
+    return (
+      self.suit < other.suit ||
+      (self.suit == other.suit && self.rank.less_than(other.rank))
+    )
+  }
+
+  fn greater_than(self: &Card, other: &Card): bool {
+    return (
+      self.suit > other.suit ||
+      (self.suit == other.suit && self.rank.greater_than(other.rank))
+    )
+  }
+
+  fn equals(self: &Card, other: &Card): bool {
+    return self.suit == other.suit && self.rank.equals(other.rank)
+  }
+}
+
+impl Deck {
+  fn shuffle(self: &Deck!) {
+    random.shuffle(&Deck!)(self) # Generics
+  }
+
+  fn deal(deck: &Deck!): DealResult {
+    let res: deck.pop(0)
 
     match (res) {
       case (*card: OK) {
-        hand[i] = *card
+        return DealResult.OK(*card)
       }
       default {
-        break
-      }
-    }
-  }
-
-  # Generics
-  # [TODO] Implement base.array_sort
-  base.array_sort(&hand::type!)(&hand!)
-}
-
-fn hand_remove_card_at_index(hand: &Hand!, index: uint) {
-  array_delete(&hand.cards!, index)
-}
-
-fn hand_get_card_at_index(hand: &Hand!, index: uint): &Card {
-  return hand.cards.get(index).succeed_or_die()
-}
-
-fn get_value_counts(hand: &Hand, counts: [uint * Value::max]) {
-  for (&card: hand.cards) {
-    match (card.rank) {
-      case (s: Single) {
-        value_counts[s.value]++
-      }
-      case (d: Double) {
-        value_counts[d.value1]++
+        return DealResult.Fail("No more cards")
       }
     }
   }
 }
 
-fn hand_is_pair(hand: &Hand): bool {
-  let value_counts: [uint(0) * Value::max]
-  let pair_count: 0u
+impl Hand {
+  fn build(self: &Hand!, deck: &Deck!, count: DeckSize) {
+    for (i: Hand::indices) {
+      let res: deal_from_deck(deck)
 
-  hand.get_value_counts(&value_counts!)
-
-  for (count: value_counts) {
-    pair_count += count % 2u
-  }
-
-  return pair_count > 1u
-}
-
-fn hand_is_two_pair(hand: &Hand): bool {
-  let value_counts: [uint(0) * Value::max]
-  let pair_count: 0u
-
-  hand.get_value_counts(&value_counts!)
-
-  for (count: value_counts) {
-    pair_count += count % 2u
-  }
-
-  return pair_count > 2u
-}
-
-fn hand_is_three_of_a_kind(hand: &Hand): bool {
-  let value_counts: [uint(0) * Value::max]
-  let trip_count: 0u
-
-  hand.get_value_counts(&value_counts!)
-
-  for (count: value_counts) {
-    trip_count += count % 3u
-  }
-
-  return trip_count > 1u
-}
-
-fn hand_is_four_of_a_kind(hand: &Hand): bool {
-  let value_counts: [uint(0) * Value::max]
-  let quad_count: 0u
-
-  hand.get_value_counts(&value_counts!)
-
-  for (count: value_counts) {
-    quad_count += count % 4u
-  }
-}
-
-fn hand_is_flush(hand: &Hand): bool {
-  let initialized: false
-  let last_card: &Cards.AceOfSpades
-
-  for (&card: hand.cards) {
-    if (!initialized) {
-      initialized = true
-    }
-    else if (card.suit != last_card.suit) {
-      return false
+      match (res) {
+        case (*card: OK) {
+          self[i] = *card
+        }
+        default {
+          break
+        }
+      }
     }
 
-    last_card = card
+    # [TODO] Implement base.array_sort
+    base.array_sort(&self::type!)(&self!) # Generics
   }
 
-  return true
-}
-
-fn hand_is_straight(hand: &Hand): bool {
-  let initialized: false
-  let last_card: &Cards.AceOfSpaces
-
-  for (&card: hand.cards) {
-    if (!initialized) {
-      initialized = true
-    }
-    else if (!card.succeeds(last_card)) {
-      return false
-    }
-
-    last_card = &card
+  fn remove_card_at_index(self: &Hand!, index: uint) {
+    array_delete(&self.cards!, index)
   }
 
-  return true
+  fn get_card_at_index(self: &Hand!, index: uint): &Card {
+    return self.cards.get(index).succeed_or_die()
+  }
+
+  fn get_value_counts(self: &Hand, counts: &[uint * Value.max]!) {
+    for (i: self::type.indices) {
+      match (self[i].rank) {
+        case (s: Single) {
+          value_counts[s.value]++
+        }
+        case (d: Double) {
+          value_counts[d.value1]++
+        }
+      }
+    }
+  }
+
+  fn is_pair(self: &Hand): bool {
+    let value_counts: [uint(0) * Value.max]
+    let pair_count: 0u
+
+    self.get_value_counts(&value_counts!)
+
+    for (i: value_counts::type.indices) {
+      pair_count += value_counts[i] % 2u
+    }
+
+    return pair_count > 1u
+  }
+
+  fn is_two_pair(self: &Hand): bool {
+    let value_counts: [uint(0) * Value.max]
+    let pair_count: 0u
+
+    self.get_value_counts(&value_counts!)
+
+    for (i: value_counts::type.indices) {
+      pair_count += value_counts[i] % 2u
+    }
+
+    return pair_count > 2u
+  }
+
+  fn is_three_of_a_kind(self: &Hand): bool {
+    let value_counts: [uint(0) * Value.max]
+    let trip_count: 0u
+
+    self.get_value_counts(&value_counts!)
+
+    for (i: value_counts::type.indices) {
+      trip_count += value_counts[i] % 3u
+    }
+
+    return trip_count > 1u
+  }
+
+  fn is_four_of_a_kind(self: &Hand): bool {
+    let value_counts: [uint(0) * Value.max]
+    let quad_count: 0u
+
+    self.get_value_counts(&value_counts!)
+
+    for (i: value_counts::type.indices) {
+      quad_count += value_counts[i] % 4u
+    }
+  }
+
+  fn is_flush(self: &Hand): bool {
+    let last_card: &Cards.AceOfSpades
+
+    for (i: self::type.indices) {
+      let card: &self[i]
+
+      if (i > 0u && card.suit != last_card.suit) {
+        return false
+      }
+
+      last_card = card
+    }
+
+    return true
+  }
+
+  fn is_straight(self: &Hand): bool {
+    let last_card: &Cards.AceOfSpades
+
+    for (i: self::type.indices) {
+      let card: &self[i]
+
+      if (i > 0u && !card.succeeds(last_card)) {
+        return false
+      }
+
+      last_card = card
+    }
+
+    return true
+  }
 }
