@@ -1,10 +1,10 @@
-from attrs import define
+from attrs import define, field
 
 
 @define(frozen=True, slots=True)
 class Stream:
-    name: str
-    data: str
+    name = field()
+    data = field()
 
     @classmethod
     def FromFile(cls, file_path, encoding='utf-8'):

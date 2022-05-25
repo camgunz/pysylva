@@ -6,7 +6,7 @@ from .pointer import BasePointerExpr, BasePointerType
 
 
 @define(eq=False, slots=True)
-class CPointerType(BasePointerType):
+class CPtrType(BasePointerType):
     referenced_type_is_exclusive = field()
 
     @cached_property
@@ -18,5 +18,5 @@ class CPointerType(BasePointerType):
 
 
 @define(eq=False, slots=True)
-class CPointerExpr(BasePointerExpr):
+class CPtrExpr(BasePointerExpr):
     expr = field()

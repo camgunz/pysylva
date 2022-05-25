@@ -3,15 +3,15 @@ from collections import defaultdict
 import lark
 
 from . import errors
-from .ast.module import ModuleDecl
-from .ast.requirement import RequirementDecl
+from .ast.mod import ModDecl
+from .ast.req import ReqDecl
 from .location import Location
 from .module import Module
 from .parser import Parser
 from .stream import Stream
 
 
-class ModuleDeclVisitor(lark.Visitor):
+class ModDeclVisitor(lark.Visitor):
 
     def __init__(self, stream, decls):
         self._stream = stream
@@ -19,10 +19,10 @@ class ModuleDeclVisitor(lark.Visitor):
 
     def module_decl(self, tree):
         loc = Location.FromTree(tree, stream=self._stream)
-        self._decls.append(ModuleDecl(loc, tree.children[0].value))
+        self._decls.append(ModDecl(loc, tree.children[0].value))
 
 
-class RequirementDeclVisitor(lark.Visitor):
+class ReqDeclVisitor(lark.Visitor):
 
     def __init__(self, stream, decls):
         self._stream = stream
@@ -37,7 +37,7 @@ class RequirementDeclVisitor(lark.Visitor):
         self._seen.add(rd_name)
 
         loc = Location.FromTree(tree, stream=self._stream)
-        self._decls.append(RequirementDecl(loc, rd_name))
+        self._decls.append(ReqDecl(loc, rd_name))
 
 
 class ModuleLoader:
@@ -47,7 +47,7 @@ class ModuleLoader:
         mod_decls = []
         for s in streams:
             try:
-                ModuleDeclVisitor(s, mod_decls).visit(Parser().parse(s.data))
+                ModDeclVisitor(s, mod_decls).visit(Parser().parse(s.data))
             except lark.UnexpectedToken as e:
                 raise errors.UnexpectedToken(
                     Location.FromUnexpectedTokenError(e, stream=s),
@@ -60,7 +60,7 @@ class ModuleLoader:
     def gather_requirements_from_streams(streams):
         req_decls = []
         for s in streams:
-            RequirementDeclVisitor(s, req_decls).visit(Parser().parse(s.data))
+            ReqDeclVisitor(s, req_decls).visit(Parser().parse(s.data))
         return req_decls
 
     @staticmethod

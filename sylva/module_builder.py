@@ -1,6 +1,5 @@
 # pylint: disable=too-many-lines
 import enum
-import pprint # pylint: disable=unused-import
 
 import lark
 

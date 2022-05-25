@@ -1,14 +1,12 @@
-from attrs import define
-
-from .stream import Stream
+from attrs import define, field
 
 
 @define(frozen=True, slots=True)
 class Location:
-    stream: Stream | None = None
-    index: int = 0
-    line: int = 1
-    column: int = 1
+    stream = field(default=None)
+    index = field(default=0)
+    line = field(default=1)
+    column = field(default=1)
 
     @classmethod
     def FromToken(cls, token, stream=None):

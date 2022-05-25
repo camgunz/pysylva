@@ -1,4 +1,4 @@
-from llvmlite.ir import NamedValue # type: ignore
+from llvmlite.ir import NamedValue
 
 
 class Alias(NamedValue):

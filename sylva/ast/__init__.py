@@ -1,18 +1,15 @@
 from .alias import AliasDef
 from .array import MonoArrayType, ArrayType, ArrayLiteralExpr, ArrayExpr
+from .attribute_lookup import AttributeLookupExpr, AttributeLookupMixIn
 from .bool import BoolType, BoolLiteralExpr, BoolExpr
 from .call import CallExpr
 from .carray import CArrayType
 from .cbitfield import CBitFieldType
 from .cfunction import (
-    CFunctionType,
-    CFunctionPointerType,
-    CBlockFunctionType,
-    CBlockFunctionPointerType,
-    CFunctionDef
+    CFnType, CFnPointerType, CBlockFnType, CBlockFnPointerType, CFnDef
 )
 from .const import ConstDef
-from .cpointer import CPointerType, CPointerExpr
+from .cptr import CPtrType, CPtrExpr
 from .cstr import CStrType, CStrLiteralExpr, CStrExpr
 from .cstruct import CStructType, CStructDef
 from .cunion import CUnionType, CUnionDef
@@ -22,11 +19,10 @@ from .dynarray import (
     MonoDynarrayType, DynarrayType, DynarrayLiteralExpr, DynarrayExpr
 )
 from .enum import EnumType
-from .function import MonoFunctionType, FunctionType, FunctionExpr, FunctionDef
-from .implementation import Implementation
+from .fn import MonoFnType, FnType, FnExpr, FnDef
+from .impl import Impl
 from .iface import IfaceType
-from .attribute_lookup import AttributeLookupExpr, AttributeLookupMixIn
-from .module import ModuleType, ModuleDecl, ModuleDef
+from .mod import ModType, ModDecl, ModDef
 from .number import (
     ComplexType,
     ComplexLiteralExpr,
@@ -48,7 +44,7 @@ from .pointer import (
 )
 from .range import RangeType
 from .reflection_lookup import ReflectionLookupExpr, ReflectionLookupMixIn
-from .requirement import RequirementDecl
+from .req import ReqDecl
 from .rune import RuneType, RuneLiteralExpr, RuneExpr
 from .statement import (
     LetStmt, BreakStmt, ContinueStmt, ReturnStmt, IfStmt, LoopStmt, WhileStmt

@@ -2,4 +2,11 @@
 ignore =
     # Comment spaces
     E261
+    # Line break after binary operator
+    W504
+    # Continuation line with same indent as next logical line
+    E125
+
 exclude = .git,sbuild,build,dist
+per-file-ignores =
+    sylva/ast/__init__.py:F401

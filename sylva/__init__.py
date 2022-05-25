@@ -13,7 +13,7 @@ def debugging():
 
 
 def debug(tag, s):
-    if not tag in _DEBUG:
+    if tag not in _DEBUG:
         return
 
     if isinstance(s, str):

@@ -13,8 +13,7 @@ from .type_mapping import Attribute
 
 
 @define(eq=False, slots=True)
-class ModuleType(SylvaType, AttributeLookupMixIn):
-    # Module, but we can't because it would be circular
+class ModType(SylvaType, AttributeLookupMixIn):
     value = field()
 
     def get_attribute(self, location, name):
@@ -25,12 +24,12 @@ class ModuleType(SylvaType, AttributeLookupMixIn):
 
 
 @define(eq=False, slots=True)
-class ModuleDecl(Decl):
+class ModDecl(Decl):
     pass
 
 
 @define(eq=False, slots=True)
-class ModuleDef(TypeDef, AttributeLookupMixIn):
+class ModDef(TypeDef, AttributeLookupMixIn):
     program = field()
     streams = field()
     requirement_statements = field()
@@ -43,15 +42,15 @@ class ModuleDef(TypeDef, AttributeLookupMixIn):
 
     @type.default
     def _type_factory(self):
-        return ModuleType(Location.Generate(), self)
+        return ModType(Location.Generate(), self)
 
     def __repr__(self):
-        return 'Module(%r, %r, %r, %r)' % (
+        return 'Mod(%r, %r, %r, %r)' % (
             self.program, self.name, self.streams, self.requirement_statements
         )
 
     def __str__(self):
-        return f'<Module {self.name}>'
+        return f'<Mod {self.name}>'
 
     def resolve_requirements(self, seen=None):
         if len(self.requirements) == len(self.requirement_statements):

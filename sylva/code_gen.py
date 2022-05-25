@@ -1,10 +1,6 @@
-import llvmlite # type: ignore
-
 from llvmlite import ir
 
-# pylint: disable=unused-import
 from . import ast, debug, errors
-from .target import get_target
 
 
 class CodeGen:

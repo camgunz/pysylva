@@ -10,7 +10,7 @@ from .sylva_type import SylvaParamType, SylvaType
 
 
 @define(eq=False, slots=True)
-class MonoFunctionType(SylvaType):
+class MonoFnType(SylvaType):
     parameters = field(default=[])
     return_type = field(default=None)
 
@@ -30,7 +30,7 @@ class MonoFunctionType(SylvaType):
 
     @llvm_type.default # noqa: F821
     def _llvm_type_factory(self):
-        return ir.FunctionType( # yapf: disable
+        return ir.FnType( # yapf: disable
             (
                 self.return_type.llvm_type
                 if self.return_type else ir.VoidType()
@@ -40,17 +40,17 @@ class MonoFunctionType(SylvaType):
 
 
 @define(eq=False, slots=True)
-class FunctionType(SylvaParamType):
+class FnType(SylvaParamType):
     pass
 
 
 @define(eq=False, slots=True)
-class FunctionExpr(ValueExpr):
+class FnExpr(ValueExpr):
     pass
 
 
 @define(eq=False, slots=True)
-class FunctionDef(ParamTypeDef):
+class FnDef(ParamTypeDef):
     code = field()
 
     def llvm_define(self, llvm_module):

@@ -4,7 +4,7 @@ from .base import Node
 
 
 @define(eq=False, slots=True)
-class Implementation(Node):
+class Impl(Node):
     interface = field()
     implementing_type = field()
     funcs = field()

@@ -9,7 +9,7 @@ from .sylva_type import SylvaType
 
 
 @define(eq=False, slots=True)
-class BaseCFunctionType(SylvaType):
+class BaseCFnType(SylvaType):
     parameters = field(default=[])
     return_type = field()
 
@@ -41,12 +41,12 @@ class BaseCFunctionType(SylvaType):
 
 
 @define(eq=False, slots=True)
-class CFunctionType(BaseCFunctionType):
+class CFnType(BaseCFnType):
     pass
 
 
 @define(eq=False, slots=True)
-class CFunctionPointerType(BaseCFunctionType):
+class CFnPointerType(BaseCFnType):
 
     @llvm_type.default # noqa: F821
     def _llvm_type_factory(self):
@@ -70,7 +70,7 @@ class CFunctionPointerType(BaseCFunctionType):
 
 
 @define(eq=False, slots=True)
-class CBlockFunctionType(BaseCFunctionType):
+class CBlockFnType(BaseCFnType):
 
     @cached_property
     def mname(self):
@@ -82,7 +82,7 @@ class CBlockFunctionType(BaseCFunctionType):
 
 
 @define(eq=False, slots=True)
-class CBlockFunctionPointerType(BaseCFunctionType):
+class CBlockFnPointerType(BaseCFnType):
 
     @llvm_type.default # noqa: F821
     def _llvm_type_factory(self):
@@ -106,7 +106,7 @@ class CBlockFunctionPointerType(BaseCFunctionType):
 
 
 @define(eq=False, slots=True)
-class CFunctionDef(TypeDef):
+class CFnDef(TypeDef):
 
     def llvm_define(self, llvm_module):
         return ir.Function(llvm_module, self.type.llvm_type, self.name)
