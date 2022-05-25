@@ -36,9 +36,14 @@ class BaseStructType(SylvaType, AttributeLookupMixIn):
         return ''.join(['6struct', ''.join(f.type.mname for f in self.fields)])
 
     def get_attribute(self, location, name):
-        for f in self.fields:
-            if f.name == name:
-                return f
+        # [TODO] These are reflection attributes, but since we're inside the
+        #        type, they're really plain old attributes.
+        raise NotImplementedError()
+
+    def emit_attribute_lookup(self, location, module, builder, scope, name):
+        # [TODO] These are reflection attributes, but since we're inside the
+        #        type, they're really plain old attributes.
+        raise NotImplementedError()
 
 
 @define(eq=False, slots=True)
@@ -60,21 +65,15 @@ class StructDef(SelfReferentialParamTypeDef, AttributeLookupMixIn):
             raise errors.NoSuchField(location, name)
         return f
 
-    def lookup_attribute(self, location, name):
+    def emit_attribute_lookup(self, location, module, builder, scope, name):
         f = self.get_attribute(location, name)
-        if not f:
-            raise errors.NoSuchField(location, name)
-        return GetElementPointerExpr(
-            location, type=f.type, obj=self, index=f.index, name=name
+        if f is not None:
+            return GetElementPointerExpr(
+                location, type=f.type, obj=self, index=f.index, name=name
+            )
+        return super().emit_attribute_lookup(
+            location, module, builder, scope, name
         )
-
-    def get_slot(self, location, index):
-        if index >= len(self.type.fields):
-            raise errors.IndexOutOfBounds(location)
-        return self.type.fields[index]
-
-    def index_slot(self, location, index):
-        return self.get_slot(location, index).get_value_expr(location=location)
 
     def llvm_define(self, llvm_module):
         pass

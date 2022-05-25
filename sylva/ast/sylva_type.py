@@ -2,7 +2,9 @@ from functools import cached_property
 
 from attrs import define, field
 
+from .. import errors
 from ..target import get_target
+from .attribute_lookup import AttributeLookupMixIn
 from .base import Node
 
 
@@ -15,7 +17,7 @@ class BaseSylvaType(Node):
 
 
 @define(eq=False, slots=True)
-class SylvaType(BaseSylvaType):
+class SylvaType(BaseSylvaType, AttributeLookupMixIn):
     llvm_type = field(init=False, default=None)
     implementations = field(init=False, default=[])
 
@@ -34,6 +36,20 @@ class SylvaType(BaseSylvaType):
 
     def get_pointer(self):
         return self.llvm_type.as_pointer()
+
+    def get_attribute(self, location, name):
+        for impl in self.implementations:
+            for func in impl.funcs:
+                if func.name == name:
+                    return func.type
+        raise errors.NoSuchAttribute(location, name)
+
+    def emit_attribute_lookup(self, location, module, builder, scope, name):
+        for impl in self.implementations:
+            for func in impl.funcs:
+                if func.name == name:
+                    return func
+        raise errors.NoSuchAttribute(location, name)
 
 
 @define(eq=False, slots=True)

@@ -31,7 +31,7 @@ class MonoDynarrayType(SylvaType, ReflectionLookupMixIn):
             self.element_type.llvm_type.as_pointer() # data
         ])
 
-    def get_reflection_attribute_type(self, location, name):
+    def get_reflection_attribute(self, location, name):
         if name == 'name':
             return StrType
         if name == 'size':
@@ -39,7 +39,7 @@ class MonoDynarrayType(SylvaType, ReflectionLookupMixIn):
         if name == 'element_type':
             return self.element_type.type
 
-    def reflect_attribute(self, location, name):
+    def emit_reflection_lookup(self, location, module, builder, scope, name):
         # [FIXME] These need to be Sylva expressions that evaluate to LLVM
         #         values
         if name == 'name':
@@ -72,9 +72,6 @@ class MonoDynarrayType(SylvaType, ReflectionLookupMixIn):
             for func in impl.funcs:
                 if func.name == name:
                     return func
-
-    def lookup_attribute(self, location, name):
-        raise NotImplementedError()
 
     @cached_property
     def mname(self):
@@ -116,10 +113,7 @@ class DynarrayExpr(ValueExpr, ReflectionLookupMixIn):
                 )
             )
 
-    def lookup_attribute(self, location, name):
-        raise NotImplementedError()
-
-    def get_reflection_attribute_type(self, location, name):
+    def get_reflection_attribute(self, location, name):
         if name == 'type':
             return SylvaType
         if name == 'bytes':
@@ -131,7 +125,7 @@ class DynarrayExpr(ValueExpr, ReflectionLookupMixIn):
                 )
             )
 
-    def reflect_attribute(self, location, name):
+    def emit_reflection_lookup(self, location, module, builder, scope, name):
         if name == 'type':
             # [FIXME]
             return self.type

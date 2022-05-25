@@ -292,7 +292,11 @@ class ModuleBuilder(lark.Visitor):
                 # [NOTE] This seems like the wrong place to do this, but
                 #        Modules are special
                 new_type = type.emit_attribute_lookup(
-                    location, attribute_name, self._module
+                    location,
+                    module=self._module,
+                    builder=None,
+                    scope=scope,
+                    name=attribute_name
                 )
 
                 if new_type is None:

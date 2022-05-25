@@ -104,7 +104,7 @@ class ArrayExpr(ValueExpr, ReflectionLookupMixIn):
                 )
             )
 
-    def reflect_attribute(self, location, name):
+    def emit_reflection_lookup(self, location, module, builder, scope, name):
         if name == 'type':
             # [FIXME]
             return SylvaType

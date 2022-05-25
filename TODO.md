@@ -3,13 +3,11 @@
 ## The great de-typing
 
 - Look for `pass` and remove classes that were only different by types
-- Toss pylint directives
 
 ## General
 
 - Dynamically register reflection attributes.
-  - I think for non-reflection attributes we're OK to just look through fields
-    and impls
+  - Look for old get_reflection_attribute and emit_reflection_lookup methods
 - Never construct types in ast-land, manually do it in `module_builder`
   - Various pointer types need to act as parameterizable types
     - Oh, I guess we've been implicitly saying `iface` and `impl` only work
@@ -21,6 +19,8 @@
 - Add `Lookup` expr
 - Add an `element_count` specifier to a `str`:
   - `struct Person { name: str(8)(""), age: u8(0) }`
+- Every parameterizable type needs a `get_or_create_monomorphization` method
+  tailored to its specific parameters
 
 ## Sized types
 

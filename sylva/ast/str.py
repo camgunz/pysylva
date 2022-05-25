@@ -5,9 +5,10 @@ from attrs import define, field
 from ..location import Location
 from ..utils import mangle
 from .array import ArrayType, MonoArrayType
-from .attribute_lookup import AttributeLookupMixIn
+from .attribute_lookup import AttributeLookupExpr, AttributeLookupMixIn
 from .expr import LiteralExpr
 from .function import FunctionDef, FunctionExpr, FunctionType, MonoFunctionType
+from .impl import Impl
 from .number import IntLiteralExpr
 from .reflection_lookup import ReflectionAttribute
 from .statement import ReturnStmt
@@ -53,7 +54,7 @@ def str_implementation_builder(str_type):
                             location=Location.Generate(),
                             name='self',
                             type=ReferencePointerType(
-                                referenced_type=new_str_type,
+                                referenced_type=str_type,
                             )
                         )
                     ],
@@ -76,10 +77,10 @@ def str_implementation_builder(str_type):
         ]
     )
 
-    impl = Implementation(
+    impl = Impl(
         location=Location.Generate(),
         interface=IfaceSingletons.STRING.value,
-        implementing_type=new_str_type,
+        implementing_type=str_type,
         funcs=[get_length]
     )
 
@@ -134,32 +135,3 @@ class StrLiteralExpr(LiteralExpr, AttributeLookupMixIn):
             type=MonoStrType.FromValue(location, encoded_data),
             value=encoded_data
         )
-
-    def get_attribute(self, location, name):
-        if name == 'get_length':
-            return Attribute(
-                name='get_length',
-                type=FunctionType(
-                    location=Location.Generate(),
-                    parameters=[],
-                    return_type=TypeSingletons.UINT.value
-                )
-            )
-
-    def emit_attribute_lookup(self, location, name):
-        if name == 'get_length':
-            return FunctionExpr(
-                name='get_length',
-                location=Location.Generate(),
-                type=self.get_attribute(location, 'get_length')[1],
-                code=[
-                    ReturnStmt(
-                        location=Location.Generate(),
-                        expr=IntLiteralExpr(
-                            location=location,
-                            type=TypeSingletons.UINT.value,
-                            value=len(self.value)
-                        )
-                    )
-                ]
-            )

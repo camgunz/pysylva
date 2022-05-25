@@ -33,7 +33,7 @@ class ReflectionLookupMixIn:
             )
         self.reflection_attributes.append(attribute)
 
-    def reflect_attribute(self, location, name):
+    def emit_reflection_lookup(self, location, module, builder, scope, name):
         ra = self.get_reflection_attribute(name)
         if ra is None:
             raise errors.NoSuchAttribute(location, name)
@@ -53,4 +53,6 @@ class ReflectionLookupExpr(Expr):
         )
 
     def emit(self, module, builder, scope):
-        return self.expr.reflect_attribute(self.location, self.name)
+        return self.expr.emit_reflection_lookup(
+            self.location, module, builder, scope, self.name
+        )

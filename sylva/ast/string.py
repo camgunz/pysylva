@@ -67,7 +67,7 @@ class StringType(MonoDynarrayType, AttributeLookupMixIn):
     def _llvm_type_factory(self):
         return MonoDynarrayType(element_type=TypeSingletons.U8.value).llvm_type
 
-    def get_reflection_attribute_type(self, location, name):
+    def get_reflection_attribute(self, location, name):
         if name == 'name':
             return StrType(
                 location=Location.Generate(),
@@ -76,7 +76,7 @@ class StringType(MonoDynarrayType, AttributeLookupMixIn):
         if name == 'size':
             return TypeSingletons.UINT.value
 
-    def reflect_attribute(self, location, name):
+    def emit_reflection_lookup(self, location, module, builder, scope, name):
         if name == 'name':
             return 'string'
         if name == 'size':

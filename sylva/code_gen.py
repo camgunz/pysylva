@@ -32,11 +32,11 @@ class CodeGen:
                 if attr.reflection:
                     if not isinstance(ns_expr.type, ast.Reflectable):
                         raise errors.ImpossibleReflection(attr.location)
-                    attr = ns_expr.reflect_attribute(attr.location, attr.name)
+                    attr = ns_expr.emit_reflection_lookup(attr.location, self._module, builder=None, scope=local_vars, name=attr.name) # noqa: E501
                 elif not isinstance(ns_expr.type, ast.Dotable):
                     raise errors.ImpossibleLookup(attr.location)
                 else:
-                    attr = ns_expr.emit_attribute_lookup(attr.location, attr.name)
+                    attr = ns_expr.emit_attribute_lookup(attr.location, self._module, builder=None, scope=local_vars, name=attr.name) # noqa: E501
 
                 # What will have happened is:
                 # AttributeLookupExpr(LookupExpr('libc'), 'write', ref=False)
@@ -68,7 +68,11 @@ class CodeGen:
 
             if var is None:
                 var = self._module.emit_attribute_lookup(
-                    expr.location, expr.name
+                    expr.location,
+                    module=self._module,
+                    builder=None,
+                    scope=local_vars,
+                    name=expr.name
                 )
 
             if var is None:
@@ -95,12 +99,22 @@ class CodeGen:
                 if nex.reflection:
                     if not isinstance(nex.type, ast.Reflectable):
                         raise errors.ImpossibleReflection(nex.location)
-                    nex = nex.reflect_attribute(nex.location, nex.attribute)
+                    nex = nex.emit_reflection_lookup(
+                        nex.location,
+                        self._module,
+                        builder=None,
+                        scope=local_vars,
+                        name=nex.attribute
+                    )
                 elif not isinstance(nex.type, ast.Dotable):
                     raise errors.ImpossibleLookup(nex.location)
                 else: # [FIXME] This will only work for depth-1 lookups
                     nex = nex.emit_attribute_lookup(
-                        nex.location, nex.attribute
+                        nex.location,
+                        module=self._module,
+                        builder=None,
+                        scope=local_vars,
+                        name=nex.attribute
                     )
 
             return self._compile_expr(nex, builder, local_vars)

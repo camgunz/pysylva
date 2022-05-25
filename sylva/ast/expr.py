@@ -1,26 +1,30 @@
 from attrs import define, field
 
+from .. import errors
+from .attribute_lookup import AttributeLookupMixIn
 from .base import Node
 from .reflection_lookup import ReflectionLookupMixIn
-from .sylva_type import SylvaType
 
 
 @define(eq=False, slots=True)
-class Expr(Node, ReflectionLookupMixIn):
+class Expr(Node, AttributeLookupMixIn, ReflectionLookupMixIn):
     type = field()
 
-    def get_reflection_attribute_type(self, location, name):
-        from .array import ArrayType
-        if name == 'type':
-            return SylvaType
-        if name == 'bytes':
-            return ArrayType
+    def get_attribute(self, location, name):
+        for impl in self.type.implementations:
+            for func in impl.funcs:
+                if func.name == name:
+                    return func.type
+        raise errors.NoSuchAttribute(location, name)
 
-    def reflect_attribute(self, location, name):
-        if name == 'type':
-            return self.type
-        if name == 'bytes':
-            pass
+    def emit_attribute_lookup(self, location, module, builder, scope, name):
+        for impl in self.type.implementations:
+            for func in impl.funcs:
+                if func.name == name:
+                    return ValueExpr(
+                        location=location, type=func.type, value=func
+                    )
+        raise errors.NoSuchAttribute(location, name)
 
     def emit(self, module, builder, scope):
         raise NotImplementedError()

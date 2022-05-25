@@ -19,8 +19,10 @@ class ModType(SylvaType, AttributeLookupMixIn):
     def get_attribute(self, location, name):
         return self.value.get_attribute(location, name)
 
-    def lookup_attribute(self, location, name, module):
-        return self.value.lookup_attribute(location, name, module)
+    def emit_attribute_lookup(self, location, module, builder, scope, name):
+        return self.value.emit_attribute_lookup(
+            location, module, builder, scope, name
+        )
 
 
 @define(eq=False, slots=True)
@@ -102,7 +104,7 @@ class ModDef(TypeDef, AttributeLookupMixIn):
             location=location, name=name, type=attribute_type, index=None
         )
 
-    def emit_attribute_lookup(self, location, name):
+    def emit_attribute_lookup(self, location, module, builder, scope, name):
         aliased_value = self.aliases.get(name)
         if aliased_value is not None:
             return aliased_value.value

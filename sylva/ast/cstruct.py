@@ -28,12 +28,14 @@ class CStructDef(SelfReferentialTypeDef, AttributeLookupMixIn):
             raise errors.NoSuchField(location, name)
         return f
 
-    def emit_attribute_lookup(self, location, name):
+    def emit_attribute_lookup(self, location, module, builder, scope, name):
         f = self.get_attribute(location, name)
-        if not f:
-            raise errors.NoSuchField(location, name)
-        return GetElementPointerExpr(
-            location, type=f.type, obj=self, index=f.index, name=name
+        if f is not None:
+            return GetElementPointerExpr(
+                location, type=f.type, obj=self, index=f.index, name=name
+            )
+        return super().emit_attribute_lookup(
+            location, module, builder, scope, name
         )
 
     def get_slot(self, location, index):

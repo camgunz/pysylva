@@ -14,7 +14,6 @@ from .sylva_type import SylvaType
 class BasePointerType(SylvaType, AttributeLookupMixIn, ReflectionLookupMixIn):
     referenced_type = field()
     is_exclusive = field()
-    implementations = field(init=False, default=[])
 
     @llvm_type.default # noqa: F821
     def _llvm_type_factory(self):
