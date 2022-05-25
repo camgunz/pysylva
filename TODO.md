@@ -6,6 +6,12 @@
 
 ## General
 
+I think I mostly got reflection/attribute lookups backwards. I think we need to
+add attributes dynamically, but set reflection attributes statically. Or, we
+need to be able to dynamically add (reflection) attributes to types, but can
+statically add (reflection) attributes to exprs...? I *think* that's right.
+
+- Make Dynarray a (param) struct
 - Dynamically register reflection attributes.
   - Look for old get_reflection_attribute and emit_reflection_lookup methods
 - Never construct types in ast-land, manually do it in `module_builder`
@@ -13,9 +19,6 @@
     - Oh, I guess we've been implicitly saying `iface` and `impl` only work
       with a non-pointer type, because the methods might take various pointer
       types.
-- Fix `emit_attribute_lookup` to look through impls also
-  - I think this will end up having base-class behavior that might... never be
-    overridden
 - Add `Lookup` expr
 - Add an `element_count` specifier to a `str`:
   - `struct Person { name: str(8)(""), age: u8(0) }`

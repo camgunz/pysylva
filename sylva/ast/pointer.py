@@ -6,12 +6,11 @@ from llvmlite import ir
 from .. import errors
 from .expr import Expr, ValueExpr
 from .attribute_lookup import AttributeLookupMixIn
-from .reflection_lookup import ReflectionLookupMixIn
 from .sylva_type import SylvaType
 
 
 @define(eq=False, slots=True)
-class BasePointerType(SylvaType, AttributeLookupMixIn, ReflectionLookupMixIn):
+class BasePointerType(SylvaType, AttributeLookupMixIn):
     referenced_type = field()
     is_exclusive = field()
 
@@ -23,11 +22,6 @@ class BasePointerType(SylvaType, AttributeLookupMixIn, ReflectionLookupMixIn):
         if not isinstance(self.referenced_type, AttributeLookupMixIn):
             raise errors.ImpossibleLookup(location)
         return self.referenced_type.get_attribute(location, name)
-
-    def get_reflection_attribute_type(self, location, name):
-        return self.referenced_type.get_reflection_attribute_type(
-            location, name
-        )
 
 
 @define(eq=False, slots=True)

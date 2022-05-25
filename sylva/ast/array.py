@@ -37,7 +37,7 @@ def array_implementation_builder(array_type):
 
 
 @define(eq=False, slots=True)
-class MonoArrayType(SylvaType, ReflectionLookupMixIn):
+class MonoArrayType(SylvaType):
     element_type = field()
     element_count = field()
 

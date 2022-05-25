@@ -7,12 +7,12 @@ from ..utils import mangle
 from .array import ArrayType, MonoArrayType
 from .attribute_lookup import AttributeLookupExpr, AttributeLookupMixIn
 from .expr import LiteralExpr
-from .function import FunctionDef, FunctionExpr, FunctionType, MonoFunctionType
+from .function import FunctionDef, FunctionType, MonoFunctionType
 from .impl import Impl
-from .number import IntLiteralExpr
-from .reflection_lookup import ReflectionAttribute
+from .reflection_lookup import ReflectionAttribute, ReflectionLookupExpr
 from .statement import ReturnStmt
-from .type_mapping import Attribute, Parameter
+from .sylva_type import SylvaType
+from .type_mapping import Parameter
 from .type_singleton import IfaceSingletons, TypeSingletons
 
 
@@ -68,10 +68,15 @@ def str_implementation_builder(str_type):
                     location=Location.Generate(),
                     type=TypeSingletons.UINT.value,
                     attribute='element_count',
-                    expr=AttributeLookupExpr(
-                        location=Location.Generate(), name='self'
-                    ),
-                    reflection=True
+                    expr=ReflectionLookupExpr(
+                        location=Location.Generate(),
+                        type=SylvaType,
+                        attribute='type',
+                        expr=LookupExpr(
+                            location=Location.Generate(), name='self'
+                        ),
+                        name='type'
+                    )
                 )
             )
         ]

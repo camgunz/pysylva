@@ -5,6 +5,7 @@ from llvmlite import ir
 
 from ..location import Location
 from .array import ArrayType
+from .attribute_lookup import AttributeLookupMixIn
 from .expr import LiteralExpr, ValueExpr
 from .function import FunctionType, MonoFunctionType
 from .number import IntType
@@ -19,7 +20,8 @@ from .type_mapping import Attribute
 
 
 @define(eq=False, slots=True)
-class MonoDynarrayType(SylvaType, ReflectionLookupMixIn):
+class MonoDynarrayType(SylvaType, AttributeLookupMixIn):
+    # [FIXME] Why isn't this a struct with pre-defined fields?
     element_type = field()
 
     @llvm_type.default # noqa: F821
@@ -49,7 +51,7 @@ class MonoDynarrayType(SylvaType, ReflectionLookupMixIn):
         if name == 'element_type':
             return self.element_type.llvm_type
 
-    def get_attribute(self, location, name):
+    def emit_attribute_lookup(self, location, module, builder, scope, name):
         if name == 'capacity':
             return GetElementPointerExpr(
                 location=location,

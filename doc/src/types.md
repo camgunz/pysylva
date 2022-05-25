@@ -46,7 +46,7 @@ Most types have methods beyond just `name` and `size`.
 * `element_type`: returns the type of the `array`'s elements
 * `indices`: returns a `range` of the `array`'s valid indices
 
-## `enum`
+### `enum`
 
 * `get`: a method that indexes into the `enum`, usable as:
          `Days.get(Days.indices(0))`
@@ -56,26 +56,7 @@ Most types have methods beyond just `name` and `size`.
 * `count`: returns the number of values in the `enum`
 * `type`: returns the type of the `enum`'s values
 
-## Numeric types
-
-* `min`: returns the minimum value of the numeric type
-* `max`: returns the maximum value of the numeric type
-
-### `int`/`uint`
-
-* `signed`: returns `true` if the type is signed or `false` if not
-
-### `range`
-
-* `min`: returns the minimum value of the `range`
-* `max`: returns the maximum value of the `range`
-* `type`: returns the `range`'s type (`int` or `float`)
-
-#### Integer `range`
-
-* `count`: returns the number of values in the `range`
-
-## `struct`
+### `struct`
 
 * `index_field`: a method that indexes into the `struct`'s fields, usable as:
   `Person.index_field(Person.field_indices(0))` and returning a "field" type
@@ -94,7 +75,7 @@ Most types have methods beyond just `name` and `size`.
 * `type_param_count`: returns the number of the `struct`'s type params
 * `type_param_names`: returns an array of the `struct`'s type param names
 
-## Field types
+#### Field types
 
 Field types are the result of calling `get` on a `struct` type, and have the
 following attributes and methods:
@@ -102,7 +83,7 @@ following attributes and methods:
 * `name`: returns the name of the field in the `struct`
 * `type`: returns the type of the field in the `struct`
 
-## `variant`
+### `variant`
 
 * `get`: a method that indexes into the `variant`'s cases, usable as:
   `Person.get(Person.case_indices(0))` and returning a "case" type
@@ -119,10 +100,29 @@ following attributes and methods:
 * `type_param_count`: returns the number of the `variant`'s type params
 * `type_param_names`: returns an array of the `variant`'s type param names
 
-## Case types
+#### Case types
 
 Case types are the result of calling `get` on a `variant` type, and have the
 following attributes and methods:
 
 * `name`: returns the name of the case in the `variant`
 * `type`: returns the type of the case in the `variant`
+
+### Numeric types
+
+* `min`: returns the minimum value of the numeric type
+* `max`: returns the maximum value of the numeric type
+
+#### `int`/`uint`
+
+* `signed`: returns `true` if the type is signed or `false` if not
+
+#### `range`
+
+* `min`: returns the minimum value of the `range`
+* `max`: returns the maximum value of the `range`
+* `type`: returns the `range`'s type (`int` or `float`)
+
+##### Integer `range`
+
+* `count`: returns the number of values in the `range`
