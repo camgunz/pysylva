@@ -1,9 +1,7 @@
-# pylint: disable=too-many-lines
 import enum
 
 import lark
 
-# pylint: disable=unused-import
 from . import ast, debug, errors
 
 from .location import Location
@@ -80,7 +78,6 @@ class ModuleBuilder(lark.Visitor):
         self._module = module
         self._stream = stream
 
-    # pylint: disable=too-many-locals
     def _handle_expr(self, expr, scope):
         debug('_handle_expr', f'{expr}')
         location = Location.FromTree(expr, self._stream)
@@ -344,7 +341,6 @@ class ModuleBuilder(lark.Visitor):
 
             return lookup_expr
 
-    # pylint: disable=no-self-use,unused-argument
     def _handle_stmt(self, stmt, scope):
         location = Location.FromTree(stmt, stream=self._stream)
         if stmt.data == 'let_stmt':
@@ -406,7 +402,6 @@ class ModuleBuilder(lark.Visitor):
             debug('lookup', f'_lookup returning {info.type}')
             return info.type
 
-    # pylint: disable=too-many-locals
     def _get_type(self, type_obj, scope=None, deferrable=False):
         if isinstance(type_obj, lark.lexer.Token):
             loc = Location.FromToken(type_obj, self._stream)
