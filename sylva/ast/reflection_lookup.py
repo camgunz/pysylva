@@ -1,27 +1,15 @@
 from attrs import define, field
 
 from .. import errors
-from .expr import Expr
-from .type_mapping import Attribute
-
-
-@define(eq=False, slots=True)
-class ReflectionAttribute(Attribute):
-    func = field()
-    index = field(init=False, default=None)
-
-    def __call__(self, obj, location):
-        return self.func(obj, location)
+from .expr import BaseExpr
 
 
 @define(eq=False, slots=True)
 class ReflectionLookupMixIn:
-    reflection_attributes = field(init=False, default=[])
+    reflection_attributes = field(init=False, default={})
 
     def get_reflection_attribute(self, name):
-        for ra in self.reflection_attributes:
-            if ra.name == name:
-                return ra
+        return self.reflection_attributes.get(name)
 
     def set_reflection_attribute(self, attribute):
         existing_attribute = self.get_reflection_attribute(attribute.name)
@@ -31,17 +19,17 @@ class ReflectionLookupMixIn:
                 attribute.location,
                 existing_attribute.location
             )
-        self.reflection_attributes.append(attribute)
+        self.reflection_attributes[attribute.name] = attribute
 
-    def emit_reflection_lookup(self, location, module, builder, scope, name):
+    def emit_reflection_lookup(self, module, builder, scope, name):
         ra = self.get_reflection_attribute(name)
         if ra is None:
-            raise errors.NoSuchAttribute(location, name)
-        return ra(self, location)
+            raise errors.NoSuchAttribute(self.location, name)
+        return ra.emit(self, self.location, module, builder, scope)
 
 
 @define(eq=False, slots=True)
-class ReflectionLookupExpr(Expr):
+class ReflectionLookupExpr(BaseExpr):
     type = field(init=False)
     expr = field()
     name = field()

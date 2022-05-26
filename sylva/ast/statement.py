@@ -20,6 +20,20 @@ class LetStmt(Stmt):
     name = field()
     expr = field()
 
+    def emit(self, module, builder, scope):
+        value = value_expr.emit(module, builder, scope)
+        return builder.store(value, ptr)
+
+
+@define(eq=False, slots=True)
+class AssignStmt(Stmt):
+    ptr = field()
+    value_expr = field()
+
+    def emit(self, module, builder, scope):
+        value = value_expr.emit(module, builder, scope)
+        return builder.store(value, ptr)
+
 
 @define(eq=False, slots=True)
 class BreakStmt(Stmt):

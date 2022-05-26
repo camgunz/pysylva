@@ -15,6 +15,7 @@ from .cstruct import CStructType, CStructDef
 from .cunion import CUnionType, CUnionDef
 from .cvoid import CVoidType, CVoidExpr
 from .defs import TypeDef, DeferredTypeLookup
+from .deref import DerefExpr
 from .dynarray import (
     MonoDynarrayType, DynarrayType, DynarrayLiteralExpr, DynarrayExpr
 )
@@ -22,6 +23,7 @@ from .enum import EnumType
 from .fn import MonoFnType, FnType, FnExpr, FnDef
 from .impl import Impl
 from .iface import IfaceType
+from .lookup import LookupExpr
 from .mod import ModType, ModDecl, ModDef
 from .number import (
     ComplexType,
@@ -55,4 +57,5 @@ from .struct import MonoStructType, StructType, StructDef
 from .type_mapping import Attribute, Field, Parameter
 from .type_singleton import IfaceSingletons, TypeSingletons
 from .unary import UnaryExpr
+from .value import Value
 from .variant import MonoVariantType, VariantType, VariantDef

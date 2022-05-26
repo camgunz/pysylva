@@ -7,6 +7,7 @@ from .. import errors, utils
 from .defs import ParamTypeDef
 from .expr import ValueExpr
 from .sylva_type import SylvaParamType, SylvaType
+from .value import Value
 
 
 @define(eq=False, slots=True)
@@ -60,8 +61,13 @@ class FnDef(ParamTypeDef):
         builder = ir.IRBuilder(block=block)
         scope = {}
         for arg, param in zip(llvm_func_type.args, self.type.parameters):
-            llvm_param = builder.alloca(param.type.llvm_type, name=param.name)
-            builder.store(arg, llvm_param)
-            scope[param.name] = llvm_param
+            value = Value(
+                location=param.location,
+                ptr=arg,
+                name=param.name,
+                type=param.type
+            )
+            builder.store(value.ptr, param.emit())
+            scope[param.name] = value
         for node in self.code:
             node.emit(llvm_module, builder, scope)

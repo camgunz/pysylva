@@ -7,6 +7,7 @@ from .attribute_lookup import AttributeLookupExpr, AttributeLookupMixIn
 from .dynarray import DynarrayExpr, MonoDynarrayType
 from .function import FunctionDef, MonoFunctionType
 from .implementation import Implementation
+from .lookup import LookupExpr
 from .pointer import ReferencePointerType
 from .statement import ReturnStmt
 from .str import StrType

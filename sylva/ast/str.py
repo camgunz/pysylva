@@ -1,6 +1,7 @@
 from functools import cached_property
 
 from attrs import define, field
+from llvmlite import ir
 
 from ..location import Location
 from ..utils import mangle
@@ -9,10 +10,11 @@ from .attribute_lookup import AttributeLookupExpr, AttributeLookupMixIn
 from .expr import LiteralExpr
 from .function import FunctionDef, FunctionType, MonoFunctionType
 from .impl import Impl
-from .reflection_lookup import ReflectionAttribute, ReflectionLookupExpr
+from .lookup import LookupExpr
+from .reflection_lookup import ReflectionLookupExpr
 from .statement import ReturnStmt
 from .sylva_type import SylvaType
-from .type_mapping import Parameter
+from .type_mapping import Attribute, Parameter
 from .type_singleton import IfaceSingletons, TypeSingletons
 
 
@@ -27,18 +29,25 @@ def str_implementation_builder(str_type):
     else:
         str_three = TypeSingletons.STR.value.get_or_create_monomorphization(3)
 
-    str_type.set_reflection_attribute(
-        ReflectionAttribute(
-            name='name', type=str_three, func=lambda obj, location: 'str'
+    def emit_name_param(obj, location, module, builder, scope):
+        return ir.Constant(
+            str_three.llvm_type, bytearray('str', encoding='utf-8')
         )
+
+    def emit_count_param(obj, location, module, builder, scope):
+        return ir.Constant(
+            TypeSingletons.UINT.value.llvm_type, obj.element_count
+        )
+
+    str_type.set_attribute(
+        Attribute(name='name', type=str_three, func=emit_name_param)
     )
 
-    str_type.set_reflection_attribute(
-        ReflectionAttribute(
+    str_type.set_attribute(
+        Attribute(
             name='count',
             type=TypeSingletons.UINT.value,
-            func=lambda obj,
-            location: obj.element_count
+            func=emit_count_param
         )
     )
 

@@ -7,8 +7,15 @@ from .reflection_lookup import ReflectionLookupMixIn
 
 
 @define(eq=False, slots=True)
-class Expr(Node, AttributeLookupMixIn, ReflectionLookupMixIn):
+class BaseExpr(Node):
     type = field()
+
+    def emit(self, module, builder, scope):
+        raise NotImplementedError()
+
+
+@define(eq=False, slots=True)
+class ValueExpr(BaseExpr, AttributeLookupMixIn, ReflectionLookupMixIn):
 
     def get_attribute(self, location, name):
         for impl in self.type.implementations:
@@ -26,17 +33,9 @@ class Expr(Node, AttributeLookupMixIn, ReflectionLookupMixIn):
                     )
         raise errors.NoSuchAttribute(location, name)
 
-    def emit(self, module, builder, scope):
-        raise NotImplementedError()
-
 
 @define(eq=False, slots=True)
-class ValueExpr(Expr):
-    pass
-
-
-@define(eq=False, slots=True)
-class LiteralExpr(Expr):
+class LiteralExpr(ValueExpr):
     value = field()
 
     def emit(self, module, builder, scope):
@@ -44,13 +43,13 @@ class LiteralExpr(Expr):
 
 
 @define(eq=False, slots=True)
-class IndexExpr(Expr):
+class IndexExpr(BaseExpr):
     indexable = field()
     index = field()
 
 
 @define(eq=False, slots=True)
-class BinaryExpr(Expr):
+class BinaryExpr(BaseExpr):
     operator = field()
     lhs = field()
     rhs = field()

@@ -13,17 +13,28 @@ class BaseTypeMapping(Node):
     def handle(self):
         return self.index if self.index is not None else self.name
 
+    def emit(self, obj, module, builder, scope):
+        raise NotImplementedError()
+
 
 @define(eq=False, slots=True)
 class Parameter(BaseTypeMapping):
-    pass
+
+    def emit(self, obj, module, builder, scope):
+        return builder.alloca(self.type.llvm_type, name=self.name)
 
 
 @define(eq=False, slots=True)
 class Attribute(BaseTypeMapping):
-    pass
+    func = field()
+    index = field(init=False, default=None)
+
+    def emit(self, obj, module, builder, scope):
+        return self.func(obj, self.location, module, builder, scope)
 
 
 @define(eq=False, slots=True)
 class Field(BaseTypeMapping):
-    pass
+
+    def emit(self, obj, module, builder, scope):
+        return builder.gep(obj, [self.index], inbounds=True)

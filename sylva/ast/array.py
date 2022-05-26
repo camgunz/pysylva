@@ -8,8 +8,9 @@ from ..location import Location
 from .defs import TypeDef
 from .expr import LiteralExpr, ValueExpr
 from .pointer import ReferencePointerExpr, ReferencePointerType
-from .reflection_lookup import ReflectionAttribute, ReflectionLookupMixIn
+from .reflection_lookup import ReflectionLookupMixIn
 from .sylva_type import SylvaParamType, SylvaType
+from .type_mapping import Attribute
 from .type_singleton import TypeSingletons
 
 
@@ -21,17 +22,25 @@ def array_implementation_builder(array_type):
     # indices      | range  | range(0, element_count + 1)
     str_five = TypeSingletons.STR.value.get_or_create_monomorphization(5)
 
-    array_type.set_reflection_attribute(
-        ReflectionAttribute(
-            name='name', type=str_five, func=lambda obj, location: 'array'
+    def emit_name_param(obj, location, module, builder, scope):
+        return ir.Constant(
+            str_five.llvm_type, bytearray('array', encoding='utf-8')
         )
+
+    def emit_count_param(obj, location, module, builder, scope):
+        return ir.Constant(
+            TypeSingletons.UINT.value.llvm_type, obj.element_count
+        )
+
+    array_type.set_attribute(
+        Attribute(name='name', type=str_five, func=emit_name_param)
     )
 
-    array_type.set_reflection_attribute(
-        ReflectionAttribute( # yapf: disable
+    array_type.set_attribute(
+        Attribute( # yapf: disable
             name='count',
             type=TypeSingletons.UINT.value,
-            func=lambda obj, location: obj.element_count
+            func=emit_count_param
         )
     )
 
