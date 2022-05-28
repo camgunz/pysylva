@@ -17,13 +17,11 @@ class ModType(SylvaType):
         SylvaType.__init__(self, location)
         self.value = value
 
-    def get_attribute(self, location, name):
-        return self.value.get_attribute(location, name)
+    def get_attribute(self, name):
+        return self.value.get_attribute(name)
 
-    def emit_attribute_lookup(self, location, module, builder, scope, name):
-        return self.value.emit_attribute_lookup(
-            location, module, builder, scope, name
-        )
+    def emit_attribute_lookup(self, module, builder, scope, name):
+        return self.value.emit_attribute_lookup(module, builder, scope, name)
 
 
 class ModDecl(Decl):
@@ -37,7 +35,7 @@ class ModDef(TypeDef, AttributeLookupMixIn):
         TypeDef.__init__(
             self, location, name=name, type=ModType(Location.Generate(), self)
         )
-        AttributeLookupMixIn.__init__(self, location)
+        AttributeLookupMixIn.__init__(self)
 
         self.program = program
         self.streams = streams
@@ -86,14 +84,13 @@ class ModDef(TypeDef, AttributeLookupMixIn):
 
         return self.errors
 
-    def get_attribute(self, location, name):
+    def get_attribute(self, name):
         aliased_value = self.aliases.get(name)
         if aliased_value is not None:
             return Attribute(
-                location=location,
+                location=aliased_value.location,
                 name=name,
                 type=aliased_value.value,
-                func=None
             )
 
         attribute_type = self.vars.get(name)
@@ -104,16 +101,17 @@ class ModDef(TypeDef, AttributeLookupMixIn):
             attribute_type = attribute_type.type
 
         return Attribute(
-            location=location, name=name, type=attribute_type, func=None
+            location=attribute_type.location, name=name, type=attribute_type
         )
 
-    def emit_attribute_lookup(self, location, module, builder, scope, name):
+    def emit_attribute_lookup(self, module, builder, scope, name):
         aliased_value = self.aliases.get(name)
         if aliased_value is not None:
             return aliased_value.value
 
         return self.vars.get(name)
 
+    # pylint: disable=arguments-differ
     def llvm_define(self):
         llvm_module = ir.Module(name=self.name)
 

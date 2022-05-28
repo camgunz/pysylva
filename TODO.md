@@ -1,22 +1,8 @@
 # To Do
 
-## The great de-typing
-
-- Look for `pass` and remove classes that were only different by types
-
 ## General
 
-- Make Dynarray a (param) struct
-- Check any attribute/reflection lookups
-  - `struct` in particular
-  - Various pointer types need to act as parameterizable types
-    - Oh, I guess we've been implicitly saying `iface` and `impl` only work
-      with a non-pointer type, because the methods might take various pointer
-      types.
-- Add an `element_count` specifier to a `str`:
-  - `struct Person { name: str(8)(""), age: u8(0) }`
-- Every parameterizable type needs a `get_or_create_monomorphization` method
-  tailored to its specific parameters
+`get_or_create_monomorphization` might benefit from a `Location`
 
 ## Sized types
 
@@ -28,7 +14,7 @@ We're smoothing this over with interfaces.
 
 ### `str`
 
-- Add an `element_count` specifier:
+- Add an `element_count` specifier in the docs:
   - `struct Person { name: str(8)(""), age: u8(0) }`
 
 ### Generics

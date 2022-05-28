@@ -1,9 +1,9 @@
 from functools import cached_property
 
 from .. import errors, utils
-from .attribute_lookup import AttributeLookupMixIn
-from .defs import SelfReferentialParamTypeDef
+from ..location import Location
 from .sylva_type import SylvaParamType, SylvaType
+from .value import Value
 
 
 class BaseStructType(SylvaType):
@@ -31,42 +31,53 @@ class BaseStructType(SylvaType):
     def mname(self):
         return ''.join(['6struct', ''.join(f.type.mname for f in self.fields)])
 
-    def get_attribute(self, location, name):
+    def get_attribute(self, name):
         # [TODO] These are reflection attributes, but since we're inside the
         #        type, they're really plain old attributes.
         raise NotImplementedError()
 
-    def emit_attribute_lookup(self, location, module, builder, scope, name):
+    def emit_attribute_lookup(self, module, builder, scope, name):
         # [TODO] These are reflection attributes, but since we're inside the
         #        type, they're really plain old attributes.
         raise NotImplementedError()
 
 
 class MonoStructType(BaseStructType):
-    pass
+
+    def __eq__(self, other):
+        return (
+            SylvaType.__eq__(self, other) and
+            len(self.fields) == len(other.fields) and
+            all(f.type == of.type for f, of in zip(self.fields, other.fields))
+        )
 
 
 class StructType(SylvaParamType):
-    pass
+
+    def get_or_create_monomorphization(self, fields):
+        for mm in self.monomorphizations:
+            if (len(fields) == len(mm.fields) and all(
+                    f.type == mmf.type for f, mmf in zip(fields, mm.fields))):
+                return mm
+            return mm
+
+        mm = MonoStructType(Location.Generate(), fields)
+
+        self.add_monomorphization(mm)
+
+        return mm
 
 
-class StructDef(SelfReferentialParamTypeDef, AttributeLookupMixIn):
+class Struct(Value):
 
-    # def get_attribute(self, location, name):
-    #     f = self.type.get_attribute(location, name)
-    #     if not f:
-    #         raise errors.NoSuchField(location, name)
-    #     return f
+    def get_attribute(self, name):
+        for f in self.type.fields:
+            if f.name == name:
+                return f
+        return Value.get_attribute(self, name)
 
-    # def emit_attribute_lookup(self, location, module, builder, scope, name):
-    #     f = self.get_attribute(location, name)
-    #     if f is not None:
-    #         return GetElementPointerExpr(
-    #             location, type=f.type, obj=self, index=f.index, name=name
-    #         )
-    #     return super().emit_attribute_lookup(
-    #         location, module, builder, scope, name
-    #     )
-
-    def llvm_define(self, llvm_module):
-        pass
+    def emit_attribute_lookup(self, module, builder, scope, name):
+        f = self.get_attribute(name)
+        if f is not None:
+            return f.emit(self, module, builder, scope, name)
+        return super().emit_attribute_lookup(module, builder, scope, name)

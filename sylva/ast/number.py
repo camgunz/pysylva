@@ -5,7 +5,6 @@ from llvmlite import ir
 from .. import utils
 from .literal import LiteralExpr
 from .sylva_type import SylvaType
-from .value import ValueExpr
 
 
 class NumericType(SylvaType):
@@ -135,10 +134,6 @@ class IntLiteralExpr(NumericLiteralExpr):
         return self.type.bits
 
 
-class IntExpr(ValueExpr):
-    pass
-
-
 class FloatLiteralExpr(NumericLiteralExpr):
 
     @classmethod
@@ -158,10 +153,6 @@ class FloatLiteralExpr(NumericLiteralExpr):
     @property
     def size(self):
         return self.type.bits
-
-
-class FloatExpr(ValueExpr):
-    pass
 
 
 class ComplexLiteralExpr(NumericLiteralExpr):
@@ -185,7 +176,3 @@ class ComplexLiteralExpr(NumericLiteralExpr):
     @property
     def size(self):
         return self.type.bits
-
-
-class ComplexExpr(ValueExpr):
-    pass

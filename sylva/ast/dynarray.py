@@ -3,13 +3,69 @@ from functools import cached_property
 from llvmlite import ir
 
 from ..location import Location
-from .array import ArrayType
+from .attribute_lookup import AttributeLookupExpr
+from .fn import FnDef, MonoFnType
+from .impl import Impl
 from .literal import LiteralExpr
-from .pointer import (ReferencePointerExpr, ReferencePointerType)
+from .lookup import LookupExpr
+from .statement import ReturnStmt
 from .sylva_type import SylvaParamType, SylvaType
 from .type_mapping import Attribute
-from .type_singleton import TypeSingletons
-from .value import ValueExpr
+
+
+def dynarray_implementation_builder(dynarray_type):
+    from .type_singleton import IfaceSingletons, TypeSingletons
+
+    str_eight = TypeSingletons.STR.value.get_or_create_monomorphization(8)
+
+    # pylint: disable=unused-argument
+    def emit_name_param(obj, location, module, builder, scope):
+        return ir.Constant(
+            str_eight.llvm_type, bytearray('dynarray', encoding='utf-8')
+        )
+
+    dynarray_type.set_attribute(
+        Attribute(
+            location=Location.Generate(),
+            name='name',
+            type=str_eight,
+            func=emit_name_param
+        )
+    )
+
+    get_length = FnDef(
+        location=Location.Generate(),
+        name='get_length',
+        type=MonoFnType(
+            location=Location.Generate(),
+            parameters=[],
+            return_type=TypeSingletons.UINT.value
+        ),
+        code=[
+            ReturnStmt(
+                location=Location.Generate(),
+                expr=AttributeLookupExpr(
+                    location=Location.Generate(),
+                    obj=LookupExpr(
+                        location=Location.Generate(),
+                        name='self',
+                        type=dynarray_type
+                    ),
+                    name='length'
+                )
+            )
+        ]
+    )
+
+    impl = Impl(
+        location=Location.Generate(),
+        interface=IfaceSingletons.ARRAY.value,
+        implementing_type=dynarray_type,
+        funcs=[get_length]
+    )
+
+    IfaceSingletons.ARRAY.value.add_implementation(impl)
+    dynarray_type.add_implementation(impl)
 
 
 class MonoDynarrayType(SylvaType):
@@ -18,6 +74,8 @@ class MonoDynarrayType(SylvaType):
     #        can't represent raw pointers.
 
     def __init__(self, location, element_type):
+        from .type_singleton import TypeSingletons
+
         SylvaType.__init__(self, location)
         self.element_type = element_type
         self.llvm_type = ir.LiteralStructType([ # yapf: disable
@@ -44,13 +102,13 @@ class MonoDynarrayType(SylvaType):
     #     if name == 'element_type':
     #         return self.element_type.llvm_type
 
-    def emit_attribute_lookup(self, location, module, builder, scope, name):
+    def emit_attribute_lookup(self, module, builder, scope, name):
         if name == 'capacity':
             return builder.gep(self, [0], inbounds=True, name=name)
         if name == 'length':
             return builder.gep(self, [1], inbounds=True, name=name)
         return SylvaType.emit_attribute_lookup(
-            self, location, module, builder, scope, name
+            self, module, builder, scope, name
         )
 
     @cached_property
@@ -59,6 +117,14 @@ class MonoDynarrayType(SylvaType):
 
 
 class DynarrayType(SylvaParamType):
+
+    def __init__(self, location, implementation_builders=None):
+        SylvaParamType.__init__(
+            self,
+            location,
+            implementation_builders=implementation_builders or
+            [dynarray_implementation_builder]
+        )
 
     def get_or_create_monomorphization(self, element_type):
         for mm in self.monomorphizations:
@@ -76,55 +142,3 @@ class DynarrayType(SylvaParamType):
 # [FIXME] This involves heap allocation
 class DynarrayLiteralExpr(LiteralExpr):
     pass
-
-
-class DynarrayExpr(ValueExpr):
-
-    def get_attribute(self, name):
-        if name == 'get_length':
-            return Attribute(
-                location=Location.Generate(),
-                name='get_length',
-                type=FunctionType(
-                    location=Location.Generate(),
-                    monomorphizations=[
-                        MonoFunctionType(
-                            location=Location.Generate(),
-                            parameters=[],
-                            return_type=TypeSingletons.UINT.value
-                        )
-                    ]
-                )
-            )
-
-    def get_reflection_attribute(self, name):
-        if name == 'type':
-            return SylvaType
-        if name == 'bytes':
-            return ReferencePointerType(
-                referenced_type=ArrayType(
-                    Location.Generate(),
-                    element_type=TypeSingletons.U8,
-                    element_count=self.type.get_size()
-                )
-            )
-
-    def emit_reflection_lookup(self, location, module, builder, scope, name):
-        if name == 'type':
-            # [FIXME]
-            return self.type
-        if name == 'bytes':
-            # [NOTE] Just overriding the type here _probably_ works, but only
-            #        implicitly. It would be better if we had explicit support
-            #        throughout.
-            return ReferencePointerExpr(
-                location=Location.Generate(),
-                type=ReferencePointerType(
-                    referenced_type=ArrayType(
-                        Location.Generate(),
-                        element_type=TypeSingletons.U8,
-                        element_count=self.type.get_size()
-                    )
-                ),
-                expr=self
-            )

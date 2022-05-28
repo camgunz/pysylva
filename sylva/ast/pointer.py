@@ -2,87 +2,62 @@ from functools import cached_property
 
 from llvmlite import ir
 
-from .. import errors
-from .attribute_lookup import AttributeLookupMixIn
-from .sylva_type import SylvaType
-from .value import ValueExpr
+from ..location import Location
+from .sylva_type import SylvaParamType, SylvaType
 
 
-class BasePointerType(SylvaType, AttributeLookupMixIn):
+class MonoPointerType(SylvaType):
 
-    def __init__(self, location, referenced_type, is_exclusive):
+    def __init__(self, location, referenced_type, is_reference, is_exclusive):
         SylvaType.__init__(self, location)
-        AttributeLookupMixIn.__init__(self, location)
         self.llvm_type = ir.PointerType(referenced_type.llvm_type)
         self.referenced_type = referenced_type
+        self.is_reference = is_reference
         self.is_exclusive = is_exclusive
 
-    def get_attribute(self, location, name):
-        if not isinstance(self.referenced_type, AttributeLookupMixIn):
-            raise errors.ImpossibleLookup(location)
-        return self.referenced_type.get_attribute(location, name)
-
-
-class ReferencePointerType(BasePointerType):
-
-    def __init__(self, location, referenced_type):
-        BasePointerType.__init__(
-            self, location, referenced_type, is_exclusive=False
+    def __eq__(self, other):
+        return all(
+            SylvaType.__eq__(self, other) and
+            self.referenced_type == other.referenced_type and
+            self.is_reference == other.is_reference and
+            self.is_exclusive == other.is_exclusive
         )
+
+    def get_attribute(self, name):
+        return self.referenced_type.get_attribute(name)
 
     @cached_property
     def mname(self):
-        return ''.join(['2rp', self.referenced_type.mname])
+        if not self.is_reference:
+            pointer_type = 'o'
+        elif self.is_exclusive:
+            pointer_type = 'x'
+        else:
+            pointer_type = 'r'
+        return ''.join([f'2{pointer_type}p', self.referenced_type.mname])
 
 
-class ExclusiveReferencePointerType(BasePointerType):
+class PointerType(SylvaParamType):
 
-    def __init__(self, location, referenced_type):
-        BasePointerType.__init__(
-            self, location, referenced_type, is_exclusive=True
+    def get_or_create_monomorphization(
+        self, referenced_type, is_reference, is_exclusive
+    ):
+        for mm in self.monomorphizations:
+            if mm.referenced_type != referenced_type:
+                continue
+            if mm.is_reference != is_reference:
+                continue
+            if mm.is_exclusive != is_exclusive:
+                continue
+            return mm
+
+        mm = MonoPointerType(
+            location=Location.Generate(),
+            referenced_type=referenced_type,
+            is_reference=is_reference,
+            is_exclusive=is_exclusive
         )
 
-    @cached_property
-    def mname(self):
-        return ''.join(['2xp', self.referenced_type.mname])
+        self.add_monomorphization(mm)
 
-
-class OwnedPointerType(BasePointerType):
-
-    def __init__(self, location, referenced_type):
-        BasePointerType.__init__(
-            self, location, referenced_type, is_exclusive=True
-        )
-
-    @cached_property
-    def mname(self):
-        return ''.join(['2op', self.referenced_type.mname])
-
-
-class BasePointerExpr(ValueExpr):
-
-    @property
-    def referenced_type(self):
-        return self.type.referenced_type
-
-    @property
-    def is_exclusive(self):
-        return self.type.is_exclusive
-
-
-class ReferencePointerExpr(BasePointerExpr):
-
-    def __init__(self, location, type, expr):
-        BasePointerExpr.__init__(self, location, type)
-        self.expr = expr
-
-
-class OwnedPointerExpr(BasePointerExpr):
-    pass
-
-
-class MovePointerExpr(BasePointerExpr):
-
-    def __init__(self, location, type, expr):
-        BasePointerExpr.__init__(self, location, type)
-        self.expr = expr
+        return mm

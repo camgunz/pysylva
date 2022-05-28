@@ -39,5 +39,6 @@ def get_target():
 
 
 def make_target(target_triple=None):
+    # pylint: disable=global-statement
     global _TARGET
     _TARGET = Target(target_triple=target_triple)

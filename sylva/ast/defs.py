@@ -2,9 +2,9 @@ from functools import cached_property
 
 from llvmlite import ir
 
-from .. import debug, errors
+from .. import debug, errors, utils
 from .base import Node
-from .pointer import BasePointerType
+from .pointer import PointerType
 
 
 class BaseDef(Node):
@@ -38,11 +38,11 @@ class BaseDef(Node):
         module.vars[self.mname] = self
 
     def llvm_define(self, llvm_module):
-        return ir.GlobalVariable(llvm_module, self.type.llvm_type, self.mname)
+        pass
 
     @cached_property
     def mname(self):
-        return self.name
+        return ''.join([utils.len_prefix(self.name), self.type.mname])
 
 
 class TypeDef(BaseDef):
@@ -66,7 +66,7 @@ class SelfReferentialMixIn:
         missing_field_errors = []
 
         for f in self.fields: # pylint: disable=no-member
-            if not isinstance(f.type, BasePointerType):
+            if not isinstance(f.type, PointerType):
                 continue
             if not isinstance(f.type.referenced_type, DeferredTypeLookup):
                 continue
@@ -88,7 +88,7 @@ class SelfReferentialMixIn:
         # pylint: disable=no-member
         if self.name is None:
             for f in self.fields: # pylint: disable=no-member
-                if not isinstance(f.type, BasePointerType):
+                if not isinstance(f.type, PointerType):
                     continue
                 if not f.type.referenced_type == self:
                     continue
@@ -104,7 +104,7 @@ class SelfReferentialMixIn:
             struct = llvm_module.context.get_identified_type(self.name)
             fields = []
             for f in self.fields: # pylint: disable=no-member
-                if not isinstance(f.type, BasePointerType):
+                if not isinstance(f.type, PointerType):
                     fields.append(f.type.llvm_type)
                 elif not f.type.referenced_type == self:
                     fields.append(f.type.llvm_type)

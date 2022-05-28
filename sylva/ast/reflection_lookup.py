@@ -4,8 +4,7 @@ from .expr import BaseExpr
 
 class ReflectionLookupMixIn:
 
-    def __init__(self, location):
-        self.location = location
+    def __init__(self):
         self.reflection_attributes = {}
 
     def get_reflection_attribute(self, name):
@@ -24,18 +23,23 @@ class ReflectionLookupMixIn:
     def emit_reflection_lookup(self, module, builder, scope, name):
         ra = self.get_reflection_attribute(name)
         if ra is None:
-            raise errors.NoSuchAttribute(self.location, name)
-        return ra.emit(self, self.location, module, builder, scope)
+            return None
+        return ra.emit(self, module, builder, scope, name)
 
 
 class ReflectionLookupExpr(BaseExpr):
 
-    def __init__(self, location, expr, name):
-        super().__init__(location, expr.get_reflection_attribute(name).type)
-        self.expr = expr
+    def __init__(self, location, obj, name):
+        super().__init__(location, obj.get_reflection_attribute(name).type)
+        self.obj = obj
         self.name = name
 
     def emit(self, module, builder, scope):
-        return self.expr.emit_reflection_lookup(
-            self.location, module, builder, scope, self.name
+        result = self.obj.emit_reflection_lookup(
+            module, builder, scope, self.name
         )
+
+        if result is None:
+            raise errors.NoSuchAttribute(self.location, self.name)
+
+        return result

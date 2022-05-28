@@ -6,18 +6,18 @@ from ..location import Location
 from ..utils import mangle
 from .array import ArrayType, MonoArrayType
 from .attribute_lookup import AttributeLookupExpr
-from .fn import FnDef, FnType, MonoFnType
+from .fn import FnDef, MonoFnType
 from .impl import Impl
 from .literal import LiteralExpr
 from .lookup import LookupExpr
-from .pointer import ReferencePointerType
 from .reflection_lookup import ReflectionLookupExpr
 from .statement import ReturnStmt
 from .type_mapping import Attribute, Parameter
-from .type_singleton import IfaceSingletons, TypeSingletons
 
 
 def str_implementation_builder(str_type):
+    from .type_singleton import IfaceSingletons, TypeSingletons
+
     # name  | str(3) | 'str'
     # size  | uint   | element_count * element_type.size
     # count | uint   | element_count
@@ -28,11 +28,13 @@ def str_implementation_builder(str_type):
     else:
         str_three = TypeSingletons.STR.value.get_or_create_monomorphization(3)
 
+    # pylint: disable=unused-argument
     def emit_name_param(obj, location, module, builder, scope):
         return ir.Constant(
             str_three.llvm_type, bytearray('str', encoding='utf-8')
         )
 
+    # pylint: disable=unused-argument
     def emit_count_param(obj, location, module, builder, scope):
         return ir.Constant(
             TypeSingletons.UINT.value.llvm_type, obj.element_count
@@ -65,9 +67,11 @@ def str_implementation_builder(str_type):
                 Parameter(
                     location=Location.Generate(),
                     name='self',
-                    type=ReferencePointerType(
-                        location=Location.Generate(),
+                    type=TypeSingletons.POINTER.value
+                    .get_or_create_monomorphization(
                         referenced_type=str_type,
+                        is_reference=True,
+                        is_exclusive=False,
                     )
                 )
             ],
@@ -78,9 +82,9 @@ def str_implementation_builder(str_type):
                 location=Location.Generate(),
                 expr=AttributeLookupExpr(
                     location=Location.Generate(),
-                    expr=ReflectionLookupExpr(
+                    obj=ReflectionLookupExpr(
                         location=Location.Generate(),
-                        expr=LookupExpr(
+                        obj=LookupExpr(
                             location=Location.Generate(),
                             name='self',
                             type=str_type
@@ -107,6 +111,8 @@ def str_implementation_builder(str_type):
 class MonoStrType(MonoArrayType):
 
     def __init__(self, location, element_count):
+        from .type_singleton import TypeSingletons
+
         MonoArrayType.__init__(
             self, location, TypeSingletons.U8.value, element_count
         )
@@ -126,6 +132,7 @@ class StrType(ArrayType):
             [str_implementation_builder]
         )
 
+    # pylint: disable=arguments-differ
     def get_or_create_monomorphization(self, element_count):
         for mm in self.monomorphizations:
             if mm.element_count == element_count:
@@ -140,6 +147,8 @@ class StrType(ArrayType):
 class StrLiteralExpr(LiteralExpr):
 
     def __init__(self, location, value):
+        from .type_singleton import TypeSingletons
+
         LiteralExpr.__init__(
             self,
             location,

@@ -3,9 +3,9 @@ from functools import cached_property
 from llvmlite import ir
 
 from .. import utils
-from .defs import SelfReferentialParamTypeDef
+from ..location import Location
 from .sylva_type import SylvaParamType
-from .union import BaseUnionType
+from .union import BaseUnionType, Union
 
 
 class MonoVariantType(BaseUnionType):
@@ -17,11 +17,6 @@ class MonoVariantType(BaseUnionType):
             ir.IntType(utils.round_up_to_multiple(len(self.fields), 8))
         ])
 
-    def get_attribute(self, location, name):
-        for f in self.fields:
-            if f.name == name:
-                return f
-
     @cached_property
     def mname(self):
         return ''.join([
@@ -30,10 +25,19 @@ class MonoVariantType(BaseUnionType):
 
 
 class VariantType(SylvaParamType):
+
+    def get_or_create_monomorphization(self, fields):
+        for mm in self.monomorphizations:
+            if (len(fields) == len(mm.fields) and all(
+                    f.type == mmf.type for f, mmf in zip(fields, mm.fields))):
+                return mm
+
+        mm = MonoVariantType(Location.Generate(), fields)
+
+        self.add_monomorphization(mm)
+
+        return mm
+
+
+class Variant(Union):
     pass
-
-
-class VariantDef(SelfReferentialParamTypeDef):
-
-    def llvm_define(self, llvm_module):
-        pass

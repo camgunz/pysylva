@@ -15,6 +15,14 @@ class CBitFieldType(SylvaType):
         self.signed = signed
         self.field_size = field_size
 
+    def __eq__(self, other):
+        return ( # yapf: disable
+            SylvaType.__eq__(self, other) and
+            other.bits == self.bits and
+            other.signed == self.signed and
+            other.field_size == self.field_size
+        )
+
     @cached_property
     def mname(self):
         return utils.mangle(['cbf', self.bits, self.signed, self.field_size])

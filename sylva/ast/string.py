@@ -1,12 +1,11 @@
 from functools import cached_property
 
 from ..location import Location
-from .attribute_lookup import AttributeLookupExpr, AttributeLookupMixIn
-from .dynarray import DynarrayExpr, MonoDynarrayType
+from .attribute_lookup import AttributeLookupExpr
+from .dynarray import MonoDynarrayType
 from .fn import FnDef, MonoFnType
 from .impl import Impl
 from .lookup import LookupExpr
-from .pointer import ReferencePointerType
 from .statement import ReturnStmt
 from .type_mapping import Parameter
 from .type_singleton import IfaceSingletons, TypeSingletons
@@ -22,9 +21,11 @@ def string_impl_builder(string_type):
                 Parameter(
                     location=Location.Generate(),
                     name='self',
-                    type=ReferencePointerType(
-                        location=Location.Generate(),
+                    type=TypeSingletons.POINTER.value
+                    .get_or_create_monomorphization(
                         referenced_type=string_type,
+                        is_reference=True,
+                        is_exclusive=False
                     )
                 )
             ],
@@ -35,7 +36,7 @@ def string_impl_builder(string_type):
                 location=Location.Generate(),
                 expr=AttributeLookupExpr(
                     location=Location.Generate(),
-                    expr=LookupExpr( # yapf: disable
+                    obj=LookupExpr( # yapf: disable
                         location=Location.Generate(),
                         name='self',
                         type=string_type
@@ -81,7 +82,3 @@ class StringType(MonoDynarrayType):
     @cached_property
     def mname(self):
         return '6string'
-
-
-class StringExpr(DynarrayExpr, AttributeLookupMixIn):
-    pass

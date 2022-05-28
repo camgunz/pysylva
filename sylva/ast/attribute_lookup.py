@@ -4,8 +4,7 @@ from .expr import BaseExpr
 
 class AttributeLookupMixIn:
 
-    def __init__(self, location):
-        self.location = location
+    def __init__(self):
         self.attributes = {}
 
     def get_attribute(self, name):
@@ -24,18 +23,23 @@ class AttributeLookupMixIn:
     def emit_attribute_lookup(self, module, builder, scope, name):
         a = self.get_attribute(name)
         if a is None:
-            raise errors.NoSuchAttribute(self.location, name)
-        return a.emit(self, self.location, module, builder, scope)
+            return None
+        a.emit(self, module, builder, scope, name)
 
 
 class AttributeLookupExpr(BaseExpr):
 
-    def __init__(self, location, expr, name):
-        super().__init__(location, expr.type.get_attribute(name).type)
-        self.expr = expr
+    def __init__(self, location, obj, name):
+        super().__init__(location, obj.type.get_attribute(name).type)
+        self.obj = obj
         self.name = name
 
     def emit(self, module, builder, scope):
-        return self.expr.emit_attribute_lookup(
-            self.location, module, builder, scope, self.name
+        result = self.obj.emit_attribute_lookup(
+            module, builder, scope, self.name
         )
+
+        if result is None:
+            raise errors.NoSuchAttribute(self.location, self.name)
+
+        return result

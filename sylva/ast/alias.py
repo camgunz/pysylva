@@ -1,5 +1,5 @@
 from .. import debug, errors
-from ..LLVMAlias import Alias
+from ..LLVMAlias import Alias as LLVMAlias
 from .defs import BaseDef
 from .sylva_type import SylvaType
 
@@ -30,7 +30,7 @@ class AliasDef(BaseDef):
         elif isinstance(self.value, SylvaType):
             target = self.value.llvm_type
 
-        return Alias(
+        return LLVMAlias(
             module=llvm_module,
             name=self.name,
             target=target,

@@ -1,10 +1,10 @@
-from .value import ValueExpr
+from .expr import BaseExpr
 
 
-class LiteralExpr(ValueExpr):
+class LiteralExpr(BaseExpr):
 
     def __init__(self, location, type, value):
-        ValueExpr.__init__(self, location, type)
+        BaseExpr.__init__(self, location=location, type=type)
         self.value = value
 
     def emit(self, module, builder, scope):

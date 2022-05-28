@@ -5,11 +5,13 @@ from ..location import Location
 from .type_mapping import Attribute
 from .array import ArrayType
 from .bool import BoolType
+from .cptr import CPtrType
 from .cstr import CStrType
 from .dynarray import DynarrayType
 from .iface import IfaceType
 from .fn import MonoFnType
 from .number import ComplexType, FloatType, IntType
+from .pointer import PointerType
 from .rune import RuneType
 from .str import StrType
 from .string import StringType
@@ -40,18 +42,34 @@ class TypeSingletons(enum.Enum):
     U128 = IntType(location=Location.Generate(), bits=128, signed=False)
     BOOL = BoolType(location=Location.Generate())
     RUNE = RuneType(location=Location.Generate())
+    STRING = StringType(location=Location.Generate())
+    CPTR = CPtrType(location=Location.Generate())
     CSTR = CStrType(location=Location.Generate())
     CVOID = IntType(location=Location.Generate(), bits=8, signed=True)
-    # carray, cptr, cunion?
+    # carray, cunion?
     ARRAY = ArrayType(location=Location.Generate())
     DYNARRAY = DynarrayType(location=Location.Generate())
+    POINTER = PointerType(location=Location.Generate())
     STR = StrType(location=Location.Generate())
-    STRING = StringType(location=Location.Generate())
     STRUCT = StructType(location=Location.Generate())
     VARIANT = VariantType(location=Location.Generate())
 
 
 class IfaceSingletons(enum.Enum):
+    ARRAY = IfaceType(
+        location=Location.Generate(),
+        functions=[
+            Attribute(
+                location=Location.Generate(),
+                name='get_length',
+                type=MonoFnType(
+                    location=Location.Generate(),
+                    parameters=[],
+                    return_type=TypeSingletons.UINT.value,
+                )
+            )
+        ]
+    )
     STRING = IfaceType(
         location=Location.Generate(),
         functions=[

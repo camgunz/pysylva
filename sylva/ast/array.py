@@ -4,11 +4,9 @@ from llvmlite import ir
 
 from .. import errors, utils
 from ..location import Location
-from .defs import TypeDef
-from .reflection_lookup import ReflectionLookupMixIn
+from .literal import LiteralExpr
 from .sylva_type import SylvaParamType, SylvaType
 from .type_mapping import Attribute
-from .value import ValueExpr
 
 
 def array_implementation_builder(array_type):
@@ -21,11 +19,13 @@ def array_implementation_builder(array_type):
     # indices      | range  | range(0, element_count + 1)
     str_five = TypeSingletons.STR.value.get_or_create_monomorphization(5)
 
+    # pylint: disable=unused-argument
     def emit_name_param(obj, location, module, builder, scope):
         return ir.Constant(
             str_five.llvm_type, bytearray('array', encoding='utf-8')
         )
 
+    # pylint: disable=unused-argument
     def emit_count_param(obj, location, module, builder, scope):
         return ir.Constant(
             TypeSingletons.UINT.value.llvm_type, obj.element_count
@@ -68,6 +68,13 @@ class MonoArrayType(SylvaType):
             utils.len_prefix(str(self.element_count))
         ])
 
+    def __eq__(self, other):
+        return (
+            SylvaType.__eq__(self, other) and
+            other.element_type == self.element_type and
+            other.element_count == self.element_count
+        )
+
 
 class ArrayType(SylvaParamType):
 
@@ -97,10 +104,6 @@ class ArrayType(SylvaParamType):
 
         return mm
 
-
-class ArrayExpr(ValueExpr, ReflectionLookupMixIn):
-    pass
-
     # def get_reflection_attribute(self, location, name):
     #     if name == 'type':
     #         return self.type
@@ -119,8 +122,8 @@ class ArrayExpr(ValueExpr, ReflectionLookupMixIn):
     #         return SylvaType
     #     if name == 'bytes':
     #         # [NOTE] Just overriding the type here _probably_ works, but only
-    #         #        implicitly. It would be better if we had explicit support
-    #         #        throughout.
+    #         #        implicitly. It would be better if we had explicit
+    #         #        support throughout.
     #         return ReferencePointerExpr(
     #             location=Location.Generate(),
     #             type=ReferencePointerType(
@@ -134,8 +137,26 @@ class ArrayExpr(ValueExpr, ReflectionLookupMixIn):
     #         )
 
 
-class ArrayDef(TypeDef):
+class ArrayLiteralExpr(LiteralExpr):
 
-    @cached_property
-    def mname(self):
-        return ''.join([utils.len_prefix(self.name), self.type.mname])
+    def __init__(self, location, value):
+        # [NOTE] We might know the type already because of the syntax:
+        #       [int * 3][1i, 2i, 3i]
+        from .type_singleton import TypeSingletons
+
+        if len(value) == 0:
+            raise errors.EmptyArray(location)
+
+        first_type = value[0].type
+        for v in value[1:]:
+            if v.type != first_type:
+                raise errors.MismatchedElementType(first_type, v)
+
+        LiteralExpr.__init__(
+            self,
+            location,
+            TypeSingletons.ARRAY.value.get_or_create_monomorphization(
+                first_type, len(value)
+            ),
+            value
+        )

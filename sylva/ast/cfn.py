@@ -29,6 +29,17 @@ class BaseCFnType(SylvaType):
             params
         )
 
+    def __eq__(self, other):
+        return ( # yapf: disable
+            SylvaType.__eq__(self, other) and
+            len(self.parameters) == len(other.parameters) and
+            all(
+                p.name == op.name and p.type == op.type
+                for p, op in zip(self.parameters, other.parameters)
+            ) and
+            other.return_type == self.return_type
+        )
+
     @cached_property
     def mname(self):
         return ''.join([

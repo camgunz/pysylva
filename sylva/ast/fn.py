@@ -3,9 +3,9 @@ from functools import cached_property
 from llvmlite import ir
 
 from .. import errors, utils
+from ..location import Location
 from .defs import ParamTypeDef
 from .sylva_type import SylvaParamType, SylvaType
-from .value import Value, ValueExpr
 
 
 class MonoFnType(SylvaType):
@@ -27,6 +27,17 @@ class MonoFnType(SylvaType):
             [p.type.llvm_type for p in self.parameters]
         )
 
+    def __eq__(self, other):
+        return ( # yapf: disable
+            SylvaType.__eq__(self, other) and
+            len(self.parameters) == len(other.parameters) and
+            all(
+                p.name == op.name and p.type == op.type
+                for p, op in zip(self.parameters, other.parameters)
+            ) and
+            other.return_type == self.return_type
+        )
+
     @cached_property
     def mname(self):
         return ''.join([
@@ -37,11 +48,20 @@ class MonoFnType(SylvaType):
 
 
 class FnType(SylvaParamType):
-    pass
 
+    def get_or_create_monomorphization(self, parameters, return_type):
+        for mm in self.monomorphizations:
+            if (mm.return_type == return_type and
+                    len(mm.parameters) == len(parameters) and
+                    all(p.type == mmp.type for p,
+                        mmp in zip(parameters, mm.parameters))):
+                return mm
 
-class FnExpr(ValueExpr):
-    pass
+        mm = MonoFnType(Location.Generate(), parameters, return_type)
+
+        self.add_monomorphization(mm)
+
+        return mm
 
 
 class FnDef(ParamTypeDef):
@@ -57,13 +77,8 @@ class FnDef(ParamTypeDef):
         builder = ir.IRBuilder(block=block)
         scope = {}
         for arg, param in zip(llvm_func_type.args, self.type.parameters):
-            value = Value(
-                location=param.location,
-                name=param.name,
-                ptr=arg,
-                type=param.type
-            )
-            builder.store(value.ptr, param.emit())
+            value = param.make_value(arg)
+            builder.store(value.value, param.emit())
             scope[param.name] = value
         for node in self.code:
             node.emit(llvm_module, builder, scope)

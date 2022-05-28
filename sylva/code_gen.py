@@ -135,12 +135,6 @@ class CodeGen:
             # the types of everything, so we can at least check for impossible
             # lookups and reflections.
 
-        if isinstance(expr, ast.ValueExpr):
-            # [FIXME] These have to be expressions, WTF is a parameter
-            #         gonna do here.
-            # Get the type
-            return expr.emit(self._module, builder)
-
         if isinstance(expr, ast.CallExpr):
             return expr.emit(self._module, builder)
 

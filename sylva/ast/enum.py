@@ -23,7 +23,7 @@ class EnumType(SylvaType):
         self.values = values
         self.llvm_type = self.values[0].type.llvm_type
 
-    def get_attribute(self, location, name):
+    def get_attribute(self, name):
         for val in self.values:
             if val.name == name:
                 return val

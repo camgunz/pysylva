@@ -239,6 +239,15 @@ class MismatchedRangeTypes(LocationError):
         )
 
 
+class MismatchedElementType(LocationError):
+
+    def __init__(self, type, element):
+        super().__init__(
+            element.location,
+            f'Mismatched element type: expected {type}; got {element.type}'
+        )
+
+
 class MissingTypeParam(LocationError):
 
     def __init__(self, location, type_param):

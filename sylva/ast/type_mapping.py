@@ -16,6 +16,11 @@ class BaseTypeMapping(Node):
     def emit(self, obj, module, builder, scope):
         raise NotImplementedError()
 
+    def make_value(self, value):
+        return self.type.make_value(
+            location=self.location, name=self.name, value=value
+        )
+
 
 class Parameter(BaseTypeMapping):
 

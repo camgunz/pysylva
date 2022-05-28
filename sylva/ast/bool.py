@@ -5,7 +5,6 @@ from llvmlite import ir
 from .literal import LiteralExpr
 from .type_singleton import TypeSingletons
 from .sylva_type import SylvaType
-from .value import ValueExpr
 
 
 class BoolType(SylvaType):
@@ -31,11 +30,3 @@ class BoolLiteralExpr(LiteralExpr):
 
     def emit(self, module, builder, scope):
         return self.type.llvm_type(1 if self.value else 0)
-
-
-class BoolExpr(ValueExpr):
-
-    def __init__(self, location):
-        ValueExpr.__init__(
-            self, location=location, type=TypeSingletons.BOOL.value
-        )

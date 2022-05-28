@@ -5,7 +5,6 @@ from llvmlite import ir
 from .literal import LiteralExpr
 from .type_singleton import TypeSingletons
 from .sylva_type import SylvaType
-from .value import ValueExpr
 
 
 class RuneType(SylvaType):
@@ -23,9 +22,3 @@ class RuneLiteralExpr(LiteralExpr):
 
     def __init__(self, location, value):
         LiteralExpr.__init__(self, location, TypeSingletons.RUNE.value, value)
-
-
-class RuneExpr(ValueExpr):
-
-    def __init__(self, location):
-        ValueExpr.__init__(self, location, TypeSingletons.RUNE.value)

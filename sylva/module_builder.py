@@ -161,7 +161,6 @@ class ModuleBuilder(lark.Visitor):
 
             return ast.CallExpr(
                 location=location,
-                type=func_type.type.return_type,
                 function=func_expr,
                 arguments=argument_exprs
             )
@@ -232,7 +231,7 @@ class ModuleBuilder(lark.Visitor):
 
         if expr.data == 'bool_expr':
             raw_value = expr.children[0].value
-            return ast.BoolLiteralExpr.FromRawValue(location, raw_value)
+            return ast.BoolLiteralExpr(location, raw_value == 'true')
 
         if expr.data == 'complex_expr':
             raw_value = expr.children[0].value
@@ -248,11 +247,11 @@ class ModuleBuilder(lark.Visitor):
 
         if expr.data == 'rune_expr':
             raw_value = expr.children[0].value
-            return ast.RuneLiteralExpr.FromRawValue(location, raw_value)
+            return ast.RuneLiteralExpr(location, raw_value[1:-1])
 
         if expr.data == 'string_expr':
             raw_value = expr.children[0].value
-            return ast.StrLiteralExpr.FromRawValue(location, raw_value)
+            return ast.StrLiteralExpr(location, raw_value[1:-1])
 
         if expr.data == 'array_expr':
             pass

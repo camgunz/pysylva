@@ -5,7 +5,6 @@ from llvmlite import ir
 from .literal import LiteralExpr
 from .sylva_type import SylvaType
 from .type_singleton import TypeSingletons
-from .value import ValueExpr
 
 
 class CStrType(SylvaType):
@@ -23,9 +22,3 @@ class CStrLiteralExpr(LiteralExpr):
 
     def __init__(self, location, value):
         LiteralExpr.__init__(self, location, TypeSingletons.CSTR.value, value)
-
-
-class CStrExpr(ValueExpr):
-
-    def __init__(self, location):
-        ValueExpr.__init__(self, location, TypeSingletons.CSTR.value)

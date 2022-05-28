@@ -1,6 +1,5 @@
 from functools import cached_property
 
-from .. import errors
 from ..target import get_target
 from .attribute_lookup import AttributeLookupMixIn
 from .base import Node
@@ -17,15 +16,22 @@ class SylvaType(BaseSylvaType, AttributeLookupMixIn):
 
     def __init__(self, location):
         BaseSylvaType.__init__(self, location)
-        AttributeLookupMixIn.__init__(self, location)
+        AttributeLookupMixIn.__init__(self)
         self.llvm_type = None
         self.implementations = []
+
+    def __eq__(self, other):
+        return isinstance(other, type(self))
 
     def add_implementation(self, implementation):
         self.implementations.append(implementation)
 
-    def make_constant(self, value):
-        return self.llvm_type(value) # pylint: disable=not-callable
+    def make_value(self, location, name, value):
+        from .value import Value
+        return Value(location=location, name=name, value=value, type=self)
+
+    # def make_constant(self, value):
+    #     return self.llvm_type(value) # pylint: disable=not-callable
 
     def get_alignment(self):
         llvm_type = self.llvm_type
@@ -37,19 +43,8 @@ class SylvaType(BaseSylvaType, AttributeLookupMixIn):
     def get_pointer(self):
         return self.llvm_type.as_pointer()
 
-    def get_attribute(self, location, name):
-        for impl in self.implementations:
-            for func in impl.funcs:
-                if func.name == name:
-                    return func.type
-        raise errors.NoSuchAttribute(location, name)
-
-    def emit_attribute_lookup(self, location, module, builder, scope, name):
-        for impl in self.implementations:
-            for func in impl.funcs:
-                if func.name == name:
-                    return func
-        raise errors.NoSuchAttribute(location, name)
+    def llvm_define(self, name):
+        raise NotImplementedError()
 
 
 class SylvaParamType(BaseSylvaType):
