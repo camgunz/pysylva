@@ -1,104 +1,86 @@
 from functools import cached_property
 
-from attrs import define, field
 from llvmlite import ir
 
 from ..location import Location
 from .array import ArrayType
-from .attribute_lookup import AttributeLookupMixIn
-from .expr import LiteralExpr, ValueExpr
-from .function import FunctionType, MonoFunctionType
-from .number import IntType
-from .pointer import (
-    GetElementPointerExpr, ReferencePointerExpr, ReferencePointerType
-)
-from .reflection_lookup import ReflectionLookupMixIn
-from .str import StrType
-from .type_singleton import TypeSingletons
+from .literal import LiteralExpr
+from .pointer import (ReferencePointerExpr, ReferencePointerType)
 from .sylva_type import SylvaParamType, SylvaType
 from .type_mapping import Attribute
+from .type_singleton import TypeSingletons
+from .value import ValueExpr
 
 
-@define(eq=False, slots=True)
-class MonoDynarrayType(SylvaType, AttributeLookupMixIn):
-    # [FIXME] Why isn't this a struct with pre-defined fields?
-    element_type = field()
+class MonoDynarrayType(SylvaType):
 
-    @llvm_type.default # noqa: F821
-    def _llvm_type_factory(self):
-        # yapf: disable
-        return ir.LiteralStructType([
+    # [NOTE] This isn't a struct with pre-defined fields because Sylva (mostly)
+    #        can't represent raw pointers.
+
+    def __init__(self, location, element_type):
+        SylvaType.__init__(self, location)
+        self.element_type = element_type
+        self.llvm_type = ir.LiteralStructType([ # yapf: disable
             TypeSingletons.UINT.value.llvm_type,     # capacity
             TypeSingletons.UINT.value.llvm_type,     # length
             self.element_type.llvm_type.as_pointer() # data
         ])
 
-    def get_reflection_attribute(self, location, name):
-        if name == 'name':
-            return StrType
-        if name == 'size':
-            return IntType
-        if name == 'element_type':
-            return self.element_type.type
+    # def get_reflection_attribute(self, location, name):
+    #     if name == 'name':
+    #         return StrType
+    #     if name == 'size':
+    #         return IntType
+    #     if name == 'element_type':
+    #         return self.element_type.type
 
-    def emit_reflection_lookup(self, location, module, builder, scope, name):
-        # [FIXME] These need to be Sylva expressions that evaluate to LLVM
-        #         values
-        if name == 'name':
-            return 'dynarray'
-        if name == 'size':
-            return self.get_size()
-        if name == 'element_type':
-            return self.element_type.llvm_type
+    # def emit_reflection_lookup(self, location, module, builder, scope, name):
+    #     # [FIXME] These need to be Sylva expressions that evaluate to LLVM
+    #     #         values
+    #     if name == 'name':
+    #         return 'dynarray'
+    #     if name == 'size':
+    #         return self.get_size()
+    #     if name == 'element_type':
+    #         return self.element_type.llvm_type
 
     def emit_attribute_lookup(self, location, module, builder, scope, name):
         if name == 'capacity':
-            return GetElementPointerExpr(
-                location=location,
-                index=0,
-                name='capacity'
-            )
+            return builder.gep(self, [0], inbounds=True, name=name)
         if name == 'length':
-            return GetElementPointerExpr(
-                location=location,
-                index=1,
-                name='length'
-            )
-        if name == 'data':
-            return GetElementPointerExpr(
-                location=location,
-                index=2,
-                name='data'
-            )
-        for impl in self.implementations:
-            for func in impl.funcs:
-                if func.name == name:
-                    return func
+            return builder.gep(self, [1], inbounds=True, name=name)
+        return SylvaType.emit_attribute_lookup(
+            self, location, module, builder, scope, name
+        )
 
     @cached_property
     def mname(self):
         return ''.join(['2da', self.element_type.mangle()])
 
 
-@define(eq=False, slots=True)
 class DynarrayType(SylvaParamType):
+
+    def get_or_create_monomorphization(self, element_type):
+        for mm in self.monomorphizations:
+            if mm.element_type != element_type:
+                continue
+            return mm
+
+        mm = MonoDynarrayType(Location.Generate(), element_type=element_type)
+
+        self.add_monomorphization(mm)
+
+        return mm
+
+
+# [FIXME] This involves heap allocation
+class DynarrayLiteralExpr(LiteralExpr):
     pass
 
 
-@define(eq=False, slots=True)
-class DynarrayLiteralExpr(LiteralExpr):
+class DynarrayExpr(ValueExpr):
 
-    @classmethod
-    def FromRawValue(cls, location, element_type, raw_value):
-        # [FIXME] This involves heap allocation, and is therefore a little
-        #         tricker than this
-        return cls(location, element_type, len(raw_value), raw_value)
-
-
-@define(eq=False, slots=True)
-class DynarrayExpr(ValueExpr, ReflectionLookupMixIn):
-
-    def get_attribute(self, location, name):
+    def get_attribute(self, name):
         if name == 'get_length':
             return Attribute(
                 location=Location.Generate(),
@@ -115,7 +97,7 @@ class DynarrayExpr(ValueExpr, ReflectionLookupMixIn):
                 )
             )
 
-    def get_reflection_attribute(self, location, name):
+    def get_reflection_attribute(self, name):
         if name == 'type':
             return SylvaType
         if name == 'bytes':

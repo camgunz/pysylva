@@ -1,20 +1,20 @@
 from functools import cached_property
 
-from attrs import define, field
-
-from .attribute_lookup import AttributeLookupMixIn
+from .. import errors
 from .sylva_type import SylvaType
 
 
-@define(eq=False, slots=True)
-class RangeType(SylvaType, AttributeLookupMixIn):
-    min = field()
-    max = field()
+class RangeType(SylvaType):
+
+    def __init__(self, location, min, max):
+        if min.type != max.type:
+            raise errors.MismatchedRangeTypes(location, min.type, max.type)
+        SylvaType.__init__(self, location)
+        self.type = min.type
+        self.min = min
+        self.max = max
+        self.llvm_type = self.type.llvm_type
 
     @cached_property
     def mname(self):
         return self.type.mname
-
-    @llvm_type.default # noqa: F821
-    def _llvm_type_factory(self):
-        return self.type.llvm_type

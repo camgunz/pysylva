@@ -1,12 +1,12 @@
-from attrs import define, field
-
-
-@define(frozen=True, slots=True)
 class Location:
-    stream = field(default=None)
-    index = field(default=0)
-    line = field(default=1)
-    column = field(default=1)
+
+    __slots__ = ('stream', 'index', 'line', 'column')
+
+    def __init__(self, stream=None, index=0, line=1, column=1):
+        self.stream = stream
+        self.index = index
+        self.line = line
+        self.column = column
 
     @classmethod
     def FromToken(cls, token, stream=None):
@@ -80,10 +80,5 @@ class Location:
 
         lines = self.stream.data.splitlines()
 
-        try:
-            return '\n'.join([lines[i] for i in line_indices if lines[i]] +
-                             [('-' * (self.column - 1)) + '^'])
-        except IndexError:
-            import pdb
-            pdb.set_trace()
-            raise
+        return '\n'.join([lines[i] for i in line_indices if lines[i]] +
+                         [('-' * (self.column - 1)) + '^'])

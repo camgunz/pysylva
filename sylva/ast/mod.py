@@ -1,4 +1,3 @@
-from attrs import define, field
 from llvmlite import ir
 
 from .. import errors
@@ -12,9 +11,11 @@ from .sylva_type import SylvaType
 from .type_mapping import Attribute
 
 
-@define(eq=False, slots=True)
-class ModType(SylvaType, AttributeLookupMixIn):
-    value = field()
+class ModType(SylvaType):
+
+    def __init__(self, location, value):
+        SylvaType.__init__(self, location)
+        self.value = value
 
     def get_attribute(self, location, name):
         return self.value.get_attribute(location, name)
@@ -25,26 +26,28 @@ class ModType(SylvaType, AttributeLookupMixIn):
         )
 
 
-@define(eq=False, slots=True)
 class ModDecl(Decl):
     pass
 
 
-@define(eq=False, slots=True)
 class ModDef(TypeDef, AttributeLookupMixIn):
-    program = field()
-    streams = field()
-    requirement_statements = field()
-    parsed = field(init=False, default=False)
-    errors = field(init=False, default=[])
-    aliases = field(init=False, default={})
-    vars = field(init=False, default={})
-    requirements = field(init=False, default=set())
-    type = field(init=False)
 
-    @type.default
-    def _type_factory(self):
-        return ModType(Location.Generate(), self)
+    def __init__(self, name, program, streams, requirement_statements):
+        location = Location.Generate()
+        TypeDef.__init__(
+            self, location, name=name, type=ModType(Location.Generate(), self)
+        )
+        AttributeLookupMixIn.__init__(self, location)
+
+        self.program = program
+        self.streams = streams
+        self.requirement_statements = requirement_statements
+
+        self.parsed = False
+        self.errors = []
+        self.aliases = {}
+        self.vars = {}
+        self.requirements = set()
 
     def __repr__(self):
         return 'Mod(%r, %r, %r, %r)' % (
@@ -90,7 +93,7 @@ class ModDef(TypeDef, AttributeLookupMixIn):
                 location=location,
                 name=name,
                 type=aliased_value.value,
-                index=None
+                func=None
             )
 
         attribute_type = self.vars.get(name)
@@ -101,7 +104,7 @@ class ModDef(TypeDef, AttributeLookupMixIn):
             attribute_type = attribute_type.type
 
         return Attribute(
-            location=location, name=name, type=attribute_type, index=None
+            location=location, name=name, type=attribute_type, func=None
         )
 
     def emit_attribute_lookup(self, location, module, builder, scope, name):

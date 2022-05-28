@@ -1,6 +1,5 @@
 from functools import cached_property
 
-from attrs import define, field
 from llvmlite import ir
 
 from .. import errors, utils
@@ -8,25 +7,24 @@ from .defs import TypeDef
 from .sylva_type import SylvaType
 
 
-@define(eq=False, slots=True)
 class BaseCFnType(SylvaType):
-    parameters = field(default=[])
-    return_type = field()
 
-    @parameters.validator
-    def check_parameters(self, attribute, parameters):
+    def __init__(self, location, parameters, return_type):
+        SylvaType.__init__(self, location)
+
         dupes = utils.get_dupes(p.name for p in parameters)
         if dupes:
             raise errors.DuplicateParameters(self, dupes)
 
-    @llvm_type.default # noqa: F821
-    def _llvm_type_factory(self):
+        self.parameters = parameters
+        self.return_type = return_type
+
         params = []
 
         for p in self.parameters:
             params.append(p.type.llvm_type)
 
-        return ir.FunctionType(
+        self.llvm_type = ir.FunctionType(
             self.return_type.llvm_type if self.return_type else ir.VoidType(),
             params
         )
@@ -40,25 +38,15 @@ class BaseCFnType(SylvaType):
         ])
 
 
-@define(eq=False, slots=True)
 class CFnType(BaseCFnType):
     pass
 
 
-@define(eq=False, slots=True)
 class CFnPointerType(BaseCFnType):
 
-    @llvm_type.default # noqa: F821
-    def _llvm_type_factory(self):
-        params = []
-
-        for p in self.parameters:
-            params.append(p.type.llvm_type)
-
-        return ir.FunctionType(
-            self.return_type.llvm_type if self.return_type else ir.VoidType(),
-            params
-        ).as_pointer()
+    def __init__(self, location, parameters, return_type):
+        BaseCFnType.__init__(self, location, parameters, return_type)
+        self.llvm_type = self.llvm_type.as_pointer()
 
     @cached_property
     def mname(self):
@@ -69,7 +57,6 @@ class CFnPointerType(BaseCFnType):
         ])
 
 
-@define(eq=False, slots=True)
 class CBlockFnType(BaseCFnType):
 
     @cached_property
@@ -81,20 +68,11 @@ class CBlockFnType(BaseCFnType):
         ])
 
 
-@define(eq=False, slots=True)
 class CBlockFnPointerType(BaseCFnType):
 
-    @llvm_type.default # noqa: F821
-    def _llvm_type_factory(self):
-        params = []
-
-        for p in self.parameters:
-            params.append(p.type.llvm_type)
-
-        return ir.FunctionType(
-            self.return_type.llvm_type if self.return_type else ir.VoidType(),
-            params
-        ).as_pointer()
+    def __init__(self, location, parameters, return_type):
+        BaseCFnType.__init__(self, location, parameters, return_type)
+        self.llvm_type = self.llvm_type.as_pointer()
 
     @cached_property
     def mname(self):
@@ -105,7 +83,6 @@ class CBlockFnPointerType(BaseCFnType):
         ])
 
 
-@define(eq=False, slots=True)
 class CFnDef(TypeDef):
 
     def llvm_define(self, llvm_module):

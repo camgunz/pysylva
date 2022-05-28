@@ -23,6 +23,7 @@ from .enum import EnumType
 from .fn import MonoFnType, FnType, FnExpr, FnDef
 from .impl import Impl
 from .iface import IfaceType
+from .literal import LiteralExpr
 from .lookup import LookupExpr
 from .mod import ModType, ModDecl, ModDef
 from .number import (
@@ -57,5 +58,5 @@ from .struct import MonoStructType, StructType, StructDef
 from .type_mapping import Attribute, Field, Parameter
 from .type_singleton import IfaceSingletons, TypeSingletons
 from .unary import UnaryExpr
-from .value import Value
+from .value import Value, ValueExpr
 from .variant import MonoVariantType, VariantType, VariantDef

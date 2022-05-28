@@ -1,15 +1,11 @@
 from functools import cached_property
 
-from attrs import define
-
 from .. import errors
 from .attribute_lookup import AttributeLookupMixIn
 from .defs import SelfReferentialTypeDef
-from .pointer import GetElementPointerExpr
 from .struct import BaseStructType
 
 
-@define(eq=False, slots=True)
 class CStructType(BaseStructType):
 
     @cached_property
@@ -19,29 +15,16 @@ class CStructType(BaseStructType):
         ])
 
 
-@define(eq=False, slots=True)
 class CStructDef(SelfReferentialTypeDef, AttributeLookupMixIn):
 
-    def get_attribute(self, location, name):
-        f = self.type.get_attribute(location, name)
+    def get_attribute(self, name):
+        f = self.type.get_attribute(name)
         if not f:
-            raise errors.NoSuchField(location, name)
+            raise errors.NoSuchField(self.location, name)
         return f
 
-    def emit_attribute_lookup(self, location, module, builder, scope, name):
-        f = self.get_attribute(location, name)
+    def emit_attribute_lookup(self, module, builder, scope, name):
+        f = self.get_attribute(name)
         if f is not None:
-            return GetElementPointerExpr(
-                location, type=f.type, obj=self, index=f.index, name=name
-            )
-        return super().emit_attribute_lookup(
-            location, module, builder, scope, name
-        )
-
-    def get_slot(self, location, index):
-        if index >= len(self.type.fields):
-            raise errors.IndexOutOfBounds(location)
-        return self.type.fields[index]
-
-    def index_slot(self, location, index):
-        return self.get_slot(location, index).get_value_expr(location=location)
+            return f.emit(self, module, builder, scope, name)
+        return super().emit_attribute_lookup(module, builder, scope, name)

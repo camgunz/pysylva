@@ -1,9 +1,6 @@
-from attrs import define, field
-
-from .expr import Expr
+from .expr import BaseExpr
 
 
-@define(eq=False, slots=True)
 class IndexMixIn:
 
     def get_index_type(self, location, index):
@@ -13,11 +10,9 @@ class IndexMixIn:
         raise NotImplementedError()
 
 
-@define(eq=False, slots=True)
-class IndexExpr(Expr):
-    expr = field()
-    index = field()
+class IndexExpr(BaseExpr):
 
-    @type.default
-    def _type_factory(self):
-        return self.expr.get_index_type(self.location, self.index)
+    def __init__(self, location, type, expr, index):
+        BaseExpr.__init__(self, location, expr.get_index_type(location, index))
+        self.expr = expr
+        self.index = index

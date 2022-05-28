@@ -1,17 +1,13 @@
 from functools import cached_property
 
-from attrs import define, field
-
 from .. import errors, utils
 from .sylva_type import SylvaType
 
 
-@define(eq=False, slots=True)
 class EnumType(SylvaType):
-    values = field()
 
-    @values.validator
-    def check_values(self, attribute, values):
+    def __init__(self, location, values):
+        SylvaType.__init__(self, location)
         if len(values) <= 0:
             raise errors.EmptyEnum(self.location)
 
@@ -24,9 +20,8 @@ class EnumType(SylvaType):
             if value.type != first_type:
                 raise errors.MismatchedEnumMemberType(first_type, value)
 
-    @llvm_type.default # noqa: F821
-    def _llvm_type_factory(self):
-        return self.values[0].type.llvm_type
+        self.values = values
+        self.llvm_type = self.values[0].type.llvm_type
 
     def get_attribute(self, location, name):
         for val in self.values:

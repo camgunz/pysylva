@@ -1,14 +1,13 @@
-from attrs import define, field
-
-from .. import errors
 from .expr import BaseExpr
 
 
-@define(eq=False, slots=True)
 class DerefExpr(BaseExpr):
-    ptr = field()
-    name_expr = field()
+
+    def __init__(self, location, type, ptr, name_expr):
+        BaseExpr.__init__(super, location, type)
+        self.ptr = ptr
+        self.name_expr = name_expr
 
     def emit(self, module, builder, scope):
-        name = name_expr.emit(module, builder, scope)
+        name = self.name_expr.emit(module, builder, scope)
         return builder.load(self.ptr, name)

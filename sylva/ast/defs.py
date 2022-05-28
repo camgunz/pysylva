@@ -1,6 +1,5 @@
 from functools import cached_property
 
-from attrs import define, field
 from llvmlite import ir
 
 from .. import debug, errors
@@ -8,10 +7,12 @@ from .base import Node
 from .pointer import BasePointerType
 
 
-@define(eq=False, slots=True)
 class BaseDef(Node):
-    name = field()
-    type = field()
+
+    def __init__(self, location, name, type):
+        Node.__init__(self, location)
+        self.name = name
+        self.type = type
 
     def _check_definition(self, module):
         existing_alias = module.aliases.get(self.name)
@@ -44,35 +45,34 @@ class BaseDef(Node):
         return self.name
 
 
-@define(eq=False, slots=True)
 class TypeDef(BaseDef):
     pass
 
 
-@define(eq=False, slots=True)
 class ParamTypeDef(BaseDef):
     pass
 
 
-@define(eq=False, slots=True)
 class DeferredTypeLookup:
-    location = field()
-    value = field()
+
+    def __init__(self, location, value):
+        self.location = location
+        self.value = value
 
 
-@define(eq=False, slots=True)
 class SelfReferentialMixIn:
 
     def _resolve_self_references(self):
         missing_field_errors = []
 
-        for f in self.fields:
+        for f in self.fields: # pylint: disable=no-member
             if not isinstance(f.type, BasePointerType):
                 continue
             if not isinstance(f.type.referenced_type, DeferredTypeLookup):
                 continue
             pointer = f.type
             deferred_lookup = pointer.referenced_type
+            # pylint: disable=no-member
             if self.name is not None and deferred_lookup.value == self.name:
                 pointer.referenced_type = self
             else:
@@ -85,8 +85,9 @@ class SelfReferentialMixIn:
         return missing_field_errors
 
     def llvm_define(self, llvm_module):
+        # pylint: disable=no-member
         if self.name is None:
-            for f in self.fields:
+            for f in self.fields: # pylint: disable=no-member
                 if not isinstance(f.type, BasePointerType):
                     continue
                 if not f.type.referenced_type == self:
@@ -94,13 +95,15 @@ class SelfReferentialMixIn:
                 raise Exception(
                     'Self-referential literals cannot be anonymous'
                 )
+            # pylint: disable=no-member
             struct = ir.LiteralStructType([
                 f.type.llvm_type for f in self.fields
             ])
         else:
+            # pylint: disable=no-member
             struct = llvm_module.context.get_identified_type(self.name)
             fields = []
-            for f in self.fields:
+            for f in self.fields: # pylint: disable=no-member
                 if not isinstance(f.type, BasePointerType):
                     fields.append(f.type.llvm_type)
                 elif not f.type.referenced_type == self:
@@ -109,12 +112,12 @@ class SelfReferentialMixIn:
                     fields.append(ir.PointerType(struct))
             struct.set_body(*fields)
 
+        # pylint: disable=attribute-defined-outside-init
         self.llvm_type = struct
 
         return struct
 
 
-@define(eq=False, slots=True)
 class SelfReferentialTypeDef(SelfReferentialMixIn, TypeDef):
 
     def define(self, module):
@@ -122,7 +125,6 @@ class SelfReferentialTypeDef(SelfReferentialMixIn, TypeDef):
         super().define(module)
 
 
-@define(eq=False, slots=True)
 class SelfReferentialParamTypeDef(SelfReferentialMixIn, ParamTypeDef):
 
     def define(self, module):

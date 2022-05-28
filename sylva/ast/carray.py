@@ -1,15 +1,11 @@
 from functools import cached_property
 
-from attrs import define, field
-
 from .. import utils
-from .array import MonoArrayType
+from ..location import Location
+from .array import ArrayType, MonoArrayType
 
 
-@define(eq=False, slots=True)
-class CArrayType(MonoArrayType):
-    # [TODO] I think these... are also now Param?
-    element_count = field()
+class MonoCArrayType(MonoArrayType):
 
     @cached_property
     def mname(self):
@@ -18,3 +14,23 @@ class CArrayType(MonoArrayType):
             self.element_type.mname,
             utils.len_prefix(str(self.element_count))
         ])
+
+
+class CArrayType(ArrayType):
+
+    def get_or_create_monomorphization(self, element_type, element_count):
+        for mm in self.monomorphizations:
+            if mm.element_type != element_type:
+                continue
+            if mm.element_count != element_count:
+                continue
+            return mm
+        mm = MonoCArrayType(
+            Location.Generate(),
+            element_type=element_type,
+            element_count=element_count
+        )
+
+        self.add_monomorphization(mm)
+
+        return mm

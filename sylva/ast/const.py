@@ -1,12 +1,13 @@
-from attrs import define, field
 from llvmlite import ir
 
-from .defs import Def
+from .defs import BaseDef
 
 
-@define(eq=False, slots=True)
-class ConstDef(Def):
-    value = field()
+class ConstDef(BaseDef):
+
+    def __init__(self, location, name, value):
+        BaseDef.__init__(self, location, name, value.type)
+        self.value = value
 
     def llvm_define(self, llvm_module):
         const = ir.GlobalVariable(llvm_module, self.type.llvm_type, self.name)

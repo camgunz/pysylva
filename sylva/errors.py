@@ -231,6 +231,14 @@ class MismatchedEnumMemberType(LocationError):
         )
 
 
+class MismatchedRangeTypes(LocationError):
+
+    def __init__(self, location, min_type, max_type):
+        super().__init__(
+            location, f'Mismatched range types: {min_type} {max_type}'
+        )
+
+
 class MissingTypeParam(LocationError):
 
     def __init__(self, location, type_param):

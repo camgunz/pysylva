@@ -1,11 +1,11 @@
-from attrs import define, field
-
-
-@define(eq=False, slots=True)
 class Node:
-    location = field()
+
+    def __init__(self, location):
+        self.location = location
 
 
-@define(eq=False, slots=True)
 class Decl(Node):
-    name = field()
+
+    def __init__(self, location, name):
+        Node.__init__(self, location)
+        self.name = name

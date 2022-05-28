@@ -3,7 +3,7 @@ from .location import Location
 
 
 def get_module(program):
-    module = ast.ModuleDef(program, '@builtin', [], [])
+    module = ast.ModDef(program, '@builtin', [], [])
 
     ast.TypeDef(
         location=Location.Generate(),

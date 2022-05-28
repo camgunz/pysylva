@@ -1,23 +1,21 @@
 from functools import cached_property
 
-from attrs import define, field
-
 from .. import errors, utils
-from .attribute_lookup import AttributeLookupMixIn
-from .expr import ValueExpr
 from .fn import MonoFnType
 from .sylva_type import SylvaType
+from .value import Value
 
 
-@define(eq=False, slots=True)
-class IfaceType(SylvaType, AttributeLookupMixIn):
-    functions = field()
+class IfaceType(SylvaType):
 
-    @functions.validator
-    def check_functions(self, attribute, functions):
+    def __init__(self, location, functions):
+        SylvaType.__init__(self, location)
+
         dupes = utils.get_dupes(x.name for x in functions)
         if dupes:
             raise errors.DuplicateFields(self, dupes)
+
+        self.functions = functions
 
     def get_attribute(self, location, name):
         for func_attr in self.functions:
@@ -28,7 +26,7 @@ class IfaceType(SylvaType, AttributeLookupMixIn):
     def emit_attribute_lookup(self, location, module, builder, scope, name):
         f = self.get_attribute(location, name)
         if f is not None:
-            return ValueExpr(location=location, type=MonoFnType, value=f)
+            return Value(location=location, name=name, ptr=f, type=MonoFnType)
         return super().emit_attribute_lookup(
             location, module, builder, scope, name
         )

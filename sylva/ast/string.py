@@ -1,31 +1,30 @@
 from functools import cached_property
 
-from attrs import define, field
-
 from ..location import Location
 from .attribute_lookup import AttributeLookupExpr, AttributeLookupMixIn
 from .dynarray import DynarrayExpr, MonoDynarrayType
-from .function import FunctionDef, MonoFunctionType
-from .implementation import Implementation
+from .fn import FnDef, MonoFnType
+from .impl import Impl
 from .lookup import LookupExpr
 from .pointer import ReferencePointerType
 from .statement import ReturnStmt
-from .str import StrType
 from .type_mapping import Parameter
 from .type_singleton import IfaceSingletons, TypeSingletons
 
 
-def string_implementation_builder(string_type):
-    get_length = FunctionDef(
+def string_impl_builder(string_type):
+    get_length = FnDef(
+        location=Location.Generate(),
         name='get_length',
-        type=MonoFunctionType(
+        type=MonoFnType(
+            location=Location.Generate(),
             parameters=[
                 Parameter(
                     location=Location.Generate(),
                     name='self',
                     type=ReferencePointerType(
+                        location=Location.Generate(),
                         referenced_type=string_type,
-                        is_exclusive=False,
                     )
                 )
             ],
@@ -33,21 +32,21 @@ def string_implementation_builder(string_type):
         ),
         code=[
             ReturnStmt(
+                location=Location.Generate(),
                 expr=AttributeLookupExpr(
                     location=Location.Generate(),
-                    type=TypeSingletons.UINT.value,
-                    attribute='len',
                     expr=LookupExpr( # yapf: disable
                         location=Location.Generate(),
-                        name='self'
+                        name='self',
+                        type=string_type
                     ),
-                    reflection=False
+                    name='len',
                 )
             )
         ]
     )
 
-    string_impl = Implementation(
+    string_impl = Impl(
         location=Location.Generate(),
         interface=IfaceSingletons.STRING.value,
         implementing_type=string_type,
@@ -55,42 +54,34 @@ def string_implementation_builder(string_type):
     )
 
     IfaceSingletons.STRING.value.add_implementation(string_impl)
-    string_type.add_implementation(string_impl)
+    string_type.add_impl(string_impl)
 
 
-@define(eq=False, slots=True)
-class StringType(MonoDynarrayType, AttributeLookupMixIn):
-    implementations = field(
-        init=False, default=[string_implementation_builder]
-    )
+class StringType(MonoDynarrayType):
 
-    @llvm_type.default # noqa: F821
-    def _llvm_type_factory(self):
-        return MonoDynarrayType(element_type=TypeSingletons.U8.value).llvm_type
+    def __init__(self, location):
+        MonoDynarrayType.__init__(self, location, TypeSingletons.U8.value)
+        self.implementations = [string_impl_builder]
 
-    def get_reflection_attribute(self, location, name):
-        if name == 'name':
-            return StrType(
-                location=Location.Generate(),
-                value=bytearray('string', encoding='utf-8'),
-            )
-        if name == 'size':
-            return TypeSingletons.UINT.value
+    # def get_reflection_attribute(self, location, name):
+    #     if name == 'name':
+    #         return StrType(
+    #             location=Location.Generate(),
+    #             value=bytearray('string', encoding='utf-8'),
+    #         )
+    #     if name == 'size':
+    #         return TypeSingletons.UINT.value
 
-    def emit_reflection_lookup(self, location, module, builder, scope, name):
-        if name == 'name':
-            return 'string'
-        if name == 'size':
-            return self.get_size()
-
-    def get_value_expr(self, location):
-        return StringExpr(location=location, type=self)
+    # def emit_reflection_lookup(self, location, module, builder, scope, name):
+    #     if name == 'name':
+    #         return 'string'
+    #     if name == 'size':
+    #         return self.get_size()
 
     @cached_property
     def mname(self):
         return '6string'
 
 
-@define(eq=False, slots=True)
 class StringExpr(DynarrayExpr, AttributeLookupMixIn):
     pass

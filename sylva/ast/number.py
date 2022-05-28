@@ -2,105 +2,82 @@ from functools import cached_property
 
 from llvmlite import ir
 
-from attrs import define, field
-
-from .. import _SIZE_SIZE, utils
-from ..location import Location
-from .expr import LiteralExpr, ValueExpr
+from .. import utils
+from .literal import LiteralExpr
 from .sylva_type import SylvaType
+from .value import ValueExpr
 
 
-@define(eq=False, slots=True)
 class NumericType(SylvaType):
     pass
 
 
-@define(eq=False, slots=True)
 class SizedNumericType(NumericType):
-    bits = field()
+
+    def __init__(self, location, bits):
+        NumericType.__init__(self, location)
+        self.bits = bits
 
 
-@define(eq=False, slots=True)
 class ComplexType(SizedNumericType):
+
+    def __init__(self, location, bits):
+        SizedNumericType.__init__(self, location, bits)
+        if self.bits == 8:
+            self.llvm_type = ir.HalfType()
+        if self.bits == 16:
+            self.llvm_type = ir.FloatType()
+        if self.bits == 32:
+            self.llvm_type = ir.DoubleType()
+        # [NOTE] llvmlite won't do float types > 64 bits
+        if self.bits == 64:
+            self.llvm_type = ir.DoubleType()
+        if self.bits == 128:
+            self.llvm_type = ir.DoubleType()
 
     @cached_property
     def mname(self):
         return utils.mangle(['c', self.bits])
 
-    def get_value_expr(self, location):
-        return ComplexExpr(location=location, type=self)
 
-    @llvm_type.default # noqa: F821
-    def _llvm_type_factory(self):
-        if self.bits == 8:
-            return ir.HalfType()
-        if self.bits == 16:
-            return ir.FloatType()
-        if self.bits == 32:
-            return ir.DoubleType()
-        # [NOTE] llvmlite won't do float types > 64 bits
-        if self.bits == 64:
-            return ir.DoubleType()
-        if self.bits == 128:
-            return ir.DoubleType()
-
-
-@define(eq=False, slots=True)
 class FloatType(SizedNumericType):
+
+    def __init__(self, location, bits):
+        SizedNumericType.__init__(self, location, bits)
+        # [NOTE] llvmlite won't do float types < 16 bits
+        if self.bits == 8:
+            self.llvm_type = ir.HalfType()
+        if self.bits == 16:
+            self.llvm_type = ir.HalfType()
+        if self.bits == 32:
+            self.llvm_type = ir.FloatType()
+        if self.bits == 64:
+            self.llvm_type = ir.DoubleType()
+        # [NOTE] llvmlite won't do float types > 64 bits
+        if self.bits == 128:
+            self.llvm_type = ir.DoubleType()
 
     @cached_property
     def mname(self):
         return utils.mangle(['f', self.bits])
 
-    def get_value_expr(self, location):
-        return FloatExpr(location=location, type=self)
 
-    @llvm_type.default # noqa: F821
-    def _llvm_type_factory(self):
-        # [NOTE] llvmlite won't do float types < 16 bits
-        if self.bits == 8:
-            return ir.HalfType()
-        if self.bits == 16:
-            return ir.HalfType()
-        if self.bits == 32:
-            return ir.FloatType()
-        if self.bits == 64:
-            return ir.DoubleType()
-        # [NOTE] llvmlite won't do float types > 64 bits
-        if self.bits == 128:
-            return ir.DoubleType()
-
-
-@define(eq=False, slots=True)
 class IntType(SizedNumericType):
-    signed = field()
+
+    def __init__(self, location, bits, signed):
+        SizedNumericType.__init__(self, location, bits)
+        self.signed = signed
+        self.llvm_type = ir.IntType(self.bits)
 
     @cached_property
     def mname(self):
         return utils.mangle(['i' if self.signed else 'u', self.bits])
 
-    @classmethod
-    def SmallestThatHolds(cls, x):
-        return cls(Location.Generate(), utils.smallest_uint(x), signed=False)
 
-    @classmethod
-    def Platform(cls, signed):
-        return cls(Location.Generate(), bits=_SIZE_SIZE, signed=signed)
-
-    def get_value_expr(self, location):
-        return IntExpr(location=location, type=self)
-
-    @llvm_type.default # noqa: F821
-    def _llvm_type_factory(self):
-        return ir.IntType(self.bits)
-
-
-@define(eq=False, slots=True)
 class NumericLiteralExpr(LiteralExpr):
     pass
 
 
-@define(eq=False, slots=True)
 class IntLiteralExpr(NumericLiteralExpr):
 
     @classmethod
@@ -158,12 +135,10 @@ class IntLiteralExpr(NumericLiteralExpr):
         return self.type.bits
 
 
-@define(eq=False, slots=True)
 class IntExpr(ValueExpr):
     pass
 
 
-@define(eq=False, slots=True)
 class FloatLiteralExpr(NumericLiteralExpr):
 
     @classmethod
@@ -185,12 +160,10 @@ class FloatLiteralExpr(NumericLiteralExpr):
         return self.type.bits
 
 
-@define(eq=False, slots=True)
 class FloatExpr(ValueExpr):
     pass
 
 
-@define(eq=False, slots=True)
 class ComplexLiteralExpr(NumericLiteralExpr):
 
     @classmethod
@@ -214,6 +187,5 @@ class ComplexLiteralExpr(NumericLiteralExpr):
         return self.type.bits
 
 
-@define(eq=False, slots=True)
 class ComplexExpr(ValueExpr):
     pass

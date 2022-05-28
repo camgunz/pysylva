@@ -1,12 +1,12 @@
-from attrs import define, field
-
 from .. import errors
 from .expr import BaseExpr
 
 
-@define(eq=False, slots=True)
 class ReflectionLookupMixIn:
-    reflection_attributes = field(init=False, default={})
+
+    def __init__(self, location):
+        self.location = location
+        self.reflection_attributes = {}
 
     def get_reflection_attribute(self, name):
         return self.reflection_attributes.get(name)
@@ -28,17 +28,12 @@ class ReflectionLookupMixIn:
         return ra.emit(self, self.location, module, builder, scope)
 
 
-@define(eq=False, slots=True)
 class ReflectionLookupExpr(BaseExpr):
-    type = field(init=False)
-    expr = field()
-    name = field()
 
-    @type.default
-    def _type_factory(self):
-        return self.expr.get_reflection_attribute_type(
-            self.location, self.name
-        )
+    def __init__(self, location, expr, name):
+        super().__init__(location, expr.get_reflection_attribute(name).type)
+        self.expr = expr
+        self.name = name
 
     def emit(self, module, builder, scope):
         return self.expr.emit_reflection_lookup(

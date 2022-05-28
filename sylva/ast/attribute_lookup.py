@@ -1,14 +1,14 @@
-from attrs import define, field
-
 from .. import errors
 from .expr import BaseExpr
 
 
-@define(eq=False, slots=True)
 class AttributeLookupMixIn:
-    attributes = field(init=False, default={})
 
-    def get_attribute(self, location, name):
+    def __init__(self, location):
+        self.location = location
+        self.attributes = {}
+
+    def get_attribute(self, name):
         return self.attributes.get(name)
 
     def set_attribute(self, attribute):
@@ -28,15 +28,12 @@ class AttributeLookupMixIn:
         return a.emit(self, self.location, module, builder, scope)
 
 
-@define(eq=False, slots=True)
 class AttributeLookupExpr(BaseExpr):
-    type = field(init=False)
-    expr = field()
-    name = field()
 
-    @type.default
-    def _type_factory(self):
-        return self.expr.get_attribute(self.location, self.name).type
+    def __init__(self, location, expr, name):
+        super().__init__(location, expr.type.get_attribute(name).type)
+        self.expr = expr
+        self.name = name
 
     def emit(self, module, builder, scope):
         return self.expr.emit_attribute_lookup(

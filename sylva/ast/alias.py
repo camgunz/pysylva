@@ -1,19 +1,18 @@
-from attrs import define as attrs_define, field
-
 from .. import debug, errors
 from ..LLVMAlias import Alias
 from .defs import BaseDef
 from .sylva_type import SylvaType
 
 
-@attrs_define(eq=False, slots=True)
 class AliasDef(BaseDef):
-    value = field()
 
-    @value.validator
-    def check_value(self, attribute, value):
+    def __init__(self, location, name, type, value):
+        BaseDef.__init__(self, location, name, type)
+
         if isinstance(value, str) and value == self.name:
             raise errors.RedundantAlias(self.location, self.name)
+
+        self.value = value
 
     def define(self, module):
         self._check_definition(module)

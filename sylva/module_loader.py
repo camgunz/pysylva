@@ -3,10 +3,9 @@ from collections import defaultdict
 import lark
 
 from . import errors
-from .ast.mod import ModDecl
+from .ast.mod import ModDecl, ModDef
 from .ast.req import ReqDecl
 from .location import Location
-from .module import Module
 from .parser import Parser
 from .stream import Stream
 
@@ -91,11 +90,12 @@ class ModuleLoader:
             names_to_streams[md.name].append(stream)
 
         return [
-            Module(
-                program,
-                name,
-                streams,
-                ModuleLoader.gather_requirements_from_streams(streams)
+            ModDef(
+                program=program,
+                name=name,
+                streams=streams,
+                requirement_statements=ModuleLoader
+                .gather_requirements_from_streams(streams)
             ) for name,
             streams in names_to_streams.items()
         ]

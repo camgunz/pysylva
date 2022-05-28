@@ -1,12 +1,12 @@
-from attrs import define, field
-
-from .expr import Expr
+from .expr import BaseExpr
 
 
-@define(eq=False, slots=True)
-class CallExpr(Expr):
-    function = field()
-    arguments = field()
+class CallExpr(BaseExpr):
+
+    def __init__(self, location, function, arguments):
+        BaseExpr.__init__(self, location, function.type.return_type)
+        self.function = function
+        self.arguments = arguments
 
     # monomorphization_index: int | None = None
     # llvm_function: ir.Function | None = None

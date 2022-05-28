@@ -1,18 +1,17 @@
-from attrs import define, field
-
 from .. import errors, utils
 from .sylva_type import SylvaType
 
 
-@define(eq=False, slots=True)
 class BaseUnionType(SylvaType):
-    fields = field(default=[])
 
-    @fields.validator
-    def check_fields(self, attribute, fields):
+    def __init__(self, location, fields):
+        SylvaType.__init__(self, location)
+
         dupes = utils.get_dupes(f.name for f in fields)
         if dupes:
             raise errors.DuplicateFields(self, dupes)
+
+        self.fields = fields
 
     def get_largest_field(self):
         largest_field = self.fields[0]

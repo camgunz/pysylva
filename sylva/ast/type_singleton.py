@@ -8,7 +8,7 @@ from .bool import BoolType
 from .cstr import CStrType
 from .dynarray import DynarrayType
 from .iface import IfaceType
-from .function import MonoFunctionType
+from .fn import MonoFnType
 from .number import ComplexType, FloatType, IntType
 from .rune import RuneType
 from .str import StrType
@@ -58,7 +58,7 @@ class IfaceSingletons(enum.Enum):
             Attribute(
                 location=Location.Generate(),
                 name='get_length',
-                type=MonoFunctionType(
+                type=MonoFnType(
                     location=Location.Generate(),
                     parameters=[],
                     return_type=TypeSingletons.UINT.value,

@@ -1,25 +1,31 @@
 from functools import cached_property
 
-from attrs import define, field
 from llvmlite import ir
 
 from .. import errors, utils
 from .defs import ParamTypeDef
-from .expr import ValueExpr
 from .sylva_type import SylvaParamType, SylvaType
-from .value import Value
+from .value import Value, ValueExpr
 
 
-@define(eq=False, slots=True)
 class MonoFnType(SylvaType):
-    parameters = field(default=[])
-    return_type = field(default=None)
 
-    @parameters.validator
-    def check_parameters(self, attribute, parameters):
+    def __init__(self, location, parameters, return_type):
+        SylvaType.__init__(self, location)
+
         dupes = utils.get_dupes(p.name for p in parameters)
         if dupes:
             raise errors.DuplicateParameters(self, dupes)
+
+        self.parameters = parameters
+        self.return_type = return_type
+        self.llvm_type = ir.FunctionType( # yapf: disable
+            (
+                self.return_type.llvm_type
+                if self.return_type else ir.VoidType()
+            ),
+            [p.type.llvm_type for p in self.parameters]
+        )
 
     @cached_property
     def mname(self):
@@ -29,30 +35,20 @@ class MonoFnType(SylvaType):
             self.return_type.mname
         ])
 
-    @llvm_type.default # noqa: F821
-    def _llvm_type_factory(self):
-        return ir.FnType( # yapf: disable
-            (
-                self.return_type.llvm_type
-                if self.return_type else ir.VoidType()
-            ),
-            [p.type.llvm_type for p in self.parameters]
-        )
 
-
-@define(eq=False, slots=True)
 class FnType(SylvaParamType):
     pass
 
 
-@define(eq=False, slots=True)
 class FnExpr(ValueExpr):
     pass
 
 
-@define(eq=False, slots=True)
 class FnDef(ParamTypeDef):
-    code = field()
+
+    def __init__(self, location, name, type, code):
+        ParamTypeDef.__init__(self, location, name, type)
+        self.code = code
 
     def llvm_define(self, llvm_module):
         llvm_func_type = self.type.emit(llvm_module)
@@ -63,8 +59,8 @@ class FnDef(ParamTypeDef):
         for arg, param in zip(llvm_func_type.args, self.type.parameters):
             value = Value(
                 location=param.location,
-                ptr=arg,
                 name=param.name,
+                ptr=arg,
                 type=param.type
             )
             builder.store(value.ptr, param.emit())

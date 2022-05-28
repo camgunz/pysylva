@@ -1,23 +1,20 @@
-from attrs import define, field
-
 from .. import errors
 from .bool import BoolType
-from .expr import Expr
+from .expr import BaseExpr
 from .number import IntType, NumericType
 
 
-@define(eq=False, slots=True)
-class UnaryExpr(Expr):
-    operator = field()
-    expr = field()
+class UnaryExpr(BaseExpr):
 
-    @operator.validator
-    def check_value(self, attribute, op):
-        if op == '+' and not isinstance(self.expr.type, NumericType):
+    def __init__(self, location, type, operator, expr):
+        if operator == '+' and not isinstance(expr.type, NumericType):
             raise errors.InvalidExpressionType(self.location, 'number')
-        if op == '-' and not isinstance(self.expr.type, NumericType):
+        if operator == '-' and not isinstance(expr.type, NumericType):
             raise errors.InvalidExpressionType(self.location, 'number')
-        if op == '~' and not isinstance(self.expr.type, IntType):
+        if operator == '~' and not isinstance(expr.type, IntType):
             raise errors.InvalidExpressionType(self.location, 'integer')
-        if op == '!' and not isinstance(self.expr.type, BoolType):
+        if operator == '!' and not isinstance(expr.type, BoolType):
             raise errors.InvalidExpressionType(self.location, 'bool')
+        BaseExpr.__init__(self, location, expr.type)
+        self.operator = operator
+        self.expr = expr

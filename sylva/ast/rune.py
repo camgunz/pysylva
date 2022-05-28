@@ -2,37 +2,30 @@ from functools import cached_property
 
 from llvmlite import ir
 
-from attrs import define, field
-
-from .expr import LiteralExpr, ValueExpr
+from .literal import LiteralExpr
 from .type_singleton import TypeSingletons
 from .sylva_type import SylvaType
+from .value import ValueExpr
 
 
-@define(eq=False, slots=True)
 class RuneType(SylvaType):
 
-    def get_value_expr(self, location):
-        return RuneExpr(location=location, type=self)
-
-    @llvm_type.default # noqa: F821
-    def _llvm_type_factory(self):
-        return ir.IntType(32)
+    def __init__(self, location):
+        SylvaType.__init__(self, location)
+        self.llvm_type = ir.IntType(32)
 
     @cached_property
     def mname(self):
         return '1r'
 
 
-@define(eq=False, slots=True)
 class RuneLiteralExpr(LiteralExpr):
-    type = field(init=False, default=TypeSingletons.RUNE.value)
 
-    @classmethod
-    def FromRawValue(cls, location, raw_value):
-        return cls(location, value=raw_value[1:-1])
+    def __init__(self, location, value):
+        LiteralExpr.__init__(self, location, TypeSingletons.RUNE.value, value)
 
 
-@define(eq=False, slots=True)
 class RuneExpr(ValueExpr):
-    type = field(init=False, default=TypeSingletons.RUNE.value)
+
+    def __init__(self, location):
+        ValueExpr.__init__(self, location, TypeSingletons.RUNE.value)

@@ -1,19 +1,18 @@
 from functools import cached_property
 
-from attrs import define, field
 from llvmlite import ir
 
 from ..location import Location
 from ..utils import mangle
 from .array import ArrayType, MonoArrayType
-from .attribute_lookup import AttributeLookupExpr, AttributeLookupMixIn
-from .expr import LiteralExpr
-from .function import FunctionDef, FunctionType, MonoFunctionType
+from .attribute_lookup import AttributeLookupExpr
+from .fn import FnDef, FnType, MonoFnType
 from .impl import Impl
+from .literal import LiteralExpr
 from .lookup import LookupExpr
+from .pointer import ReferencePointerType
 from .reflection_lookup import ReflectionLookupExpr
 from .statement import ReturnStmt
-from .sylva_type import SylvaType
 from .type_mapping import Attribute, Parameter
 from .type_singleton import IfaceSingletons, TypeSingletons
 
@@ -40,52 +39,55 @@ def str_implementation_builder(str_type):
         )
 
     str_type.set_attribute(
-        Attribute(name='name', type=str_three, func=emit_name_param)
+        Attribute(
+            Location.Generate(),
+            name='name',
+            type=str_three,
+            func=emit_name_param
+        )
     )
 
     str_type.set_attribute(
         Attribute(
+            location=Location.Generate(),
             name='count',
             type=TypeSingletons.UINT.value,
             func=emit_count_param
         )
     )
 
-    get_length = FunctionDef(
+    get_length = FnDef(
+        location=Location.Generate(),
         name='get_length',
-        type=FunctionType(
+        type=MonoFnType(
             location=Location.Generate(),
-            monomorphizations=[
-                MonoFunctionType(
+            parameters=[
+                Parameter(
                     location=Location.Generate(),
-                    parameters=[
-                        Parameter(
-                            location=Location.Generate(),
-                            name='self',
-                            type=ReferencePointerType(
-                                referenced_type=str_type,
-                            )
-                        )
-                    ],
-                    return_type=TypeSingletons.UINT.value
+                    name='self',
+                    type=ReferencePointerType(
+                        location=Location.Generate(),
+                        referenced_type=str_type,
+                    )
                 )
-            ]
+            ],
+            return_type=TypeSingletons.UINT.value
         ),
         code=[
             ReturnStmt(
+                location=Location.Generate(),
                 expr=AttributeLookupExpr(
                     location=Location.Generate(),
-                    type=TypeSingletons.UINT.value,
-                    attribute='element_count',
                     expr=ReflectionLookupExpr(
                         location=Location.Generate(),
-                        type=SylvaType,
-                        attribute='type',
                         expr=LookupExpr(
-                            location=Location.Generate(), name='self'
+                            location=Location.Generate(),
+                            name='self',
+                            type=str_type
                         ),
                         name='type'
-                    )
+                    ),
+                    name='element_count'
                 )
             )
         ]
@@ -102,50 +104,47 @@ def str_implementation_builder(str_type):
     str_type.add_implementation(impl)
 
 
-@define(eq=False, slots=True)
 class MonoStrType(MonoArrayType):
-    value = field(default=bytearray())
-    element_type = field(init=False, default=TypeSingletons.I8.value)
 
-    @classmethod
-    def FromValue(cls, location, value):
-        return cls(location=location, element_count=len(value), value=value)
-
-    def get_value_expr(self, location):
-        return StrLiteralExpr(location=location, type=self, value=self.value)
+    def __init__(self, location, element_count):
+        MonoArrayType.__init__(
+            self, location, TypeSingletons.U8.value, element_count
+        )
 
     @cached_property
     def mname(self):
         return mangle(['str', self.element_count])
 
 
-@define(eq=False, slots=True)
 class StrType(ArrayType):
-    implementation_builders = field(
-        init=False, default=[str_implementation_builder]
-    )
+
+    def __init__(self, location, implementation_builders=None):
+        ArrayType.__init__(
+            self,
+            location,
+            implementation_builders=implementation_builders or
+            [str_implementation_builder]
+        )
 
     def get_or_create_monomorphization(self, element_count):
         for mm in self.monomorphizations:
             if mm.element_count == element_count:
                 return mm
 
-        mm = MonoStrType(element_count=element_count)
+        mm = MonoStrType(Location.Generate(), element_count=element_count)
         self.add_monomorphization(mm)
 
         return mm
 
 
-@define(eq=False, slots=True)
-class StrLiteralExpr(LiteralExpr, AttributeLookupMixIn):
+class StrLiteralExpr(LiteralExpr):
 
-    @classmethod
-    def FromRawValue(cls, location, raw_value):
-        # [NOTE] I suppose this is where we'd configure internal string
-        #        encoding.
-        encoded_data = bytearray(raw_value[1:-1], encoding='utf-8')
-        return cls(
+    def __init__(self, location, value):
+        LiteralExpr.__init__(
+            self,
             location,
-            type=MonoStrType.FromValue(location, encoded_data),
-            value=encoded_data
+            TypeSingletons.STR.value.get_or_create_monomorphization(
+                len(value)
+            ),
+            value
         )

@@ -1,66 +1,72 @@
-from attrs import define, field
-
 from .base import Node
 
 
-@define(eq=False, slots=True)
 class Stmt(Node):
 
     def emit(self, module, builder, scope):
         raise NotImplementedError()
 
 
-@define(eq=False, slots=True)
 class StmtBlock(Stmt):
-    code = field()
+
+    def __init__(self, location, code):
+        Stmt.__init__(self, location)
+        self.code = code
 
 
-@define(eq=False, slots=True)
 class LetStmt(Stmt):
-    name = field()
-    expr = field()
+
+    def __init__(self, location, name, expr):
+        Stmt.__init__(self, location)
+        self.name = name
+        self.expr = expr
 
     def emit(self, module, builder, scope):
-        value = value_expr.emit(module, builder, scope)
-        return builder.store(value, ptr)
+        value = self.expr.emit(module, builder, scope)
+        return builder.store(value, self.name)
 
 
-@define(eq=False, slots=True)
 class AssignStmt(Stmt):
-    ptr = field()
-    value_expr = field()
+
+    def __init__(self, location, name, expr):
+        Stmt.__init__(self, location)
+        self.name = name
+        self.expr = expr
 
     def emit(self, module, builder, scope):
-        value = value_expr.emit(module, builder, scope)
-        return builder.store(value, ptr)
+        value = self.expr.emit(module, builder, scope)
+        return builder.store(value, self.name)
 
 
-@define(eq=False, slots=True)
 class BreakStmt(Stmt):
     pass
 
 
-@define(eq=False, slots=True)
 class ContinueStmt(Stmt):
     pass
 
 
-@define(eq=False, slots=True)
 class ReturnStmt(Stmt):
-    expr = field()
+
+    def __init__(self, location, expr):
+        Stmt.__init__(self, location)
+        self.expr = expr
 
 
-@define(eq=False, slots=True)
 class IfStmt(StmtBlock):
-    conditional_expr = field()
-    else_code = field()
+
+    def __init__(self, location, code, conditional_expr, else_code):
+        StmtBlock.__init__(self, location, code)
+        self.conditional_expr = conditional_expr
+        self.else_code = else_code
 
 
-@define(eq=False, slots=True)
 class LoopStmt(StmtBlock):
     pass
 
 
-@define(eq=False, slots=True)
 class WhileStmt(StmtBlock):
-    conditional_expr = field()
+
+    def __init__(self, location, code, conditional_expr):
+        StmtBlock.__init__(self, location, code)
+        self.conditional_expr = conditional_expr

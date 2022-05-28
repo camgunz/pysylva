@@ -1,20 +1,19 @@
 from functools import cached_property
 
-from attrs import define, field
 from llvmlite import ir
 
 from .. import errors, utils
 from ..location import Location
 from .defs import TypeDef
-from .expr import LiteralExpr, ValueExpr
-from .pointer import ReferencePointerExpr, ReferencePointerType
 from .reflection_lookup import ReflectionLookupMixIn
 from .sylva_type import SylvaParamType, SylvaType
 from .type_mapping import Attribute
-from .type_singleton import TypeSingletons
+from .value import ValueExpr
 
 
 def array_implementation_builder(array_type):
+    from .type_singleton import TypeSingletons
+
     # name         | str(5) | 'array'
     # size         | uint   | element_count * element_type.size
     # count        | uint   | element_count
@@ -33,11 +32,17 @@ def array_implementation_builder(array_type):
         )
 
     array_type.set_attribute(
-        Attribute(name='name', type=str_five, func=emit_name_param)
+        Attribute(
+            location=Location.Generate(),
+            name='name',
+            type=str_five,
+            func=emit_name_param
+        )
     )
 
     array_type.set_attribute(
         Attribute( # yapf: disable
+            location=Location.Generate(),
             name='count',
             type=TypeSingletons.UINT.value,
             func=emit_count_param
@@ -45,10 +50,15 @@ def array_implementation_builder(array_type):
     )
 
 
-@define(eq=False, slots=True)
 class MonoArrayType(SylvaType):
-    element_type = field()
-    element_count = field()
+
+    def __init__(self, location, element_type, element_count):
+        if element_count <= 0:
+            raise errors.EmptyArray(self.location)
+        SylvaType.__init__(self, location)
+        self.element_type = element_type
+        self.element_count = element_count
+        self.llvm_type = ir.ArrayType(element_type.llvm_type, element_count)
 
     @cached_property
     def mname(self):
@@ -58,21 +68,16 @@ class MonoArrayType(SylvaType):
             utils.len_prefix(str(self.element_count))
         ])
 
-    @element_count.validator
-    def check_element_count(self, attribute, value):
-        if value is not None and value <= 0:
-            raise errors.EmptyArray(self.location)
 
-    @llvm_type.default # noqa: F821
-    def _llvm_type_factory(self):
-        return ir.ArrayType(self.element_type.llvm_type, self.element_count)
-
-
-@define(eq=False, slots=True)
 class ArrayType(SylvaParamType):
-    implementation_builders = field(
-        init=False, default=[array_implementation_builder]
-    )
+
+    def __init__(self, location, implementation_builders=None):
+        SylvaParamType.__init__(
+            self,
+            location,
+            implementation_builders=implementation_builders or
+            [array_implementation_builder]
+        )
 
     def get_or_create_monomorphization(self, element_type, element_count):
         for mm in self.monomorphizations:
@@ -83,58 +88,52 @@ class ArrayType(SylvaParamType):
             return mm
 
         mm = MonoArrayType(
-            element_type=element_type, element_count=element_count
+            Location.Generate(),
+            element_type=element_type,
+            element_count=element_count
         )
+
         self.add_monomorphization(mm)
 
         return mm
 
 
-@define(eq=False, slots=True)
-class ArrayLiteralExpr(LiteralExpr):
-
-    @classmethod
-    def FromRawValue(cls, location, element_type, raw_value):
-        return cls(location, element_type, len(raw_value), raw_value)
-
-
-@define(eq=False, slots=True)
 class ArrayExpr(ValueExpr, ReflectionLookupMixIn):
+    pass
 
-    def get_reflection_attribute(self, location, name):
-        if name == 'type':
-            return self.type
-        if name == 'bytes':
-            return ReferencePointerType(
-                referenced_type=MonoArrayType(
-                    Location.Generate(),
-                    element_type=TypeSingletons.U8,
-                    element_count=self.type.get_size()
-                )
-            )
+    # def get_reflection_attribute(self, location, name):
+    #     if name == 'type':
+    #         return self.type
+    #     if name == 'bytes':
+    #         return ReferencePointerType(
+    #             referenced_type=MonoArrayType(
+    #                 Location.Generate(),
+    #                 element_type=TypeSingletons.U8,
+    #                 element_count=self.type.get_size()
+    #             )
+    #         )
 
-    def emit_reflection_lookup(self, location, module, builder, scope, name):
-        if name == 'type':
-            # [FIXME]
-            return SylvaType
-        if name == 'bytes':
-            # [NOTE] Just overriding the type here _probably_ works, but only
-            #        implicitly. It would be better if we had explicit support
-            #        throughout.
-            return ReferencePointerExpr(
-                location=Location.Generate(),
-                type=ReferencePointerType(
-                    referenced_type=MonoArrayType(
-                        Location.Generate(),
-                        element_type=TypeSingletons.U8,
-                        element_count=self.type.get_size()
-                    )
-                ),
-                expr=self
-            )
+    # def emit_reflection_lookup(self, location, module, builder, scope, name):
+    #     if name == 'type':
+    #         # [FIXME]
+    #         return SylvaType
+    #     if name == 'bytes':
+    #         # [NOTE] Just overriding the type here _probably_ works, but only
+    #         #        implicitly. It would be better if we had explicit support
+    #         #        throughout.
+    #         return ReferencePointerExpr(
+    #             location=Location.Generate(),
+    #             type=ReferencePointerType(
+    #                 referenced_type=MonoArrayType(
+    #                     Location.Generate(),
+    #                     element_type=TypeSingletons.U8,
+    #                     element_count=self.type.get_size()
+    #                 )
+    #             ),
+    #             expr=self
+    #         )
 
 
-@define(eq=False, slots=True)
 class ArrayDef(TypeDef):
 
     @cached_property

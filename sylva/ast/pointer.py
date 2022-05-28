@@ -1,22 +1,21 @@
 from functools import cached_property
 
-from attrs import define, field
 from llvmlite import ir
 
 from .. import errors
-from .expr import Expr, ValueExpr
 from .attribute_lookup import AttributeLookupMixIn
 from .sylva_type import SylvaType
+from .value import ValueExpr
 
 
-@define(eq=False, slots=True)
 class BasePointerType(SylvaType, AttributeLookupMixIn):
-    referenced_type = field()
-    is_exclusive = field()
 
-    @llvm_type.default # noqa: F821
-    def _llvm_type_factory(self):
-        return ir.PointerType(self.referenced_type.llvm_type)
+    def __init__(self, location, referenced_type, is_exclusive):
+        SylvaType.__init__(self, location)
+        AttributeLookupMixIn.__init__(self, location)
+        self.llvm_type = ir.PointerType(referenced_type.llvm_type)
+        self.referenced_type = referenced_type
+        self.is_exclusive = is_exclusive
 
     def get_attribute(self, location, name):
         if not isinstance(self.referenced_type, AttributeLookupMixIn):
@@ -24,34 +23,42 @@ class BasePointerType(SylvaType, AttributeLookupMixIn):
         return self.referenced_type.get_attribute(location, name)
 
 
-@define(eq=False, slots=True)
 class ReferencePointerType(BasePointerType):
-    is_exclusive = field(init=False, default=False)
+
+    def __init__(self, location, referenced_type):
+        BasePointerType.__init__(
+            self, location, referenced_type, is_exclusive=False
+        )
 
     @cached_property
     def mname(self):
         return ''.join(['2rp', self.referenced_type.mname])
 
 
-@define(eq=False, slots=True)
 class ExclusiveReferencePointerType(BasePointerType):
-    is_exclusive = field(init=False, default=True)
+
+    def __init__(self, location, referenced_type):
+        BasePointerType.__init__(
+            self, location, referenced_type, is_exclusive=True
+        )
 
     @cached_property
     def mname(self):
         return ''.join(['2xp', self.referenced_type.mname])
 
 
-@define(eq=False, slots=True)
 class OwnedPointerType(BasePointerType):
-    is_exclusive = field(init=False, default=True)
+
+    def __init__(self, location, referenced_type):
+        BasePointerType.__init__(
+            self, location, referenced_type, is_exclusive=True
+        )
 
     @cached_property
     def mname(self):
         return ''.join(['2op', self.referenced_type.mname])
 
 
-@define(eq=False, slots=True)
 class BasePointerExpr(ValueExpr):
 
     @property
@@ -63,28 +70,19 @@ class BasePointerExpr(ValueExpr):
         return self.type.is_exclusive
 
 
-@define(eq=False, slots=True)
 class ReferencePointerExpr(BasePointerExpr):
-    value = field()
+
+    def __init__(self, location, type, expr):
+        BasePointerExpr.__init__(self, location, type)
+        self.expr = expr
 
 
-@define(eq=False, slots=True)
 class OwnedPointerExpr(BasePointerExpr):
     pass
 
 
-@define(eq=False, slots=True)
 class MovePointerExpr(BasePointerExpr):
-    value = field()
 
-
-@define(eq=False, slots=True)
-class GetElementPointerExpr(Expr):
-    obj = field()
-    index = field()
-    name = field()
-
-    def emit(self, module, builder, scope):
-        return builder.gep(
-            self.obj, [self.index], inbounds=True, name=self.name
-        )
+    def __init__(self, location, type, expr):
+        BasePointerExpr.__init__(self, location, type)
+        self.expr = expr

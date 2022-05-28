@@ -1,14 +1,11 @@
 from functools import cached_property
 
-from attrs import define, field
-
 from .. import errors
 from ..target import get_target
 from .attribute_lookup import AttributeLookupMixIn
 from .base import Node
 
 
-@define(eq=False, slots=True)
 class BaseSylvaType(Node):
 
     @cached_property
@@ -16,16 +13,19 @@ class BaseSylvaType(Node):
         raise NotImplementedError()
 
 
-@define(eq=False, slots=True)
 class SylvaType(BaseSylvaType, AttributeLookupMixIn):
-    llvm_type = field(init=False, default=None)
-    implementations = field(init=False, default=[])
+
+    def __init__(self, location):
+        BaseSylvaType.__init__(self, location)
+        AttributeLookupMixIn.__init__(self, location)
+        self.llvm_type = None
+        self.implementations = []
 
     def add_implementation(self, implementation):
         self.implementations.append(implementation)
 
     def make_constant(self, value):
-        return self.llvm_type(value)
+        return self.llvm_type(value) # pylint: disable=not-callable
 
     def get_alignment(self):
         llvm_type = self.llvm_type
@@ -52,10 +52,14 @@ class SylvaType(BaseSylvaType, AttributeLookupMixIn):
         raise errors.NoSuchAttribute(location, name)
 
 
-@define(eq=False, slots=True)
 class SylvaParamType(BaseSylvaType):
-    monomorphizations = field(init=False, default=[])
-    implementation_builders = field(init=False, default=[])
+
+    def __init__(
+        self, location, monomorphizations=None, implementation_builders=None
+    ):
+        super().__init__(location)
+        self.monomorphizations = monomorphizations or []
+        self.implementation_builders = implementation_builders or []
 
     @property
     def is_polymorphic(self):
