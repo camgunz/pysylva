@@ -2,11 +2,13 @@ import enum
 
 from .. import _SIZE_SIZE
 from ..location import Location
-from .type_mapping import Attribute
+from .attribute import Attribute
 from .array import ArrayType
 from .bool import BoolType
+from .carray import CArrayType
 from .cptr import CPtrType
 from .cstr import CStrType
+from .cunion import CUnionType
 from .dynarray import DynarrayType
 from .iface import IfaceType
 from .fn import MonoFnType
@@ -46,7 +48,8 @@ class TypeSingletons(enum.Enum):
     CPTR = CPtrType(location=Location.Generate())
     CSTR = CStrType(location=Location.Generate())
     CVOID = IntType(location=Location.Generate(), bits=8, signed=True)
-    # carray, cunion?
+    CARRAY = CArrayType(location=Location.Generate())
+    CUNION = CUnionType(location=Location.Generate())
     ARRAY = ArrayType(location=Location.Generate())
     DYNARRAY = DynarrayType(location=Location.Generate())
     POINTER = PointerType(location=Location.Generate())

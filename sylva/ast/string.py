@@ -3,16 +3,16 @@ from functools import cached_property
 from ..location import Location
 from .attribute_lookup import AttributeLookupExpr
 from .dynarray import MonoDynarrayType
-from .fn import FnDef, MonoFnType
+from .fn import Fn, MonoFnType
 from .impl import Impl
 from .lookup import LookupExpr
+from .parameter import Parameter
 from .statement import ReturnStmt
-from .type_mapping import Parameter
 from .type_singleton import IfaceSingletons, TypeSingletons
 
 
 def string_impl_builder(string_type):
-    get_length = FnDef(
+    get_length = Fn(
         location=Location.Generate(),
         name='get_length',
         type=MonoFnType(
@@ -23,6 +23,7 @@ def string_impl_builder(string_type):
                     name='self',
                     type=TypeSingletons.POINTER.value
                     .get_or_create_monomorphization(
+                        Location.Generate(),
                         referenced_type=string_type,
                         is_reference=True,
                         is_exclusive=False

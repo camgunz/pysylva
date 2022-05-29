@@ -3,7 +3,6 @@ from functools import cached_property
 from llvmlite import ir
 
 from .. import errors, utils
-from ..location import Location
 from .defs import ParamTypeDef
 from .sylva_type import SylvaParamType, SylvaType
 
@@ -49,7 +48,9 @@ class MonoFnType(SylvaType):
 
 class FnType(SylvaParamType):
 
-    def get_or_create_monomorphization(self, parameters, return_type):
+    def get_or_create_monomorphization(
+        self, location, parameters, return_type
+    ):
         for mm in self.monomorphizations:
             if (mm.return_type == return_type and
                     len(mm.parameters) == len(parameters) and
@@ -57,28 +58,27 @@ class FnType(SylvaParamType):
                         mmp in zip(parameters, mm.parameters))):
                 return mm
 
-        mm = MonoFnType(Location.Generate(), parameters, return_type)
+        mm = MonoFnType(location, parameters, return_type)
 
         self.add_monomorphization(mm)
 
         return mm
 
 
-class FnDef(ParamTypeDef):
+class Fn(ParamTypeDef):
 
     def __init__(self, location, name, type, code):
         ParamTypeDef.__init__(self, location, name, type)
         self.code = code
 
-    def llvm_define(self, llvm_module):
+    def emit(self, obj, module, builder, scope, name):
+        llvm_module = module.type.llvm_type
         llvm_func_type = self.type.emit(llvm_module)
         llvm_func = ir.Function(llvm_module, llvm_func_type, name=self.name)
         block = llvm_func.append_basic_block()
         builder = ir.IRBuilder(block=block)
         scope = {}
         for arg, param in zip(llvm_func_type.args, self.type.parameters):
-            value = param.make_value(arg)
-            builder.store(value.value, param.emit())
-            scope[param.name] = value
+            param.emit(arg, None, builder, scope)
         for node in self.code:
-            node.emit(llvm_module, builder, scope)
+            node.emit(self, llvm_module, builder, scope)

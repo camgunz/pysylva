@@ -4,9 +4,9 @@ from llvmlite import ir
 
 from .. import errors, utils
 from ..location import Location
+from .attribute import Attribute
 from .literal import LiteralExpr
 from .sylva_type import SylvaParamType, SylvaType
-from .type_mapping import Attribute
 
 
 def array_implementation_builder(array_type):
@@ -17,7 +17,9 @@ def array_implementation_builder(array_type):
     # count        | uint   | element_count
     # element_type | type   | element_type
     # indices      | range  | range(0, element_count + 1)
-    str_five = TypeSingletons.STR.value.get_or_create_monomorphization(5)
+    str_five = TypeSingletons.STR.value.get_or_create_monomorphization(
+        Location.Generate(), 5
+    )
 
     # pylint: disable=unused-argument
     def emit_name_param(obj, location, module, builder, scope):
@@ -86,7 +88,9 @@ class ArrayType(SylvaParamType):
             [array_implementation_builder]
         )
 
-    def get_or_create_monomorphization(self, element_type, element_count):
+    def get_or_create_monomorphization(
+        self, location, element_type, element_count
+    ):
         for mm in self.monomorphizations:
             if mm.element_type != element_type:
                 continue
@@ -95,9 +99,7 @@ class ArrayType(SylvaParamType):
             return mm
 
         mm = MonoArrayType(
-            Location.Generate(),
-            element_type=element_type,
-            element_count=element_count
+            location, element_type=element_type, element_count=element_count
         )
 
         self.add_monomorphization(mm)
@@ -156,7 +158,7 @@ class ArrayLiteralExpr(LiteralExpr):
             self,
             location,
             TypeSingletons.ARRAY.value.get_or_create_monomorphization(
-                first_type, len(value)
+                location, first_type, len(value)
             ),
             value
         )

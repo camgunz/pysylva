@@ -43,7 +43,7 @@ class SylvaType(BaseSylvaType, AttributeLookupMixIn):
     def get_pointer(self):
         return self.llvm_type.as_pointer()
 
-    def llvm_define(self, name):
+    def emit(self, obj, module, builder, scope, name):
         raise NotImplementedError()
 
 

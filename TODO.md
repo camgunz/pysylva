@@ -2,8 +2,6 @@
 
 ## General
 
-`get_or_create_monomorphization` might benefit from a `Location`
-
 ## Sized types
 
 There's a conflict between "must specify the size of a(n) array/string value"

@@ -2,7 +2,7 @@ from functools import cached_property
 
 from llvmlite import ir
 
-from ..location import Location
+from .expr import BaseExpr
 from .sylva_type import SylvaParamType, SylvaType
 
 
@@ -34,13 +34,13 @@ class MonoPointerType(SylvaType):
             pointer_type = 'x'
         else:
             pointer_type = 'r'
-        return ''.join([f'2{pointer_type}p', self.referenced_type.mname])
+        return ''.join([f'2p{pointer_type}', self.referenced_type.mname])
 
 
 class PointerType(SylvaParamType):
 
     def get_or_create_monomorphization(
-        self, referenced_type, is_reference, is_exclusive
+        self, location, referenced_type, is_reference, is_exclusive
     ):
         for mm in self.monomorphizations:
             if mm.referenced_type != referenced_type:
@@ -52,7 +52,7 @@ class PointerType(SylvaParamType):
             return mm
 
         mm = MonoPointerType(
-            location=Location.Generate(),
+            location=location,
             referenced_type=referenced_type,
             is_reference=is_reference,
             is_exclusive=is_exclusive
@@ -61,3 +61,19 @@ class PointerType(SylvaParamType):
         self.add_monomorphization(mm)
 
         return mm
+
+
+class PointerExpr(BaseExpr):
+
+    def __init__(self, location, expr, is_reference, is_exclusive):
+        from .type_singleton import TypeSingletons
+
+        ptr = TypeSingletons.POINTER.value
+        pointer_type = ptr.get_or_create_monomorphization(
+            location=location,
+            referenced_type=expr.type,
+            is_reference=is_reference,
+            is_exclusive=is_exclusive
+        )
+
+        BaseExpr.__init__(self, location, pointer_type)

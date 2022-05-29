@@ -94,7 +94,8 @@ class CBlockFnPointerType(BaseCFnType):
         ])
 
 
-class CFnDef(TypeDef):
+class CFn(TypeDef):
 
-    def llvm_define(self, llvm_module):
+    def emit(self, obj, module, builder, scope, name):
+        llvm_module = module.type.llvm_type
         return ir.Function(llvm_module, self.type.llvm_type, self.name)

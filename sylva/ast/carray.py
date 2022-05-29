@@ -1,7 +1,6 @@
 from functools import cached_property
 
 from .. import utils
-from ..location import Location
 from .array import ArrayType, MonoArrayType
 
 
@@ -18,7 +17,9 @@ class MonoCArrayType(MonoArrayType):
 
 class CArrayType(ArrayType):
 
-    def get_or_create_monomorphization(self, element_type, element_count):
+    def get_or_create_monomorphization(
+        self, location, element_type, element_count
+    ):
         for mm in self.monomorphizations:
             if mm.element_type != element_type:
                 continue
@@ -26,9 +27,7 @@ class CArrayType(ArrayType):
                 continue
             return mm
         mm = MonoCArrayType(
-            Location.Generate(),
-            element_type=element_type,
-            element_count=element_count
+            location, element_type=element_type, element_count=element_count
         )
 
         self.add_monomorphization(mm)

@@ -3,20 +3,22 @@ from functools import cached_property
 from llvmlite import ir
 
 from ..location import Location
+from .attribute import Attribute
 from .attribute_lookup import AttributeLookupExpr
-from .fn import FnDef, MonoFnType
+from .fn import Fn, MonoFnType
 from .impl import Impl
 from .literal import LiteralExpr
 from .lookup import LookupExpr
 from .statement import ReturnStmt
 from .sylva_type import SylvaParamType, SylvaType
-from .type_mapping import Attribute
 
 
 def dynarray_implementation_builder(dynarray_type):
     from .type_singleton import IfaceSingletons, TypeSingletons
 
-    str_eight = TypeSingletons.STR.value.get_or_create_monomorphization(8)
+    str_eight = TypeSingletons.STR.value.get_or_create_monomorphization(
+        Location.Generate(), 8
+    )
 
     # pylint: disable=unused-argument
     def emit_name_param(obj, location, module, builder, scope):
@@ -33,7 +35,7 @@ def dynarray_implementation_builder(dynarray_type):
         )
     )
 
-    get_length = FnDef(
+    get_length = Fn(
         location=Location.Generate(),
         name='get_length',
         type=MonoFnType(
@@ -126,13 +128,13 @@ class DynarrayType(SylvaParamType):
             [dynarray_implementation_builder]
         )
 
-    def get_or_create_monomorphization(self, element_type):
+    def get_or_create_monomorphization(self, location, element_type):
         for mm in self.monomorphizations:
             if mm.element_type != element_type:
                 continue
             return mm
 
-        mm = MonoDynarrayType(Location.Generate(), element_type=element_type)
+        mm = MonoDynarrayType(location, element_type=element_type)
 
         self.add_monomorphization(mm)
 

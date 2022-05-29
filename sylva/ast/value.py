@@ -1,24 +1,25 @@
 from ..location import Location
 from .attribute_lookup import AttributeLookupMixIn
-from .base import Node
+from .bind import Bind
 from .reflection_lookup import ReflectionLookupMixIn
 from .sylva_type import SylvaType
 from .type_singleton import TypeSingletons
 
 
-class Value(Node, AttributeLookupMixIn, ReflectionLookupMixIn):
+class Value(Bind, AttributeLookupMixIn, ReflectionLookupMixIn):
 
-    def __init__(self, location, name, value, type):
-        Node.__init__(self, location)
+    def __init__(self, location, name, type, value):
+        Bind.__init__(self, location, name, type)
         AttributeLookupMixIn.__init__(self)
         ReflectionLookupMixIn.__init__(self)
-        self.name = name
         self.value = value
-        self.type = type
 
     # pylint: disable=unused-argument
-    def emit(self, module, builder, scope):
-        return builder.load(self.value, self.name)
+    def emit(self, obj, module, builder, scope, name):
+        alloca = builder.alloca(self.type.llvm_type, self.name)
+        builder.store(self.value, alloca)
+        scope[self.name] = self
+        return self.value
 
     def get_attribute(self, name):
         for impl in self.type.implementations:
@@ -46,8 +47,10 @@ class Value(Node, AttributeLookupMixIn, ReflectionLookupMixIn):
             return SylvaType
         if name == 'bytes':
             return TypeSingletons.POINTER.value.get_or_create_monomorphization(
+                location=Location.Generate(),
                 referenced_type=TypeSingletons.ARRAY.value
                 .get_or_create_monomorphization(
+                    location=Location.Generate(),
                     element_type=TypeSingletons.U8.value,
                     element_count=self.type.get_size()
                 ),
@@ -67,8 +70,10 @@ class Value(Node, AttributeLookupMixIn, ReflectionLookupMixIn):
                 name=name,
                 type=TypeSingletons.POINTER.value
                 .get_or_create_monomorphization(
+                    location=Location.Generate(),
                     referenced_type=TypeSingletons.ARRAY.value
                     .get_or_create_monomorphization(
+                        location=Location.Generate(),
                         element_type=TypeSingletons.U8.value,
                         element_count=self.type.get_size()
                     ),

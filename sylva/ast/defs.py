@@ -3,16 +3,11 @@ from functools import cached_property
 from llvmlite import ir
 
 from .. import debug, errors, utils
-from .base import Node
+from .bind import Bind
 from .pointer import PointerType
 
 
-class BaseDef(Node):
-
-    def __init__(self, location, name, type):
-        Node.__init__(self, location)
-        self.name = name
-        self.type = type
+class BaseDef(Bind):
 
     def _check_definition(self, module):
         existing_alias = module.aliases.get(self.name)
@@ -34,19 +29,23 @@ class BaseDef(Node):
 
     def define(self, module):
         self._check_definition(module)
+        debug('define', f'Define {self.name} -> {self}')
+        module.vars[self.name] = self
+
+    def emit(self, obj, module, builder, scope, name):
+        raise NotImplementedError()
+
+
+class TypeDef(BaseDef):
+
+    def define(self, module):
+        self._check_definition(module)
         debug('define', f'Define {self.name} ({self.mname}) -> {self}')
         module.vars[self.mname] = self
-
-    def llvm_define(self, llvm_module):
-        pass
 
     @cached_property
     def mname(self):
         return ''.join([utils.len_prefix(self.name), self.type.mname])
-
-
-class TypeDef(BaseDef):
-    pass
 
 
 class ParamTypeDef(BaseDef):
@@ -84,7 +83,9 @@ class SelfReferentialMixIn:
 
         return missing_field_errors
 
-    def llvm_define(self, llvm_module):
+    # pylint: disable=unused-argument
+    def emit(self, obj, module, builder, scope, name):
+        llvm_module = module.type.llvm_type
         # pylint: disable=no-member
         if self.name is None:
             for f in self.fields: # pylint: disable=no-member

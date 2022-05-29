@@ -2,7 +2,6 @@ from functools import cached_property
 
 from llvmlite import ir
 
-from ..location import Location
 from .sylva_type import SylvaParamType
 from .union import BaseUnionType, Union
 
@@ -20,13 +19,13 @@ class MonoCUnionType(BaseUnionType):
 
 class CUnionType(SylvaParamType):
 
-    def get_or_create_monomorphization(self, fields):
+    def get_or_create_monomorphization(self, location, fields):
         for mm in self.monomorphizations:
             if (len(fields) == len(mm.fields) and all(
                     f.type == mmf.type for f, mmf in zip(fields, mm.fields))):
                 return mm
 
-        mm = MonoCUnionType(Location.Generate(), fields)
+        mm = MonoCUnionType(location, fields)
 
         self.add_monomorphization(mm)
 

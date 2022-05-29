@@ -5,14 +5,15 @@ from llvmlite import ir
 from ..location import Location
 from ..utils import mangle
 from .array import ArrayType, MonoArrayType
+from .attribute import Attribute
 from .attribute_lookup import AttributeLookupExpr
-from .fn import FnDef, MonoFnType
+from .fn import Fn, MonoFnType
 from .impl import Impl
 from .literal import LiteralExpr
 from .lookup import LookupExpr
+from .parameter import Parameter
 from .reflection_lookup import ReflectionLookupExpr
 from .statement import ReturnStmt
-from .type_mapping import Attribute, Parameter
 
 
 def str_implementation_builder(str_type):
@@ -26,7 +27,9 @@ def str_implementation_builder(str_type):
     if str_type.element_count == 3:
         str_three = str_type
     else:
-        str_three = TypeSingletons.STR.value.get_or_create_monomorphization(3)
+        str_three = TypeSingletons.STR.value.get_or_create_monomorphization(
+            Location.Generate(), 3
+        )
 
     # pylint: disable=unused-argument
     def emit_name_param(obj, location, module, builder, scope):
@@ -58,7 +61,7 @@ def str_implementation_builder(str_type):
         )
     )
 
-    get_length = FnDef(
+    get_length = Fn(
         location=Location.Generate(),
         name='get_length',
         type=MonoFnType(
@@ -69,6 +72,7 @@ def str_implementation_builder(str_type):
                     name='self',
                     type=TypeSingletons.POINTER.value
                     .get_or_create_monomorphization(
+                        Location.Generate(),
                         referenced_type=str_type,
                         is_reference=True,
                         is_exclusive=False,
@@ -133,12 +137,12 @@ class StrType(ArrayType):
         )
 
     # pylint: disable=arguments-differ
-    def get_or_create_monomorphization(self, element_count):
+    def get_or_create_monomorphization(self, location, element_count):
         for mm in self.monomorphizations:
             if mm.element_count == element_count:
                 return mm
 
-        mm = MonoStrType(Location.Generate(), element_count=element_count)
+        mm = MonoStrType(location, element_count=element_count)
         self.add_monomorphization(mm)
 
         return mm
@@ -153,7 +157,7 @@ class StrLiteralExpr(LiteralExpr):
             self,
             location,
             TypeSingletons.STR.value.get_or_create_monomorphization(
-                len(value)
+                location, len(value)
             ),
             value
         )

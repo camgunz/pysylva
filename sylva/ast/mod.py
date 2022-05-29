@@ -4,11 +4,11 @@ from .. import errors
 from ..location import Location
 from ..module_builder import ModuleBuilder
 from ..parser import Parser
+from .attribute import Attribute
 from .attribute_lookup import AttributeLookupMixIn
 from .base import Decl
 from .defs import TypeDef
 from .sylva_type import SylvaType
-from .type_mapping import Attribute
 
 
 class ModType(SylvaType):
@@ -16,19 +16,20 @@ class ModType(SylvaType):
     def __init__(self, location, value):
         SylvaType.__init__(self, location)
         self.value = value
+        self.llvm_type = ir.Module(name=self.value.name)
 
-    def get_attribute(self, name):
-        return self.value.get_attribute(name)
+    # def get_attribute(self, name):
+    #     return self.value.get_attribute(name)
 
-    def emit_attribute_lookup(self, module, builder, scope, name):
-        return self.value.emit_attribute_lookup(module, builder, scope, name)
+    # def emit_attribute_lookup(self, module, builder, scope, name):
+    #     return self.value.emit_attribute_lookup(module, builder, scope, name)
 
 
 class ModDecl(Decl):
     pass
 
 
-class ModDef(TypeDef, AttributeLookupMixIn):
+class Mod(TypeDef, AttributeLookupMixIn):
 
     def __init__(self, name, program, streams, requirement_statements):
         location = Location.Generate()
@@ -91,17 +92,21 @@ class ModDef(TypeDef, AttributeLookupMixIn):
                 location=aliased_value.location,
                 name=name,
                 type=aliased_value.value,
+                func=lambda *args: aliased_value
             )
 
-        attribute_type = self.vars.get(name)
-        if attribute_type is None:
+        attribute = self.vars.get(name)
+        if attribute is None:
             return None
 
-        if not isinstance(attribute_type, SylvaType):
-            attribute_type = attribute_type.type
-
         return Attribute(
-            location=attribute_type.location, name=name, type=attribute_type
+            location=attribute.location,
+            name=name,
+            type=(
+                SylvaType
+                if isinstance(attribute, SylvaType) else attribute.type
+            ),
+            func=lambda *args: attribute
         )
 
     def emit_attribute_lookup(self, module, builder, scope, name):
@@ -111,14 +116,11 @@ class ModDef(TypeDef, AttributeLookupMixIn):
 
         return self.vars.get(name)
 
-    # pylint: disable=arguments-differ
-    def llvm_define(self):
-        llvm_module = ir.Module(name=self.name)
-
+    def emit(self, obj, module, builder, scope, name):
         for var in self.vars.values():
-            var.llvm_define(llvm_module)
+            var.emit(obj, module, builder, scope, name)
 
-        return llvm_module, []
+        return self.type.llvm_type
 
     # def lookup_field(self, location, name):
     #     aliased_value = self.aliases.get(name)

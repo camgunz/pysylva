@@ -1,7 +1,6 @@
 from functools import cached_property
 
 from .. import errors, utils
-from ..location import Location
 from .sylva_type import SylvaParamType, SylvaType
 from .value import Value
 
@@ -54,14 +53,14 @@ class MonoStructType(BaseStructType):
 
 class StructType(SylvaParamType):
 
-    def get_or_create_monomorphization(self, fields):
+    def get_or_create_monomorphization(self, location, fields):
         for mm in self.monomorphizations:
             if (len(fields) == len(mm.fields) and all(
                     f.type == mmf.type for f, mmf in zip(fields, mm.fields))):
                 return mm
             return mm
 
-        mm = MonoStructType(Location.Generate(), fields)
+        mm = MonoStructType(location, fields)
 
         self.add_monomorphization(mm)
 

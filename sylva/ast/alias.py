@@ -1,13 +1,13 @@
 from .. import debug, errors
-from ..LLVMAlias import Alias as LLVMAlias
+from ..llvm_alias import Alias as LLVMAlias
 from .defs import BaseDef
 from .sylva_type import SylvaType
 
 
-class AliasDef(BaseDef):
+class Alias(BaseDef):
 
-    def __init__(self, location, name, type, value):
-        BaseDef.__init__(self, location, name, type)
+    def __init__(self, location, name, value):
+        BaseDef.__init__(self, location, name, value.type)
 
         if isinstance(value, str) and value == self.name:
             raise errors.RedundantAlias(self.location, self.name)
@@ -24,7 +24,9 @@ class AliasDef(BaseDef):
         debug('define', f'Alias {self.name} ({name}) -> {self}')
         module.vars[name] = self
 
-    def llvm_define(self, llvm_module):
+    def emit(self, obj, module, builder, scope, name):
+        llvm_module = module.type.llvm_type
+
         if isinstance(self.value, str):
             target = llvm_module.get_global(self.value)
         elif isinstance(self.value, SylvaType):
