@@ -3,7 +3,7 @@ from collections import defaultdict
 import lark
 
 from . import errors
-from .ast.mod import ModDecl, ModDef
+from .ast.mod import ModDecl, Mod
 from .ast.req import ReqDecl
 from .location import Location
 from .parser import Parser
@@ -90,7 +90,7 @@ class ModuleLoader:
             names_to_streams[md.name].append(stream)
 
         return [
-            ModDef(
+            Mod(
                 program=program,
                 name=name,
                 streams=streams,

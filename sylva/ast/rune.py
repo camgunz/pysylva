@@ -3,7 +3,6 @@ from functools import cached_property
 from llvmlite import ir
 
 from .literal import LiteralExpr
-from .type_singleton import TypeSingletons
 from .sylva_type import SylvaType
 
 
@@ -21,4 +20,6 @@ class RuneType(SylvaType):
 class RuneLiteralExpr(LiteralExpr):
 
     def __init__(self, location, value):
-        LiteralExpr.__init__(self, location, TypeSingletons.RUNE.value, value)
+        from .type_singleton import TypeSingletons
+
+        LiteralExpr.__init__(self, location, TypeSingletons.RUNE, value)

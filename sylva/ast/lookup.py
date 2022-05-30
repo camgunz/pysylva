@@ -8,7 +8,7 @@ class LookupExpr(BaseExpr):
         BaseExpr.__init__(self, location, type)
         self.name = name
 
-    def emit(self, module, builder, scope):
+    def emit(self, obj, module, builder, scope, name):
         value = scope.get(self.name)
         if value is None:
             raise errors.UndefinedSymbol(self.location, self.name)

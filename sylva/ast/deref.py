@@ -8,6 +8,6 @@ class DerefExpr(BaseExpr):
         self.ptr = ptr
         self.name_expr = name_expr
 
-    def emit(self, module, builder, scope):
-        name = self.name_expr.emit(module, builder, scope)
+    def emit(self, obj, module, builder, scope, name):
+        name = self.name_expr.emit(obj, module, builder, scope, name)
         return builder.load(self.ptr, name)

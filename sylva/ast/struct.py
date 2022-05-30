@@ -79,4 +79,4 @@ class Struct(Value):
         f = self.get_attribute(name)
         if f is not None:
             return f.emit(self, module, builder, scope, name)
-        return super().emit_attribute_lookup(module, builder, scope, name)
+        return Value.emit_attribute_lookup(self, module, builder, scope, name)

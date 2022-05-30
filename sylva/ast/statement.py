@@ -3,7 +3,7 @@ from .base import Node
 
 class Stmt(Node):
 
-    def emit(self, module, builder, scope):
+    def emit(self, obj, module, builder, scope, name):
         raise NotImplementedError()
 
 
@@ -21,8 +21,8 @@ class LetStmt(Stmt):
         self.name = name
         self.expr = expr
 
-    def emit(self, module, builder, scope):
-        value = self.expr.emit(module, builder, scope)
+    def emit(self, obj, module, builder, scope, name):
+        value = self.expr.emit(obj, module, builder, scope, name)
         return builder.store(value, self.name)
 
 
@@ -33,8 +33,8 @@ class AssignStmt(Stmt):
         self.name = name
         self.expr = expr
 
-    def emit(self, module, builder, scope):
-        value = self.expr.emit(module, builder, scope)
+    def emit(self, obj, module, builder, scope, name):
+        value = self.expr.emit(obj, module, builder, scope, name)
         return builder.store(value, self.name)
 
 

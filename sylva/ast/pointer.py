@@ -68,8 +68,7 @@ class PointerExpr(BaseExpr):
     def __init__(self, location, expr, is_reference, is_exclusive):
         from .type_singleton import TypeSingletons
 
-        ptr = TypeSingletons.POINTER.value
-        pointer_type = ptr.get_or_create_monomorphization(
+        pointer_type = TypeSingletons.POINTER.get_or_create_monomorphization(
             location=location,
             referenced_type=expr.type,
             is_reference=is_reference,

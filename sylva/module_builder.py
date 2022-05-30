@@ -285,16 +285,34 @@ class ModuleBuilder(lark.Visitor):
                 location = Location.FromToken(attribute_token, self._stream)
 
                 if reflection:
+                    value = value.get_reflection_attribute(
+                        attribute_token.value
+                    )
+                    if value is None:
+                        raise errors.NoSuchAttribute(
+                            location, attribute_token.value
+                        )
+
                     lookup_expr = ast.ReflectionLookupExpr(
                         location=location,
-                        obj=lookup_expr,
+                        type=value.type,
                         name=attribute_token.value,
+                        obj=lookup_expr,
                     )
                 else:
+                    value = value.get_reflection_attribute(
+                        attribute_token.value
+                    )
+                    if value is None:
+                        raise errors.NoSuchAttribute(
+                            location, attribute_token.value
+                        )
+
                     lookup_expr = ast.AttributeLookupExpr(
                         location=location,
+                        type=value.type,
+                        name=attribute_token.value,
                         obj=lookup_expr,
-                        name=attribute_token.value
                     )
 
             return lookup_expr
@@ -371,8 +389,7 @@ class ModuleBuilder(lark.Visitor):
 
         if type_obj.data == 'c_array_type_expr':
             element_count = int(type_obj.children[0].children[1])
-            array_type = ast.TypeSingletons.ARRAY.value
-            return array_type.get_or_create_monomorphization(
+            return ast.TypeSingletons.ARRAY.get_or_create_monomorphization(
                 location=location,
                 element_type=self._get_type(
                     type_obj.children[0].children[0], deferrable=deferrable
@@ -432,8 +449,7 @@ class ModuleBuilder(lark.Visitor):
                 len(type_obj.children) >= 3 and type_obj.children[2] == '!'
             )
 
-            cptr_type = ast.TypeSingletons.CPTR.value
-            return cptr_type.get_or_create_monomorphization(
+            return ast.TypeSingletons.CPTR.get_or_create_monomorphization(
                 location=location,
                 referenced_type=self._get_type(
                     type_obj.children[0], deferrable=deferrable
@@ -509,8 +525,7 @@ class ModuleBuilder(lark.Visitor):
             )
 
         if type_obj.data == 'moveparam':
-            ptr_type = ast.TypeSingletons.POINTER.value
-            return ptr_type.get_or_create_monomorphization(
+            return ast.TypeSingletons.POINTER.get_or_create_monomorphization(
                 location=location,
                 referenced_type=self._get_type(
                     type_obj.children[0], deferrable=deferrable
@@ -520,8 +535,7 @@ class ModuleBuilder(lark.Visitor):
             )
 
         if type_obj.data == 'refparam':
-            ptr_type = ast.TypeSingletons.POINTER.value
-            return ptr_type.get_or_create_monomorphization(
+            return ast.TypeSingletons.POINTER.get_or_create_monomorphization(
                 location=location,
                 referenced_type=self._get_type(
                     type_obj.children[0], deferrable=deferrable
@@ -531,8 +545,7 @@ class ModuleBuilder(lark.Visitor):
             )
 
         if type_obj.data == 'exrefparam':
-            ptr_type = ast.TypeSingletons.POINTER.value
-            return ptr_type.get_or_create_monomorphization(
+            return ast.TypeSingletons.POINTER.get_or_create_monomorphization(
                 location=location,
                 referenced_type=self._get_type(
                     type_obj.children[0], deferrable=deferrable
@@ -566,11 +579,10 @@ class ModuleBuilder(lark.Visitor):
 
     def c_array_type_def(self, tree):
         debug('defer', 'Making array')
-        carray_type = ast.TypeSingletons.CARRAY.value
         cad = ast.TypeDef(
             location=Location.FromTree(tree, self._stream),
             name=tree.children[0].value,
-            type=carray_type.get_or_create_monomorphization(
+            type=ast.TypeSingletons.CARRAY.get_or_create_monomorphization(
                 location=Location.FromTree(tree, self._stream),
                 element_type=self._get_type(
                     tree.children[1].children[0], deferrable=True
@@ -638,7 +650,6 @@ class ModuleBuilder(lark.Visitor):
     def c_union_type_def(self, tree):
         fields = []
         debug('defer', 'Making union')
-        cunion_type = ast.TypeSingletons.CUNION.value
 
         for i, field_obj in enumerate(tree.children[1:]):
             name_token, field_type_obj = field_obj.children
@@ -656,7 +667,7 @@ class ModuleBuilder(lark.Visitor):
         cud = ast.TypeDef(
             location=location,
             name=tree.children[0].value,
-            type=cunion_type.get_or_create_monomorphization(
+            type=ast.TypeSingletons.CUNION.get_or_create_monomorphization(
                 location=location, fields=fields
             )
         )

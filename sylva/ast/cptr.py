@@ -70,7 +70,7 @@ class CPtrExpr(BaseExpr):
         BaseExpr.__init__(
             self,
             location,
-            TypeSingletons.CPTR.value.get_or_create_monomorphization(
+            TypeSingletons.CPTR.get_or_create_monomorphization(
                 location,
                 expr.type,
                 is_exclusive,

@@ -17,7 +17,7 @@ def array_implementation_builder(array_type):
     # count        | uint   | element_count
     # element_type | type   | element_type
     # indices      | range  | range(0, element_count + 1)
-    str_five = TypeSingletons.STR.value.get_or_create_monomorphization(
+    str_five = TypeSingletons.STR.get_or_create_monomorphization(
         Location.Generate(), 5
     )
 
@@ -29,9 +29,7 @@ def array_implementation_builder(array_type):
 
     # pylint: disable=unused-argument
     def emit_count_param(obj, location, module, builder, scope):
-        return ir.Constant(
-            TypeSingletons.UINT.value.llvm_type, obj.element_count
-        )
+        return ir.Constant(TypeSingletons.UINT.llvm_type, obj.element_count)
 
     array_type.set_attribute(
         Attribute(
@@ -46,7 +44,7 @@ def array_implementation_builder(array_type):
         Attribute( # yapf: disable
             location=Location.Generate(),
             name='count',
-            type=TypeSingletons.UINT.value,
+            type=TypeSingletons.UINT,
             func=emit_count_param
         )
     )
@@ -157,7 +155,7 @@ class ArrayLiteralExpr(LiteralExpr):
         LiteralExpr.__init__(
             self,
             location,
-            TypeSingletons.ARRAY.value.get_or_create_monomorphization(
+            TypeSingletons.ARRAY.get_or_create_monomorphization(
                 location, first_type, len(value)
             ),
             value

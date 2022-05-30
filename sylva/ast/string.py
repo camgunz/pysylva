@@ -8,10 +8,11 @@ from .impl import Impl
 from .lookup import LookupExpr
 from .parameter import Parameter
 from .statement import ReturnStmt
-from .type_singleton import IfaceSingletons, TypeSingletons
 
 
 def string_impl_builder(string_type):
+    from .type_singleton import IfaceSingletons, TypeSingletons
+
     get_length = Fn(
         location=Location.Generate(),
         name='get_length',
@@ -21,7 +22,7 @@ def string_impl_builder(string_type):
                 Parameter(
                     location=Location.Generate(),
                     name='self',
-                    type=TypeSingletons.POINTER.value
+                    type=TypeSingletons.POINTER
                     .get_or_create_monomorphization(
                         Location.Generate(),
                         referenced_type=string_type,
@@ -30,19 +31,20 @@ def string_impl_builder(string_type):
                     )
                 )
             ],
-            return_type=TypeSingletons.UINT.value
+            return_type=TypeSingletons.UINT
         ),
         code=[
             ReturnStmt(
                 location=Location.Generate(),
                 expr=AttributeLookupExpr(
                     location=Location.Generate(),
+                    type=TypeSingletons.UINT,
+                    name='len',
                     obj=LookupExpr( # yapf: disable
                         location=Location.Generate(),
+                        type=string_type,
                         name='self',
-                        type=string_type
                     ),
-                    name='len',
                 )
             )
         ]
@@ -62,7 +64,9 @@ def string_impl_builder(string_type):
 class StringType(MonoDynarrayType):
 
     def __init__(self, location):
-        MonoDynarrayType.__init__(self, location, TypeSingletons.U8.value)
+        from .type_singleton import TypeSingletons
+
+        MonoDynarrayType.__init__(self, location, TypeSingletons.U8)
         self.implementations = [string_impl_builder]
 
     # def get_reflection_attribute(self, location, name):
@@ -72,7 +76,7 @@ class StringType(MonoDynarrayType):
     #             value=bytearray('string', encoding='utf-8'),
     #         )
     #     if name == 'size':
-    #         return TypeSingletons.UINT.value
+    #         return TypeSingletons.UINT
 
     # def emit_reflection_lookup(self, location, module, builder, scope, name):
     #     if name == 'name':

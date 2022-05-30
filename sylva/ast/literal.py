@@ -7,5 +7,5 @@ class LiteralExpr(BaseExpr):
         BaseExpr.__init__(self, location=location, type=type)
         self.value = value
 
-    def emit(self, module, builder, scope):
+    def emit(self, obj, module, builder, scope, name):
         return self.type.llvm_type(self.value)

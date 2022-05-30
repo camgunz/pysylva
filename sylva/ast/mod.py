@@ -32,9 +32,12 @@ class ModDecl(Decl):
 class Mod(TypeDef, AttributeLookupMixIn):
 
     def __init__(self, name, program, streams, requirement_statements):
-        location = Location.Generate()
+        self.name = name
         TypeDef.__init__(
-            self, location, name=name, type=ModType(Location.Generate(), self)
+            self,
+            location=Location.Generate(),
+            name=name,
+            type=ModType(Location.Generate(), self)
         )
         AttributeLookupMixIn.__init__(self)
 

@@ -7,7 +7,7 @@ class BaseExpr(Node):
         Node.__init__(self, location)
         self.type = type
 
-    def emit(self, module, builder, scope):
+    def emit(self, obj, module, builder, scope, name):
         raise NotImplementedError()
 
 

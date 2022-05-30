@@ -12,7 +12,7 @@ class CallExpr(BaseExpr):
     # llvm_function: ir.Function | None = None
     # llvm_arguments: typing.List[ir.Value] | None = None
 
-    def emit(self, module, builder, scope):
+    def emit(self, obj, module, builder, scope, name):
         return builder.call(
             self.function.emit(module, builder, scope),
             [a.emit(module, builder, scope) for a in self.arguments],

@@ -16,7 +16,7 @@ from .sylva_type import SylvaParamType, SylvaType
 def dynarray_implementation_builder(dynarray_type):
     from .type_singleton import IfaceSingletons, TypeSingletons
 
-    str_eight = TypeSingletons.STR.value.get_or_create_monomorphization(
+    str_eight = TypeSingletons.STR.get_or_create_monomorphization(
         Location.Generate(), 8
     )
 
@@ -41,19 +41,20 @@ def dynarray_implementation_builder(dynarray_type):
         type=MonoFnType(
             location=Location.Generate(),
             parameters=[],
-            return_type=TypeSingletons.UINT.value
+            return_type=TypeSingletons.UINT
         ),
         code=[
             ReturnStmt(
                 location=Location.Generate(),
                 expr=AttributeLookupExpr(
                     location=Location.Generate(),
+                    type=TypeSingletons.UINT,
+                    name='length',
                     obj=LookupExpr(
                         location=Location.Generate(),
                         name='self',
                         type=dynarray_type
                     ),
-                    name='length'
                 )
             )
         ]
@@ -81,8 +82,8 @@ class MonoDynarrayType(SylvaType):
         SylvaType.__init__(self, location)
         self.element_type = element_type
         self.llvm_type = ir.LiteralStructType([ # yapf: disable
-            TypeSingletons.UINT.value.llvm_type,     # capacity
-            TypeSingletons.UINT.value.llvm_type,     # length
+            TypeSingletons.UINT.llvm_type,     # capacity
+            TypeSingletons.UINT.llvm_type,     # length
             self.element_type.llvm_type.as_pointer() # data
         ])
 

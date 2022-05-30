@@ -1,7 +1,6 @@
 from functools import cached_property
 
 from .expr import BaseExpr
-from .type_singleton import TypeSingletons
 from .sylva_type import SylvaType
 
 
@@ -15,5 +14,7 @@ class CVoidType(SylvaType):
 class CVoidExpr(BaseExpr):
 
     def __init__(self, location, expr):
-        BaseExpr.__init__(self, location, TypeSingletons.CVOID.value)
+        from .type_singleton import TypeSingletons
+
+        BaseExpr.__init__(self, location, TypeSingletons.CVOID)
         self.expr = expr

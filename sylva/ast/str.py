@@ -14,6 +14,7 @@ from .lookup import LookupExpr
 from .parameter import Parameter
 from .reflection_lookup import ReflectionLookupExpr
 from .statement import ReturnStmt
+from .sylva_type import SylvaType
 
 
 def str_implementation_builder(str_type):
@@ -27,7 +28,7 @@ def str_implementation_builder(str_type):
     if str_type.element_count == 3:
         str_three = str_type
     else:
-        str_three = TypeSingletons.STR.value.get_or_create_monomorphization(
+        str_three = TypeSingletons.STR.get_or_create_monomorphization(
             Location.Generate(), 3
         )
 
@@ -39,9 +40,7 @@ def str_implementation_builder(str_type):
 
     # pylint: disable=unused-argument
     def emit_count_param(obj, location, module, builder, scope):
-        return ir.Constant(
-            TypeSingletons.UINT.value.llvm_type, obj.element_count
-        )
+        return ir.Constant(TypeSingletons.UINT.llvm_type, obj.element_count)
 
     str_type.set_attribute(
         Attribute(
@@ -56,7 +55,7 @@ def str_implementation_builder(str_type):
         Attribute(
             location=Location.Generate(),
             name='count',
-            type=TypeSingletons.UINT.value,
+            type=TypeSingletons.UINT,
             func=emit_count_param
         )
     )
@@ -70,8 +69,7 @@ def str_implementation_builder(str_type):
                 Parameter(
                     location=Location.Generate(),
                     name='self',
-                    type=TypeSingletons.POINTER.value
-                    .get_or_create_monomorphization(
+                    type=TypeSingletons.POINTER.get_or_create_monomorphization(
                         Location.Generate(),
                         referenced_type=str_type,
                         is_reference=True,
@@ -79,23 +77,25 @@ def str_implementation_builder(str_type):
                     )
                 )
             ],
-            return_type=TypeSingletons.UINT.value
+            return_type=TypeSingletons.UINT
         ),
         code=[
             ReturnStmt(
                 location=Location.Generate(),
                 expr=AttributeLookupExpr(
                     location=Location.Generate(),
+                    type=TypeSingletons.UINT,
+                    name='element_count',
                     obj=ReflectionLookupExpr(
                         location=Location.Generate(),
+                        type=SylvaType,
+                        name='type',
                         obj=LookupExpr(
                             location=Location.Generate(),
+                            type=str_type,
                             name='self',
-                            type=str_type
                         ),
-                        name='type'
                     ),
-                    name='element_count'
                 )
             )
         ]
@@ -118,7 +118,7 @@ class MonoStrType(MonoArrayType):
         from .type_singleton import TypeSingletons
 
         MonoArrayType.__init__(
-            self, location, TypeSingletons.U8.value, element_count
+            self, location, TypeSingletons.U8, element_count
         )
 
     @cached_property
@@ -156,7 +156,7 @@ class StrLiteralExpr(LiteralExpr):
         LiteralExpr.__init__(
             self,
             location,
-            TypeSingletons.STR.value.get_or_create_monomorphization(
+            TypeSingletons.STR.get_or_create_monomorphization(
                 location, len(value)
             ),
             value

@@ -29,12 +29,12 @@ class AttributeLookupMixIn:
 
 class AttributeLookupExpr(BaseExpr):
 
-    def __init__(self, location, obj, name):
-        super().__init__(location, obj.type.get_attribute(name).type)
-        self.obj = obj
+    def __init__(self, location, type, name, obj):
+        super().__init__(location, type)
         self.name = name
+        self.obj = obj
 
-    def emit(self, module, builder, scope):
+    def emit(self, obj, module, builder, scope, name):
         result = self.obj.emit_attribute_lookup(
             module, builder, scope, self.name
         )
