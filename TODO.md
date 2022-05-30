@@ -2,6 +2,14 @@
 
 ## General
 
+- Pointer types need to pass Attribute/Reflection calls to their
+  `referenced_type`
+- Unclear what to do about ::type and ::bytes for interfaces
+  - I think it's fair that these are mostly not useful. ::type will give you
+    the interface and ::bytes will give you the bytes of the pointer.
+  - This means `String` needs something like a `to_bytes` function so `sys`
+    funcs using `String` can use it
+
 ## Sized types
 
 There's a conflict between "must specify the size of a(n) array/string value"

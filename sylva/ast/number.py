@@ -2,7 +2,6 @@ from functools import cached_property
 
 from llvmlite import ir
 
-from .. import utils
 from .literal import LiteralExpr
 from .sylva_type import SylvaType
 
@@ -71,6 +70,9 @@ class IntType(SizedNumericType):
     @cached_property
     def mname(self):
         return f'{"i" if self.signed else "u"}{self.bits}'
+
+    def __str__(self):
+        return f'<IntType {self.bits} {self.signed}>'
 
 
 class NumericLiteralExpr(LiteralExpr):

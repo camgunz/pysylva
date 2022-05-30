@@ -1,10 +1,11 @@
-from .base import Decl
+from .base import Node
 
 
-class Bind(Decl):
+class Bind(Node):
 
     def __init__(self, location, name, type):
-        Decl.__init__(self, location, name)
+        Node.__init__(self, location)
+        self.name = name
         self.type = type
 
     def emit(self, obj, module, builder, scope, name):

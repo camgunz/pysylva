@@ -141,7 +141,7 @@ class ModuleBuilder(lark.Visitor):
 
             if isinstance(func_expr, ast.AttributeLookupExpr):
                 ale = func_expr
-                while isinstance(ale.expr, ast.AttributeLookupExpr):
+                while isinstance(ale.obj, ast.AttributeLookupExpr):
                     ale = func_expr.expr
                 func_type = ale.type
             elif isinstance(func_expr, ast.AttributeLookupExpr):
@@ -242,7 +242,9 @@ class ModuleBuilder(lark.Visitor):
 
         if expr.data == 'string_expr':
             raw_value = expr.children[0].value
-            return ast.StrLiteralExpr(location, raw_value[1:-1])
+            return ast.StrLiteralExpr(
+                location, bytearray(raw_value[1:-1], encoding='utf-8')
+            )
 
         if expr.data == 'array_expr':
             pass
@@ -265,21 +267,15 @@ class ModuleBuilder(lark.Visitor):
                 attr = self._module.get_attribute(name)
                 if attr is None:
                     raise errors.UndefinedSymbol(location, name)
-                value = attr.emit(self._module, None, scope)
+                value = attr.emit(None, self._module, None, scope, None)
 
-            debug(
-                'lookup',
-                f'_handle_expr starting lookup on {name} {value.type}'
-            )
+            debug('lookup', f'_handle_expr starting lookup on {name} {value}')
             lookup_expr = ast.LookupExpr(
-                location=location, type=value.type, name=name
+                location=location, type=value, name=name
             )
 
             while expr.children:
-                debug(
-                    'lookup',
-                    f'_handle_expr looking up {name} on {value.type}'
-                )
+                debug('lookup', f'_handle_expr looking up {name} on {value}')
                 reflection = expr.children.pop(0).value == '::'
                 attribute_token = expr.children.pop(0)
                 location = Location.FromToken(attribute_token, self._stream)
@@ -300,9 +296,7 @@ class ModuleBuilder(lark.Visitor):
                         obj=lookup_expr,
                     )
                 else:
-                    value = value.get_reflection_attribute(
-                        attribute_token.value
-                    )
+                    value = value.get_attribute(attribute_token.value)
                     if value is None:
                         raise errors.NoSuchAttribute(
                             location, attribute_token.value
@@ -573,7 +567,7 @@ class ModuleBuilder(lark.Visitor):
             value=self._get_type(tree.children[1])
         )
         ad.define(self._module)
-        ad.emit(None, self._module, None, None, None)
+        # ad.emit(None, self._module, None, None, None)
 
     def const_def(self, tree):
         value = self._handle_expr(tree.children[1], {})
@@ -583,7 +577,7 @@ class ModuleBuilder(lark.Visitor):
             value=value,
         )
         cd.define(self._module)
-        cd.emit(None, self._module, None, None, None)
+        # cd.emit(None, self._module, None, None, None)
 
     def c_array_type_def(self, tree):
         debug('defer', 'Making array')
@@ -599,7 +593,7 @@ class ModuleBuilder(lark.Visitor):
             )
         )
         cad.define(self._module)
-        cad.emit(None, self._module, None, None, None)
+        # cad.emit(None, self._module, None, None, None)
 
     def c_function_type_def(self, tree):
         param_objs = tree.children[1].children[:-1]
@@ -629,7 +623,7 @@ class ModuleBuilder(lark.Visitor):
             )
         )
         cfd.define(self._module)
-        cfd.emit(None, self._module, None, None, None)
+        # cfd.emit(None, self._module, None, None, None)
 
     def c_struct_type_def(self, tree):
         debug('defer', 'Making struct')
@@ -660,7 +654,7 @@ class ModuleBuilder(lark.Visitor):
 
         csd = ast.CStructTypeDef(type)
         csd.define(self._module)
-        csd.emit(None, self._module, None, None, None)
+        # csd.emit(None, self._module, None, None, None)
 
     def c_union_type_def(self, tree):
         debug('defer', 'Making union')
@@ -689,7 +683,7 @@ class ModuleBuilder(lark.Visitor):
 
         cud = ast.CUnionTypeDef(type)
         cud.define(self._module)
-        cud.emit(None, self._module, None, None, None)
+        # cud.emit(None, self._module, None, None, None)
 
     def function_def(self, tree):
         function_type_def, code_block = tree.children
@@ -732,4 +726,4 @@ class ModuleBuilder(lark.Visitor):
             code=code
         )
         fd.define(self._module)
-        fd.emit(None, self._module, None, None, None)
+        # fd.emit(None, self._module, None, None, None)

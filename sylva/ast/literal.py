@@ -1,3 +1,5 @@
+from llvmlite import ir
+
 from .expr import BaseExpr
 
 
@@ -8,4 +10,4 @@ class LiteralExpr(BaseExpr):
         self.value = value
 
     def emit(self, obj, module, builder, scope, name):
-        return self.type.llvm_type(self.value)
+        return ir.Constant(self.type.llvm_type, self.value)
