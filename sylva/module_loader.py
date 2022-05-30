@@ -89,13 +89,12 @@ class ModuleLoader:
             stream = Stream(name=loc.stream_name, data=data + '\n')
             names_to_streams[md.name].append(stream)
 
-        return [
+        return [ # yapf: disable
             Mod(
-                program=program,
                 name=name,
+                program=program,
                 streams=streams,
                 requirement_statements=ModuleLoader
                 .gather_requirements_from_streams(streams)
-            ) for name,
-            streams in names_to_streams.items()
+            ) for name, streams in names_to_streams.items()
         ]

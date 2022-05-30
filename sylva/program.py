@@ -1,6 +1,6 @@
 import llvmlite # type: ignore
 
-from . import sylva, sylva_builtins
+from . import errors, sylva, sylva_builtins
 
 from .module_loader import ModuleLoader
 from .stdlib import Stdlib
@@ -50,21 +50,22 @@ class Program:
         return sylva.MAIN_MODULE_NAME in self.modules
 
     def parse(self):
-        errors = []
+        parse_errors = []
         for module in self.modules.values():
-            errors.extend(module.parse())
-        return errors
+            parse_errors.extend(module.parse())
+        return parse_errors
 
     def compile(self, output_folder):
-        errors = []
+        compile_errors = []
         for module in self.modules.values():
             parse_errors = module.parse()
             if parse_errors:
-                errors.extend(parse_errors)
+                compile_errors.extend(parse_errors)
             else:
-                llvm_module, compilation_errors = module.llvm_define()
-                if compilation_errors:
-                    errors.extend(compilation_errors)
+                try:
+                    llvm_module = module.emit(None, module, None, None, None)
+                except errors.SylvaError as se:
+                    compile_errors.append(se)
                 else:
                     llvm_mod_ref = (
                         llvmlite.binding.parse_assembly(str(llvm_module))

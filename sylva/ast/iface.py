@@ -1,6 +1,7 @@
 from functools import cached_property
 
 from .. import errors, utils
+from .defs import TypeDef
 from .fn import MonoFnType
 from .sylva_type import SylvaType
 from .value import Value
@@ -37,3 +38,10 @@ class IfaceType(SylvaType):
     @cached_property
     def mname(self):
         return ''.join(['if', ''.join(f.type.mname for f in self.functions)])
+
+
+class IfaceDef(TypeDef):
+
+    @cached_property
+    def mname(self):
+        return self.name

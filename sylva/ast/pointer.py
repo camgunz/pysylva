@@ -10,18 +10,18 @@ class MonoPointerType(SylvaType):
 
     def __init__(self, location, referenced_type, is_reference, is_exclusive):
         SylvaType.__init__(self, location)
-        self.llvm_type = ir.PointerType(referenced_type.llvm_type)
         self.referenced_type = referenced_type
         self.is_reference = is_reference
         self.is_exclusive = is_exclusive
+        self.llvm_type = ir.PointerType(referenced_type.llvm_type)
 
     def __eq__(self, other):
-        return all(
+        return all([
             SylvaType.__eq__(self, other) and
             self.referenced_type == other.referenced_type and
             self.is_reference == other.is_reference and
             self.is_exclusive == other.is_exclusive
-        )
+        ])
 
     def get_attribute(self, name):
         return self.referenced_type.get_attribute(name)

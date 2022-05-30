@@ -14,7 +14,7 @@ class RuneType(SylvaType):
 
     @cached_property
     def mname(self):
-        return '1r'
+        return 'rune'
 
 
 class RuneLiteralExpr(LiteralExpr):

@@ -2,8 +2,8 @@ from functools import cached_property
 
 from llvmlite import ir
 
+from .. import utils
 from ..location import Location
-from ..utils import mangle
 from .array import ArrayType, MonoArrayType
 from .attribute import Attribute
 from .attribute_lookup import AttributeLookupExpr
@@ -123,7 +123,7 @@ class MonoStrType(MonoArrayType):
 
     @cached_property
     def mname(self):
-        return mangle(['str', self.element_count])
+        return utils.mangle(['str', self.element_count])
 
 
 class StrType(ArrayType):

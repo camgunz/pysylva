@@ -86,4 +86,4 @@ class StringType(MonoDynarrayType):
 
     @cached_property
     def mname(self):
-        return '6string'
+        return 'string'

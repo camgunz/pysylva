@@ -64,7 +64,7 @@ class MonoArrayType(SylvaType):
     def mname(self):
         return ''.join([
             '1a',
-            self.element_type.mangle(),
+            self.element_type.mname,
             utils.len_prefix(str(self.element_count))
         ])
 

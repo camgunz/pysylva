@@ -310,3 +310,9 @@ class NoSuchField(LocationError):
 
     def __init__(self, location, field_name):
         super().__init__(location, f'No such field {field_name}')
+
+
+class UnsupportedPlatformIntegerSize(SylvaError):
+
+    def __init__(self, size):
+        super().__init__(f'Unsupported platform integer size {size}')

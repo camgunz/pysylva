@@ -1,9 +1,14 @@
-from . import ast
+from . import ast, sylva
 from .location import Location
 
 
 def get_module(program):
-    module = ast.Mod(program, '@builtin', [], [])
+    module = ast.Mod(
+        name=sylva.BUILTIN_MODULE_NAME,
+        program=program,
+        streams=[],
+        requirement_statements=[]
+    )
 
     ast.TypeDef(
         location=Location.Generate(), name='c16', type=ast.TypeSingletons.C16
@@ -34,9 +39,6 @@ def get_module(program):
         type=ast.TypeSingletons.F128
     ).define(module)
     ast.TypeDef(
-        location=Location.Generate(), name='int', type=ast.TypeSingletons.INT
-    ).define(module)
-    ast.TypeDef(
         location=Location.Generate(), name='i8', type=ast.TypeSingletons.I8
     ).define(module)
     ast.TypeDef(
@@ -53,10 +55,8 @@ def get_module(program):
         name='i128',
         type=ast.TypeSingletons.I128
     ).define(module)
-    ast.TypeDef(
-        location=Location.Generate(),
-        name='uint',
-        type=ast.TypeSingletons.UINT
+    ast.Alias(
+        location=Location.Generate(), name='int', value=ast.TypeSingletons.INT
     ).define(module)
     ast.TypeDef(
         location=Location.Generate(), name='u8', type=ast.TypeSingletons.U8
@@ -69,6 +69,11 @@ def get_module(program):
     ).define(module)
     ast.TypeDef(
         location=Location.Generate(), name='u64', type=ast.TypeSingletons.U64
+    ).define(module)
+    ast.Alias(
+        location=Location.Generate(),
+        name='uint',
+        value=ast.TypeSingletons.UINT
     ).define(module)
     ast.TypeDef(
         location=Location.Generate(),
@@ -138,12 +143,12 @@ def get_module(program):
     #     name='variant',
     #     type=ast.TypeSingletons.VARIANT
     # ).define(module)
-    ast.TypeDef(
+    ast.IfaceDef(
         location=Location.Generate(),
         name='Array',
         type=ast.IfaceSingletons.ARRAY.value
     ).define(module)
-    ast.TypeDef(
+    ast.IfaceDef(
         location=Location.Generate(),
         name='String',
         type=ast.IfaceSingletons.STRING.value

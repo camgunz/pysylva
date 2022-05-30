@@ -42,7 +42,7 @@ class MonoFnType(SylvaType):
         return ''.join([
             '2fn',
             ''.join(p.type.mname for p in self.parameters),
-            self.return_type.mname
+            self.return_type.mname if self.return_type else '1v'
         ])
 
 

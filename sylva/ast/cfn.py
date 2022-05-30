@@ -45,7 +45,7 @@ class BaseCFnType(SylvaType):
         return ''.join([
             '3cfn',
             ''.join(p.type.mname for p in self.parameters),
-            self.return_type.mname
+            self.return_type.mname if self.return_type else '1v'
         ])
 
 
@@ -64,7 +64,7 @@ class CFnPointerType(BaseCFnType):
         return ''.join([
             '4cfnp',
             ''.join(p.type.mname for p in self.parameters),
-            self.return_type.mname
+            self.return_type.mname if self.return_type else '1v'
         ])
 
 
@@ -75,7 +75,7 @@ class CBlockFnType(BaseCFnType):
         return ''.join([
             '4cbfn',
             ''.join(p.type.mname for p in self.parameters),
-            self.return_type.mname
+            self.return_type.mname if self.return_type else '1v'
         ])
 
 
@@ -90,11 +90,15 @@ class CBlockFnPointerType(BaseCFnType):
         return ''.join([
             '5cbfnp',
             ''.join(p.type.mname for p in self.parameters),
-            self.return_type.mname
+            self.return_type.mname if self.return_type else '1v'
         ])
 
 
 class CFn(TypeDef):
+
+    @cached_property
+    def mname(self):
+        return self.name
 
     def emit(self, obj, module, builder, scope, name):
         llvm_module = module.type.llvm_type

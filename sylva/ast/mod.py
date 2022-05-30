@@ -1,6 +1,6 @@
 from llvmlite import ir
 
-from .. import errors
+from .. import errors, sylva
 from ..location import Location
 from ..module_builder import ModuleBuilder
 from ..parser import Parser
@@ -99,18 +99,20 @@ class Mod(TypeDef, AttributeLookupMixIn):
             )
 
         attribute = self.vars.get(name)
-        if attribute is None:
-            return None
+        if attribute is not None:
+            return Attribute(
+                location=attribute.location,
+                name=name,
+                type=(
+                    SylvaType
+                    if isinstance(attribute, SylvaType) else attribute.type
+                ),
+                func=lambda *args: attribute
+            )
 
-        return Attribute(
-            location=attribute.location,
-            name=name,
-            type=(
-                SylvaType
-                if isinstance(attribute, SylvaType) else attribute.type
-            ),
-            func=lambda *args: attribute
-        )
+        if self.name != sylva.BUILTIN_MODULE_NAME:
+            builtin_module = self.program.get_module(sylva.BUILTIN_MODULE_NAME)
+            return builtin_module.get_attribute(name)
 
     def emit_attribute_lookup(self, module, builder, scope, name):
         aliased_value = self.aliases.get(name)

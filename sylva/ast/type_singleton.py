@@ -2,7 +2,7 @@ import enum
 
 from functools import cache
 
-from .. import _SIZE_SIZE
+from .. import _SIZE_SIZE, errors
 from ..location import Location
 from .attribute import Attribute
 from .array import ArrayType
@@ -10,6 +10,7 @@ from .bool import BoolType
 from .carray import CArrayType
 from .cptr import CPtrType
 from .cstr import CStrType
+from .cvoid import CVoidType
 from .cunion import CUnionType
 from .dynarray import DynarrayType
 from .iface import IfaceType
@@ -51,11 +52,6 @@ class TypeSingletonsBuilder:
         if name == 'F128':
             return FloatType(location=Location.Generate(), bits=128)
 
-        if name == 'INT':
-            return IntType(
-                location=Location.Generate(), bits=_SIZE_SIZE, signed=True
-            )
-
         if name == 'I8':
             return IntType(location=Location.Generate(), bits=8, signed=True)
 
@@ -71,10 +67,19 @@ class TypeSingletonsBuilder:
         if name == 'I128':
             return IntType(location=Location.Generate(), bits=128, signed=True)
 
-        if name == 'UINT':
-            return IntType(
-                location=Location.Generate(), bits=_SIZE_SIZE, signed=False
-            )
+        if name == 'INT':
+            if _SIZE_SIZE == 8:
+                return self.I8
+            if _SIZE_SIZE == 16:
+                return self.I16
+            if _SIZE_SIZE == 32:
+                return self.I32
+            if _SIZE_SIZE == 64:
+                return self.I64
+            if _SIZE_SIZE == 128:
+                return self.I128
+
+            raise errors.UnsupportedPlatformIntegerSize(_SIZE_SIZE)
 
         if name == 'U8':
             return IntType(location=Location.Generate(), bits=8, signed=False)
@@ -93,6 +98,20 @@ class TypeSingletonsBuilder:
                 location=Location.Generate(), bits=128, signed=False
             )
 
+        if name == 'UINT':
+            if _SIZE_SIZE == 8:
+                return self.U8
+            if _SIZE_SIZE == 16:
+                return self.U16
+            if _SIZE_SIZE == 32:
+                return self.U32
+            if _SIZE_SIZE == 64:
+                return self.U64
+            if _SIZE_SIZE == 128:
+                return self.U128
+
+            raise errors.UnsupportedPlatformIntegerSize(_SIZE_SIZE)
+
         if name == 'BOOL':
             return BoolType(location=Location.Generate())
 
@@ -109,13 +128,13 @@ class TypeSingletonsBuilder:
             return CStrType(location=Location.Generate())
 
         if name == 'CVOID':
-            return IntType(location=Location.Generate(), bits=8, signed=True)
+            return CVoidType(location=Location.Generate())
 
         if name == 'CARRAY':
             return CArrayType(location=Location.Generate())
 
-        if name == 'CUNION':
-            return CUnionType(location=Location.Generate())
+        # if name == 'CUNION':
+        #     return CUnionType(location=Location.Generate())
 
         if name == 'ARRAY':
             return ArrayType(location=Location.Generate())

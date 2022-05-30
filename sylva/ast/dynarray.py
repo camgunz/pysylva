@@ -116,7 +116,7 @@ class MonoDynarrayType(SylvaType):
 
     @cached_property
     def mname(self):
-        return ''.join(['2da', self.element_type.mangle()])
+        return ''.join(['2da', self.element_type.mname])
 
 
 class DynarrayType(SylvaParamType):

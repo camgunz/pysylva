@@ -36,7 +36,7 @@ class ComplexType(SizedNumericType):
 
     @cached_property
     def mname(self):
-        return utils.mangle(['c', self.bits])
+        return f'c{self.bits}'
 
 
 class FloatType(SizedNumericType):
@@ -58,7 +58,7 @@ class FloatType(SizedNumericType):
 
     @cached_property
     def mname(self):
-        return utils.mangle(['f', self.bits])
+        return f'f{self.bits}'
 
 
 class IntType(SizedNumericType):
@@ -70,7 +70,7 @@ class IntType(SizedNumericType):
 
     @cached_property
     def mname(self):
-        return utils.mangle(['i' if self.signed else 'u', self.bits])
+        return f'{"i" if self.signed else "u"}{self.bits}'
 
 
 class NumericLiteralExpr(LiteralExpr):

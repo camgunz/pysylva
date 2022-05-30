@@ -1,5 +1,7 @@
 from functools import cached_property
 
+from llvmlite import ir
+
 from .. import errors, utils
 from .sylva_type import SylvaParamType, SylvaType
 from .value import Value
@@ -7,11 +9,28 @@ from .value import Value
 
 class BaseStructType(SylvaType):
 
-    def __init__(self, location, fields):
+    def __init__(self, location, name, module):
+        SylvaType.__init__(self, location)
+
+        if name:
+            llvm_module = module.type.llvm_type
+            self.llvm_type = llvm_module.context.get_identified_type(name)
+
+        self.name = name
+        self.fields = []
+
+    def set_fields(self, fields):
         dupes = utils.get_dupes(f.name for f in fields)
         if dupes:
             raise errors.DuplicateFields(self, dupes)
-        SylvaType.__init__(self, location)
+
+        llvm_fields = [f.type.llvm_type for f in fields]
+
+        if self.name:
+            self.llvm_type.set_body(*llvm_fields)
+        else:
+            self.llvm_type = ir.LiteralStructType(llvm_fields)
+
         self.fields = fields
 
     # self._size = 0

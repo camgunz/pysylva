@@ -11,6 +11,7 @@ class Alias(NamedValue):
         module,
         name,
         target,
+        type,
         linkage='external',
         storage_class='default',
         visibility='default',
@@ -19,7 +20,7 @@ class Alias(NamedValue):
         unnamed_addr='default',
         partition=None
     ):
-        super().__init__(parent=module, type=target.type, name=name)
+        super().__init__(parent=module, type=type, name=name)
         self.target = target
         self.linkage = linkage
         self.storage_class = storage_class

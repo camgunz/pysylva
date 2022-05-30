@@ -14,7 +14,7 @@ class CStrType(SylvaType):
 
     @cached_property
     def mname(self):
-        return '4cstr'
+        return 'cstr'
 
 
 class CStrLiteralExpr(LiteralExpr):

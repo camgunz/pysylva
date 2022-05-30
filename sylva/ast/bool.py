@@ -14,7 +14,7 @@ class BoolType(SylvaType):
 
     @cached_property
     def mname(self):
-        return '1b'
+        return 'bool'
 
 
 class BoolLiteralExpr(LiteralExpr):

@@ -322,14 +322,13 @@ class ModuleBuilder(lark.Visitor):
         if stmt.data == 'let_stmt':
             name = stmt.children[0].value
             name_location = Location.FromToken(stmt.children[0], self._stream)
-            expr = self._handle_expr(stmt.children[1], scope)
 
-            existing_value = self._lookup(
-                name_location, name, scope=scope, raise_exception=False
-            )
+            existing_value = self._lookup(name, scope=scope)
             if existing_value is not None:
                 location = existing_value.location
                 raise errors.DuplicateDefinition(name, name_location, location)
+
+            expr = self._handle_expr(stmt.children[1], scope)
 
             scope[name] = expr
             return ast.LetStmt(location, name, expr)
@@ -348,14 +347,7 @@ class ModuleBuilder(lark.Visitor):
 
         return code
 
-    def _lookup(
-        self,
-        location,
-        name,
-        scope=None,
-        deferrable=False,
-        raise_exception=True
-    ):
+    def _lookup(self, name, scope=None):
         # [NOTE] Maybe it's a good idea to have an `UndefinedSymbol` ASTNode?
         #        Or, this could be a general semantic error reporting strategy
         #        where we use the tree to hold errors and report them as we
@@ -367,32 +359,44 @@ class ModuleBuilder(lark.Visitor):
                 debug('lookup', f'_lookup returning local {value}')
                 return value
 
-        attr = self._module.get_attribute(name)
-        if attr is None:
-            if deferrable:
-                debug('defer_type', f'DTL: {name}')
-                return ast.DeferredTypeLookup(location, name)
-            if raise_exception:
-                raise errors.UndefinedSymbol(location, name)
-        else:
-            debug('lookup', f'_lookup returning {attr}')
-            return attr
+        return self._module.get_attribute(name)
 
-    def _get_type(self, type_obj, scope=None, deferrable=False):
+    def _get_type(
+        self, type_obj, scope=None, accept_missing=False, outer_types=None
+    ):
         if isinstance(type_obj, lark.lexer.Token):
-            loc = Location.FromToken(type_obj, self._stream)
-            return self._lookup(
-                loc, type_obj.value, scope=scope, deferrable=deferrable
-            )
+            location = Location.FromToken(type_obj, self._stream)
+            type = self._lookup(type_obj.value, scope=scope)
+
+            if type is not None:
+                return type.type
+
+            if not accept_missing:
+                raise errors.UndefinedSymbol(location, type_obj.value)
+
+            return type
 
         location = Location.FromTree(type_obj, self._stream)
+
+        if type_obj.data == 'identifier':
+            name = type_obj.children[0]
+            type = self._lookup(name, scope=scope)
+
+            if type is not None:
+                return type.type
+
+            if not accept_missing:
+                raise errors.UndefinedSymbol(location, name)
+
+            return type
 
         if type_obj.data == 'c_array_type_expr':
             element_count = int(type_obj.children[0].children[1])
             return ast.TypeSingletons.ARRAY.get_or_create_monomorphization(
                 location=location,
                 element_type=self._get_type(
-                    type_obj.children[0].children[0], deferrable=deferrable
+                    type_obj.children[0].children[0],
+                    accept_missing=accept_missing
                 ),
                 element_count=element_count
             )
@@ -416,7 +420,7 @@ class ModuleBuilder(lark.Visitor):
                         location=Location.FromToken(name_token, self._stream),
                         name=name_token.value,
                         type=self._get_type(
-                            param_type_obj, deferrable=deferrable
+                            param_type_obj, accept_missing=accept_missing
                         ),
                     )
                 )
@@ -424,7 +428,7 @@ class ModuleBuilder(lark.Visitor):
             if type_obj.children[0].children[-1] is not None:
                 return_type = self._get_type(
                     type_obj.children[0].children[-1].children[0],
-                    deferrable=deferrable
+                    accept_missing=accept_missing
                 )
             else:
                 return_type = None
@@ -449,17 +453,25 @@ class ModuleBuilder(lark.Visitor):
                 len(type_obj.children) >= 3 and type_obj.children[2] == '!'
             )
 
+            referenced_type_name = type_obj.children[0]
+
+            referenced_type = None
+
+            if outer_types:
+                referenced_type = outer_types.get(referenced_type_name)
+
+            if referenced_type is None:
+                referenced_type = self._get_type(type_obj.children[0])
+
             return ast.TypeSingletons.CPTR.get_or_create_monomorphization(
                 location=location,
-                referenced_type=self._get_type(
-                    type_obj.children[0], deferrable=deferrable
-                ),
+                referenced_type=referenced_type,
                 is_exclusive=is_exclusive,
                 referenced_type_is_exclusive=referenced_type_is_exclusive
             )
 
         if type_obj.data == 'c_void_type_expr':
-            return self._lookup(location, 'cvoid', deferrable=deferrable)
+            return ast.TypeSingletons.CVOID
 
         if type_obj.data == 'function_type_expr':
             parameters = []
@@ -470,14 +482,14 @@ class ModuleBuilder(lark.Visitor):
                         location=Location.FromToken(name_token, self._stream),
                         name=name_token.value,
                         type=self._get_type(
-                            param_type_obj, deferrable=deferrable
+                            param_type_obj, accept_missing=accept_missing
                         ),
                     )
                 )
 
             if type_obj.children[-1] is not None:
                 return_type = self._get_type(
-                    type_obj.children[-1], deferrable=deferrable
+                    type_obj.children[-1], accept_missing=accept_missing
                 )
             else:
                 return_type = None
@@ -493,10 +505,6 @@ class ModuleBuilder(lark.Visitor):
                 ]
             )
 
-        if type_obj.data == 'identifier':
-            name = type_obj.children[0]
-            return self._lookup(location, name, deferrable=deferrable)
-
         if type_obj.data == 'c_function_type_expr':
             parameters = []
             for param_obj in type_obj.children[:-1]:
@@ -506,14 +514,14 @@ class ModuleBuilder(lark.Visitor):
                         location=Location.FromToken(name_token, self._stream),
                         name=name_token.value,
                         type=self._get_type(
-                            param_type_obj, deferrable=deferrable
+                            param_type_obj, accept_missing=accept_missing
                         ),
                     )
                 )
 
             if type_obj.children[-1] is not None:
                 return_type = self._get_type(
-                    type_obj.children[-1], deferrable=deferrable
+                    type_obj.children[-1], accept_missing=accept_missing
                 )
             else:
                 return_type = None
@@ -528,7 +536,7 @@ class ModuleBuilder(lark.Visitor):
             return ast.TypeSingletons.POINTER.get_or_create_monomorphization(
                 location=location,
                 referenced_type=self._get_type(
-                    type_obj.children[0], deferrable=deferrable
+                    type_obj.children[0], accept_missing=accept_missing
                 ),
                 is_reference=False,
                 is_exclusive=True
@@ -538,7 +546,7 @@ class ModuleBuilder(lark.Visitor):
             return ast.TypeSingletons.POINTER.get_or_create_monomorphization(
                 location=location,
                 referenced_type=self._get_type(
-                    type_obj.children[0], deferrable=deferrable
+                    type_obj.children[0], accept_missing=accept_missing
                 ),
                 is_reference=True,
                 is_exclusive=False
@@ -548,7 +556,7 @@ class ModuleBuilder(lark.Visitor):
             return ast.TypeSingletons.POINTER.get_or_create_monomorphization(
                 location=location,
                 referenced_type=self._get_type(
-                    type_obj.children[0], deferrable=deferrable
+                    type_obj.children[0], accept_missing=accept_missing
                 ),
                 is_reference=True,
                 is_exclusive=True
@@ -585,7 +593,7 @@ class ModuleBuilder(lark.Visitor):
             type=ast.TypeSingletons.CARRAY.get_or_create_monomorphization(
                 location=Location.FromTree(tree, self._stream),
                 element_type=self._get_type(
-                    tree.children[1].children[0], deferrable=True
+                    tree.children[1].children[0], accept_missing=False
                 ),
                 element_count=int(tree.children[1].children[2])
             )
@@ -624,53 +632,62 @@ class ModuleBuilder(lark.Visitor):
         cfd.emit(None, self._module, None, None, None)
 
     def c_struct_type_def(self, tree):
-        fields = []
         debug('defer', 'Making struct')
+        name = tree.children[0].value
+        type = ast.CStructType(
+            location=Location.FromTree(tree, self._stream),
+            name=name,
+            module=self._module
+        )
+
+        # [TODO] Check that this isn't already defined
+        outer_types = {name: type}
+        fields = []
         for i, field_obj in enumerate(tree.children[1:]):
             name_token, field_type_obj = field_obj.children
             fields.append(
                 ast.Field(
                     location=Location.FromToken(name_token, self._stream),
                     name=name_token.value,
-                    type=self._get_type(field_type_obj, deferrable=True),
+                    type=self._get_type(
+                        field_type_obj, outer_types=outer_types
+                    ),
                     index=i,
                 )
             )
 
-        csd = ast.TypeDef(
-            location=Location.FromTree(tree, self._stream),
-            name=tree.children[0].value,
-            type=ast.CStructType(
-                location=Location.FromTree(tree, self._stream), fields=fields
-            )
-        )
+        type.set_fields(fields)
+
+        csd = ast.CStructTypeDef(type)
         csd.define(self._module)
         csd.emit(None, self._module, None, None, None)
 
     def c_union_type_def(self, tree):
-        fields = []
         debug('defer', 'Making union')
+        name = tree.children[0].value
+        type = ast.CUnionType(
+            location=Location.FromTree(tree, self._stream),
+            name=tree.children[0].value,
+            module=self._module
+        )
 
+        # [TODO] Check that this isn't already defined
+        outer_types = {name: type}
+        fields = []
         for i, field_obj in enumerate(tree.children[1:]):
             name_token, field_type_obj = field_obj.children
             fields.append(
                 ast.Field(
                     location=Location.FromToken(name_token, self._stream),
                     name=name_token.value,
-                    type=self._get_type(field_type_obj, deferrable=True),
+                    type=self._get_type(
+                        field_type_obj, outer_types=outer_types
+                    ),
                     index=i
                 )
             )
 
-        location = Location.FromTree(tree, self._stream)
-
-        cud = ast.TypeDef(
-            location=location,
-            name=tree.children[0].value,
-            type=ast.TypeSingletons.CUNION.get_or_create_monomorphization(
-                location=location, fields=fields
-            )
-        )
+        cud = ast.CUnionTypeDef(type)
         cud.define(self._module)
         cud.emit(None, self._module, None, None, None)
 
