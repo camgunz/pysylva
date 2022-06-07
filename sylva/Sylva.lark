@@ -6,6 +6,10 @@
 %ignore COMMENT
 %ignore BS
 
+TYPE_PARAM_VARIABLE: "@" VALUE
+PTR_VALUE: "*" VALUE
+REF_VALUE: "&" VALUE
+EXREF_VALUE: "&" VALUE "!"
 INTEGER: /((0[Xx][a-fA-F0-9][a-fA-F0-9_]*)|([0-9][0-9_]*)|(0[Oo][0-7][0-7_]*)|(0[Bb][01]01_]*))(u8|u16|u32|u64|u128|u|i8|i16|i32|i64|i128)?/
 FLOAT: _FLOAT /("f16"|"f32"|"f64"|"f128")/
 COMPLEX: _FLOAT /("c16"|"c32"|"c64"|"c128")/
@@ -65,12 +69,11 @@ FALSE:                    "false"
 
 ?value: VALUE
 
-?value_list: value | value ("," value)+ [","] | value ","
-
 _identifier: VALUE ((DOT | COLON_COLON) VALUE)*
 
 ?param: value
-     | "*" value     -> moveparam
+     | "@" value     -> typevarparam
+     | "*" value     -> ptrparam
      | "&" value     -> refparam
      | "&" value "!" -> exrefparam
 
@@ -128,10 +131,9 @@ range_type_def: "range" VALUE range_type_expr
 
 struct_type_expr: "{" _type_param_pair_list? "}"
 
-struct_type_def: "struct" VALUE ["(" value_list ")"] struct_type_expr
+struct_type_def: "struct" VALUE struct_type_expr
 
-variant_type_def: \
-  "variant" VALUE ["(" value_list ")"] "{" _type_param_pair_list "}"
+variant_type_def: "variant" VALUE "{" _type_param_pair_list "}"
 
 _type_expr: STAR? array_type_expr
           | AMP array_type_expr BANG?

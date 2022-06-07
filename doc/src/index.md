@@ -92,11 +92,11 @@ whatever purpose they choose.
 Sylva is small (but not too small). The language fits in your head, and its
 mental models are consistent and broadly applicable.
 
-Sylva should be familiar to most programmers.  Where possible, it defers to
-what the programmer is likely to know.
+Sylva is readable. We pay careful attention to how the syntax and organization
+scan, as well as to how constructs draw focus and concepts shape thought.
 
-Lastly, Sylva is readable. We pay careful attention to how the syntax and
-organization scan, as well as to how constructs draw focus and shape thought.
+Lastly, Sylva should be familiar to most programmers.  Where possible, it
+defers to what the programmer is likely to know.
 
 These values are in order. If something would be faster but isn't safe, Sylva
 prioritizes safety. If something would be more readable but is inconsistent,

@@ -15,16 +15,11 @@ class MonoPointerType(SylvaType):
         self.is_exclusive = is_exclusive
         self.llvm_type = ir.PointerType(referenced_type.llvm_type)
 
-    def __eq__(self, other):
-        return all([
-            SylvaType.__eq__(self, other) and
-            self.referenced_type == other.referenced_type and
-            self.is_reference == other.is_reference and
-            self.is_exclusive == other.is_exclusive
-        ])
+    # def get_attribute(self, name):
+    #     return self.referenced_type.get_attribute(name)
 
-    def get_attribute(self, name):
-        return self.referenced_type.get_attribute(name)
+    # def get_reflection_attribute(self, name):
+    #     return self.referenced_type.get_reflection_attribute(name)
 
     @cached_property
     def mname(self):
@@ -36,31 +31,34 @@ class MonoPointerType(SylvaType):
             pointer_type = 'r'
         return ''.join([f'2p{pointer_type}', self.referenced_type.mname])
 
+    def __eq__(self, other):
+        return SylvaType.__eq__(self, other) and self.params_equal(
+            other.referenced_type, other.is_reference, other.is_exclusive
+        )
+
+    def params_equal(self, referenced_type, is_reference, is_exclusive):
+        return (
+            self.referenced_type == referenced_type and
+            self.is_reference == is_reference and
+            self.is_exclusive == is_exclusive
+        )
+
 
 class PointerType(SylvaParamType):
 
-    def get_or_create_monomorphization(
+    # pylint: disable=arguments-differ
+    def add_monomorphization(
         self, location, referenced_type, is_reference, is_exclusive
     ):
-        for mm in self.monomorphizations:
-            if mm.referenced_type != referenced_type:
-                continue
-            if mm.is_reference != is_reference:
-                continue
-            if mm.is_exclusive != is_exclusive:
-                continue
-            return mm
-
-        mm = MonoPointerType(
-            location=location,
-            referenced_type=referenced_type,
-            is_reference=is_reference,
-            is_exclusive=is_exclusive
+        return SylvaParamType.add_monomorphization(
+            self,
+            MonoPointerType(
+                location=location,
+                referenced_type=referenced_type,
+                is_reference=is_reference,
+                is_exclusive=is_exclusive
+            )
         )
-
-        self.add_monomorphization(mm)
-
-        return mm
 
 
 class PointerExpr(BaseExpr):

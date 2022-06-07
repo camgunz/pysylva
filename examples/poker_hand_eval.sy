@@ -111,7 +111,7 @@ array Deck [*Card * DeckSize.count]
 array Hand [&Card * 5]
 
 # Generics
-alias DealResult: Result(&Card, str)
+alias DealResult: Result(&Card)
 
 fn rank_value_comparer(value1: Value, value2: Value): bool
 
@@ -218,7 +218,7 @@ impl Deck {
         return DealResult.OK(*card)
       }
       default {
-        return DealResult.Fail("No more cards")
+        return DealResult.Fail(*"No more cards")
       }
     }
   }

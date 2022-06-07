@@ -6,29 +6,24 @@ failures. Sylva does this using variants, specifically a `Result` variant, very
 similar to Rust:
 
 ```sylva
-variant Result(ok_type) {
-  OK: ok_type,
-  Fail: Stringable,
+variant Result {
+  OK: @ok_type,
+  Fail: String,
 }
 
-fn on_failure(ok_type) (
-  r: Result(ok_type),
-  handler: fntype(s: Stringable)
-): Result(ok_type, failed_type) {
+fn on_fail(r: Result(@ok), handler: fntype(msg: String)): Result(@ok) {
   match (r) {
-    case (stringable: Fail) { handler(stringable) }
+    case (msg: Fail) { handler(msg) }
     default {}
   }
 
   return r
 }
 
-fn ok_or_die(ok_type) (
-  r: Result(ok_type)
-): ok_type {
+fn ok_or_die (r: Result(@ok)): @ok {
   match (r) {
-    case (value: OK) { return success }
-    case (stringable: Fail) { sys.die(stringable.to_string()) }
+    case (value: OK) { return value }
+    case (msg: Fail) { sys.die(msg) }
   }
 }
 ```
@@ -86,13 +81,9 @@ req sys
 range Age 0u8..250u8
 
 fn increment(age: Age): Age {
-  match (r: age + Age(1u8)) {
-    case (new_age: OK) {
-      return new_age
-    }
-    case (failure: Fail) {
-      sys.die("Out of range")
-    }
+  match (age + Age(1u8)) {
+    case (new_age: OK) { return new_age }
+    case (failure: Fail) { sys.die("Out of range") }
   }
 }
 

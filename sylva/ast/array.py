@@ -71,38 +71,59 @@ class MonoArrayType(SylvaType):
     def __eq__(self, other):
         return (
             SylvaType.__eq__(self, other) and
-            other.element_type == self.element_type and
-            other.element_count == self.element_count
+            self.equals_params(other.element_type, other.element_count)
         )
+
+    # pylint: disable=arguments-differ
+    def equals_params(self, element_type, element_count):
+        return (
+            self.element_type == element_type and
+            self.element_count == element_count
+        )
+
+    def equals_binds(self, binds):
+        return self.equals_params(binds[0].value, binds[1].value)
 
 
 class ArrayType(SylvaParamType):
 
-    def __init__(self, location, implementation_builders=None):
+    def __init__(self, location):
         SylvaParamType.__init__(
             self,
             location,
-            implementation_builders=implementation_builders or
-            [array_implementation_builder]
+            [
+                self.BIND_CLASS(Location.Generate(), 'element_type'),
+                self.BIND_CLASS(Location.Generate(), 'element_count'),
+            ]
+        )
+        self.implementation_builders.append(array_implementation_builder)
+
+    def _build_monomorphization(self, location, binds, bind_types):
+        return MonoArrayType(
+            location=location,
+            element_type=binds[0].value,
+            element_count=binds[1].value
         )
 
-    def get_or_create_monomorphization(
-        self, location, element_type, element_count
-    ):
-        for mm in self.monomorphizations:
-            if mm.element_type != element_type:
-                continue
-            if mm.element_count != element_count:
-                continue
-            return mm
-
-        mm = MonoArrayType(
-            location, element_type=element_type, element_count=element_count
+    def _bind_type_parameters(self, location, exprs):
+        from .type_singleton import get_unsigned_int_types
+        # We expect exprs to be 2 LiteralExprs whose values are a SylvaType
+        # subclass instance and an integer
+        binds, bind_types = SylvaParamType._bind_type_parameters(
+            self, location, exprs
         )
+        if not bind_types['element_type'] == SylvaType:
+            raise errors.InvalidParameterization(
+                exprs[0].location,
+                'Type mismatch (expected a value of type "type")'
+            )
+        if not bind_types['element_count'] in get_unsigned_int_types():
+            raise errors.InvalidParameterization(
+                exprs[1].location,
+                'Type mismatch (expected value of unsigned integer type)'
+            )
 
-        self.add_monomorphization(mm)
-
-        return mm
+        return binds, bind_types
 
     # def get_reflection_attribute(self, location, name):
     #     if name == 'type':

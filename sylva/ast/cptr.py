@@ -2,6 +2,7 @@ from functools import cached_property
 
 from .expr import BaseExpr
 from .pointer import MonoPointerType, PointerType
+from .sylva_type import SylvaParamType, SylvaType
 
 
 class MonoCPtrType(MonoPointerType):
@@ -28,36 +29,42 @@ class MonoCPtrType(MonoPointerType):
         ref_ex = 'x' if self.referenced_type_is_exclusive else 's'
         return ''.join([f'4cp{ex}{ref_ex}', self.referenced_type.mname])
 
+    def __eq__(self, other):
+        return SylvaType.__eq__(self, other) and self.params_equal(
+            other.referenced_type,
+            other.is_exclusive,
+            other.referenced_type_is_exclusive
+        )
+
+    # pylint: disable=arguments-differ,arguments-renamed
+    def params_equal(
+        self, referenced_type, is_exclusive, referenced_type_is_exclusive
+    ):
+        return (
+            self.referenced_type == referenced_type and
+            self.is_exclusive == is_exclusive and
+            self.referenced_type_is_exclusive == referenced_type_is_exclusive
+        )
+
 
 class CPtrType(PointerType):
 
     # pylint: disable=arguments-differ,arguments-renamed
-    def get_or_create_monomorphization(
+    def add_monomorphization(
         self,
         location,
         referenced_type,
         is_exclusive,
         referenced_type_is_exclusive
     ):
-        for mm in self.monomorphizations:
-            if mm.referenced_type != referenced_type:
-                continue
-            if mm.is_exclusive != is_exclusive:
-                continue
-            if mm.referenced_type_is_exclusive:
-                continue
-            return mm
-
-        mm = MonoCPtrType(
-            location,
-            referenced_type,
-            is_exclusive,
-            referenced_type_is_exclusive
+        return SylvaParamType.add_monomorphization(
+            MonoCPtrType(
+                location,
+                referenced_type,
+                is_exclusive,
+                referenced_type_is_exclusive
+            )
         )
-
-        self.add_monomorphization(mm)
-
-        return mm
 
 
 class CPtrExpr(BaseExpr):

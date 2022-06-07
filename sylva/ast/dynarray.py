@@ -2,6 +2,7 @@ from functools import cached_property
 
 from llvmlite import ir
 
+from .. import errors
 from ..location import Location
 from .attribute import Attribute
 from .attribute_lookup import AttributeLookupExpr
@@ -118,28 +119,43 @@ class MonoDynarrayType(SylvaType):
     def mname(self):
         return ''.join(['2da', self.element_type.mname])
 
+    def __eq__(self, other):
+        return (
+            SylvaType.__eq__(self, other) and
+            self.equals_params(other.element_type)
+        )
+
+    # pylint: disable=arguments-differ
+    def equals_params(self, element_type):
+        return self.element_type == element_type
+
+    def equals_binds(self, binds):
+        return self.equals_params(binds[0].value)
+
 
 class DynarrayType(SylvaParamType):
 
-    def __init__(self, location, implementation_builders=None):
+    def __init__(self, location):
         SylvaParamType.__init__(
             self,
-            location,
-            implementation_builders=implementation_builders or
-            [dynarray_implementation_builder]
+            location, [self.BIND_CLASS(Location.Generate(), 'element_type')]
         )
+        self.add_implementation_builder(dynarray_implementation_builder)
 
-    def get_or_create_monomorphization(self, location, element_type):
-        for mm in self.monomorphizations:
-            if mm.element_type != element_type:
-                continue
-            return mm
+    def _build_monomorphization(self, location, binds, bind_types):
+        return MonoDynarrayType(location, element_type=binds[0].value)
 
-        mm = MonoDynarrayType(location, element_type=element_type)
+    def _bind_type_parameters(self, location, exprs):
+        binds, bind_types = SylvaParamType._bind_type_parameters(
+            self, location, exprs
+        )
+        if not bind_types['element_type'] == SylvaType:
+            raise errors.InvalidParameterization(
+                exprs[0].location,
+                'Type mismatch (expected a value of type "type")'
+            )
 
-        self.add_monomorphization(mm)
-
-        return mm
+        return binds, bind_types
 
 
 # [FIXME] This involves heap allocation

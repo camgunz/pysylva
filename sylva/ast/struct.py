@@ -65,25 +65,45 @@ class MonoStructType(BaseStructType):
     def __eq__(self, other):
         return (
             SylvaType.__eq__(self, other) and
-            len(self.fields) == len(other.fields) and
-            all(f.type == of.type for f, of in zip(self.fields, other.fields))
+            self.equals_params(other.name, other.fields)
+        )
+
+    # pylint: disable=arguments-differ
+    def equals_params(self, name, fields):
+        return ( # yapf: disable
+            self.name == name and
+            len(self.fields) == len(fields) and
+            all(
+                f.name == of.name and f.type == of.type
+                for f, of in zip(self.fields, fields)
+            )
         )
 
 
 class StructType(SylvaParamType):
 
-    def get_or_create_monomorphization(self, location, fields):
-        for mm in self.monomorphizations:
-            if (len(fields) == len(mm.fields) and all(
-                    f.type == mmf.type for f, mmf in zip(fields, mm.fields))):
-                return mm
-            return mm
+    def __init__(self, location, fields):
+        SylvaParamType.__init__(self, location)
+        self.fields = fields
 
-        mm = MonoStructType(location, fields)
+    # pylint: disable=arguments-differ
+    def add_monomorphization(self, location, name, module, fields):
+        if len(self.fields) != len(fields):
+            raise errors.InvalidParameterization(
+                location, 'Mismatched number of fields'
+            )
 
-        self.add_monomorphization(mm)
+        for sf, f in zip(self.fields, fields):
+            if sf.type is None:
+                continue
+            if sf.type != f.type:
+                raise errors.InvalidParameterization(
+                    f.location, 'Mismatched field type'
+                )
 
-        return mm
+        mst = MonoStructType(location, name, module)
+        mst.set_fields(fields)
+        return SylvaParamType.add_monomorphization(self, mst)
 
 
 class Struct(Value):

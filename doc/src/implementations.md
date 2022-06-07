@@ -28,25 +28,25 @@ Implementations have access to their type's type parameters:
 ```sylva
 req sys
 
-variant IndexResult(element_type) {
-  OK: &element_type
+variant IndexResult {
+  OK: @element_type
   Fail: str("No element at index")
 }
 
-struct Slots(element_type) {
-  first: element_type,
-  second: element_type,
-  third: element_type
+struct Slots {
+  first: @element_type,
+  second: @element_type,
+  third: @element_type
 }
 
 impl Slots {
-  fn get_first(self: &Slots): &Slots.type_params["element_type"] {
+  fn get_first(self: &Slots): @element_type {
     return &slots.first
   }
 }
 
 fn main() {
-  let treemoji = Slots(rune){
+  let treemoji = Slots{
     first: '🌲',
     second: '🌴',
     third: '🌳',
@@ -73,7 +73,7 @@ struct Person {
 
 impl Nameable(Person) {
   fn get_name_ref(self: &Person): &String {
-    return self.name
+    return &self.name
   }
 
   fn set_name(self: &Nameable, new_name: *String) {

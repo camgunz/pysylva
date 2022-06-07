@@ -14,9 +14,8 @@ syntax keyword SylvaType int i8 i16 i32 i64 i128
 syntax keyword SylvaType uint u8 u16 u32 u64 u128
 syntax keyword SylvaType float f16 f32 f64 f128
 syntax keyword SylvaType complex c16 c32 c64 c128
-syntax keyword SylvaType dec
-syntax keyword SylvaType str strslice string strslice
-syntax keyword SylvaType array slice dynarray dynslice
+syntax keyword SylvaType str string String
+syntax keyword SylvaType array dynarray Array
 syntax keyword SylvaType struct
 syntax keyword SylvaType variant
 syntax keyword SylvaType fn
@@ -40,7 +39,8 @@ syntax keyword SylvaStructure alias const impl iface
 
 syntax keyword SylvaKeyword break continue
 
-"syntax match SylvaIdentifier "\v<\[\$\@]?[a-zA-Z_]+[a-zA-Z0-9_]*>"
+syntax match SylvaIdentifier '\zs[a-zA-Z][a-zA-Z0-9_]*\ze'
+syntax match SylvaTypeVar '\zs@[a-zA-Z][a-zA-Z0-9_]*\ze'
 
 syntax keyword SylvaStatement return
 
@@ -95,7 +95,7 @@ highlight link SylvaType         Type
 highlight link SylvaBoolean      Boolean
 highlight link SylvaInclude      Include
 highlight link SylvaStatement    Statement
-highlight link SylvaSpecial      Macro
+highlight link SylvaTypeVar      Macro
 highlight link SylvaSingleString String
 highlight link SylvaDoubleString String
 highlight link SylvaCharacter    Character

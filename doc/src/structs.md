@@ -18,8 +18,8 @@ struct Person {
 }
 
 fn main() {
-  var joe_biden: Person{name: "Joe Biden", age: 78u8}
-  var charlie_gunyon: Person{name: "Charlie Gunyon", age: 38u8}
+  let joe_biden: Person{name: "Joe Biden", age: 78u8}
+  let charlie_gunyon: Person{name: "Charlie Gunyon", age: 38u8}
 }
 ```
 
@@ -32,11 +32,11 @@ struct Person {
 }
 
 fn main() {
-  var person: Person{}
+  let person: Person{}
 }
 ```
 
-In most ways Sylva is structurally typed, meaning that if different datatypes
+In some ways Sylva is structurally typed, meaning that if different datatypes
 have the same structure they can be used in the same contexts, even if they
 have different names. This is where struct literals can be useful:
 
@@ -50,7 +50,7 @@ struct Person {
   age: u8
 }
 
-struct Pet {
+struct Animal {
   name: str,
   age: u8
 }
@@ -60,22 +60,22 @@ fn say_greeting(greeter: &{name: str, age: u8}) {
 }
 
 fn main() {
-  var joe_biden: Person{name: "Joe Biden", age: 78u8}
-  var zuzu: Animal{name: "Zuzu", age: 2u8}
+  let joe_biden: Person{name: "Joe Biden", age: 78u8}
+  let zuzu: Animal{name: "Zuzu", age: 2u8}
 
   say_greeting(&joe_biden)
-  zuzu.say_greeting()
+  say_greeting(&zuzu)
 }
 
 ```
 
 ## Parameterized structs (generic data types)
 
-Type parameters can be passed to struct and variant declarations:
+Type parameters can be passed to struct (and variant) declarations:
 
 ```sylva
-struct Person(age_type) {
+struct Person {
   name: str
-  age: age_type
+  age: @age_type
 }
 ```

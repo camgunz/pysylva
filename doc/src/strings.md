@@ -1,5 +1,29 @@
 # Strings
 
+Sylva provides two basic string types, and an interface:
+
+```sylva
+mod main
+
+req sys
+
+struct Person {
+  name: @str_type,
+  age: u8(0),
+}
+
+fn print_person_name(name: String) {
+  sys.echo("Hello, {name}")
+}
+
+fn main() {
+  let str_person: Person{"Charlie", 39}
+  let string_person: Person{string{}, 39}
+
+  string_person.name.assign_str("Charlie")
+}
+```
+
 Strings are arrays of bytes that represent a text encoding, configurable at
 runtime (defaults to UTF-8).
 

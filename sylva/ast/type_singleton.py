@@ -207,6 +207,26 @@ def get_int_type(bits, signed):
     raise ValueError(f'Invalid bits value {bits}')
 
 
+def get_signed_int_types():
+    return [
+        TypeSingletons.I8,
+        TypeSingletons.I16,
+        TypeSingletons.I32,
+        TypeSingletons.I64,
+        TypeSingletons.I128
+    ]
+
+
+def get_unsigned_int_types():
+    return [
+        TypeSingletons.U8,
+        TypeSingletons.U16,
+        TypeSingletons.U32,
+        TypeSingletons.U64,
+        TypeSingletons.U128
+    ]
+
+
 def get_float_type(bits):
     if bits == 16:
         return TypeSingletons.F16

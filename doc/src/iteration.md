@@ -16,23 +16,16 @@ Yeah it looks good. OK I think we cracked it.
 ```sylva
 struct Unit {}
 
-variant IterationResult(return_type) {
-  OK: &return_type
-  Done: Unit({})
-}
-
-variant ExIterationResult(return_type) {
-  OK: &return_type!
+variant IterationResult {
+  OK: @return_type
   Done: Unit({})
 }
 
 iface Iterator(index_type, return_type) {
-  fn get_next(self: &Iterator!): IterationResult(return_type)
+  fn get_next(self: &Iterator!): IterationResult(@return_type)
 
-  fn get_next_ex(self: &Iterator!): ExIterationResult(return_type)
-
-  fn all(self: &Iterator!, handle: fn (val: &return_type)) {
-    while (!self.is_done()) {
+  fn all(self: &Iterator!, handle: fn (val: @return_type)) {
+    loop {
       match (self.get_next()) {
         case (next: OK) {
           handle(&next)
@@ -44,21 +37,8 @@ iface Iterator(index_type, return_type) {
     }
   }
 
-  fn all_ex(self: &Iterator!, handle: fn (value: &return_type!)) {
-    while (!self.is_done()) {
-      match (self.get_next()) {
-        case (next: OK) {
-          handle(&next!)
-        }
-        case (done: Done) {
-          break
-        }
-      }
-    }
-  }
-
-  fn each(self: &Iterator!, handle: fn (val: &return_type): bool) {
-    while (!self.is_done()) {
+  fn each(self: &Iterator!, handle: fn (val: @return_type): bool) {
+    loop {
       match (self.get_next()) {
         case (next: OK) {
           let should_continue: handle(&next)
@@ -74,25 +54,8 @@ iface Iterator(index_type, return_type) {
     }
   }
 
-  fn each_ex(self: &Iterator!, handle: fn (value: &return_type!): bool) {
-    while (!self.is_done()) {
-      match (self.get_next()) {
-        case (next: OK) {
-          let should_continue: handle(&next!)
-
-          if (!should_continue) {
-            break
-          }
-        }
-        case (done: Done) {
-          break
-        }
-      }
-    }
-  }
-
-  fn all_index(self: &Iterator!, handle: fn (index: index_type, val: &return_type)) {
-    while (!self.is_done()) {
+  fn all_index(self: &Iterator!, handle: fn (index: @index_type, val: @return_type)) {
+    loop {
       match (self.get_next()) {
         case (next: OK) {
           handle(self.get_current_index(), &next)
@@ -105,22 +68,8 @@ iface Iterator(index_type, return_type) {
     }
   }
 
-  fn all_index_ex(self: &Iterator!, handle: fn (index: index_type, value: &return_type!)) {
-    while (!self.is_done()) {
-      match (self.get_next()) {
-        case (next: OK) {
-          handle(self.get_current_index(), &next!)
-          self.increment_index()
-        }
-        case (done: Done) {
-          break
-        }
-      }
-    }
-  }
-
-  fn each_index(self: &Iterator!, handle: fn (index: index_type, val: &return_type): bool) {
-    while (!self.is_done()) {
+  fn each_index(self: &Iterator!, handle: fn (index: @index_type, val: @return_type): bool) {
+    loop {
       match (self.get_next()) {
         case (next: OK) {
           let should_continue: handle(self.get_current_index(), &next)
@@ -138,30 +87,11 @@ iface Iterator(index_type, return_type) {
     }
   }
 
-  fn each_index_ex(self: &Iterator!, handle: fn (index: index_type, value: &return_type!): bool) {
-    while (!self.is_done()) {
-      match (self.get_next()) {
-        case (next: OK) {
-          let should_continue: handle(self.get_current_index(), &next!)
-
-          self.increment_index()
-
-          if (!should_continue) {
-            break
-          }
-        }
-        case (done: Done) {
-          break
-        }
-      }
-    }
-  }
 }
 
 struct ArrayIterator(element_type, index_type) {
-  data: &array!
-  index: index_type(0)
-  done: bool(false)
+  data: &array[@element_type * @element_count]!,
+  index: @index_type,
 }
 
 fn main() {
@@ -170,23 +100,15 @@ fn main() {
 }
 
 impl Iterator(ArrayIterator) {
-  fn get_current_index(self: &ArrayIterator!): index_type {
-    return self.index
-  }
-
-  fn increment_index(self: &ArrayIterator!) {
-    if (!self.done && self.index < self.index::type.max) {
-      self.index++
+  fn get_next(self: &ArrayIterator!): IterationResult(@return_type) {
+    if (self.index >= self.data::type.indices.max) {
+      return IterationResult.Done()
     }
-    else {
-      self.done = true
-    }
-  }
 
-  fn get_next(self: &ArrayIterator!): IterationResult(return_type) {
-  }
+    let next_value: self.data[self.index]
+    self.index++
 
-  fn get_next_ex(self: &ArrayIterator!): ExIterationResult(return_type) {
+    return IterationResult.OK(next_value)
   }
 }
 

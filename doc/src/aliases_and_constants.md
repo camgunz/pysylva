@@ -14,8 +14,8 @@ struct Person {
 
 alias Astronaut: Person
 
-struct TypeBox(boxed_type) {
-  contents: boxed_type
+struct TypeBox {
+  contents: @boxed_type
 }
 
 alias UintBox: TypeBox(uint)

@@ -1,6 +1,6 @@
 # Functions
 
-Functions should look very familiar:
+Functions should look familiar:
 
 ```sylva
 fn hello(name: str): str {
@@ -10,18 +10,20 @@ fn hello(name: str): str {
 
 ## Type parameterization (generic functions)
 
-Functions can be parameterized with a type:
+Functions can be parameterized with a type using `@`:
 
 ```sylva
+mod main
+
 req sys
 
-fn hello (name_type) (name: name_type) {
+fn hello (name: @name_type) {
   sys.echo("Hello, {name}")
 }
 
 fn main() {
-  hello(dec)(1)
-  hello(str)("Barack")
+  hello(1)
+  hello("Barack")
 }
 ```
 
@@ -34,14 +36,5 @@ the code block.
 ```sylva
 fn int_stringer(i: int): str
 
-fn stringify_ints(func: int_stringer, ints: [int...])
-```
-
-But it's even more useful to use these alongside type parameters:
-
-```sylva
-fn serializer(object_type) (i: object_type): str
-fn deserializer(object_type) (s: str): object_type
-alias serializer_u8: serializer(u8)
-alias deserializer_u8: deserializer(u8)
+fn stringify_ints(func: int_stringer, ints: &[int...])
 ```

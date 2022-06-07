@@ -45,18 +45,28 @@ class MonoVariantType(BaseUnionType):
 
 class VariantType(SylvaParamType):
 
-    def get_or_create_monomorphization(self, location, name, module, fields):
-        for mm in self.monomorphizations:
-            if (len(fields) == len(mm.fields) and all(
-                    f.type == mmf.type for f, mmf in zip(fields, mm.fields))):
-                return mm
+    def __init__(self, location, fields):
+        SylvaParamType.__init__(self, location)
+        self.fields = fields
 
-        mm = MonoVariantType(location, name, module)
-        mm.set_fields(fields)
+    # pylint: disable=arguments-differ
+    def add_monomorphization(self, location, name, module, fields):
+        if len(self.fields) != len(fields):
+            raise errors.InvalidParameterization(
+                location, 'Mismatched number of fields'
+            )
 
-        self.add_monomorphization(mm)
+        for sf, f in zip(self.fields, fields):
+            if sf.type is None:
+                continue
+            if sf.type != f.type:
+                raise errors.InvalidParameterization(
+                    f.location, 'Mismatched field type'
+                )
 
-        return mm
+        mvt = MonoVariantType(location, name, module)
+        mvt.set_fields(fields)
+        return SylvaParamType.add_monomorphization(self, mvt)
 
 
 class Variant(Union):

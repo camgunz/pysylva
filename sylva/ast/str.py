@@ -128,24 +128,9 @@ class MonoStrType(MonoArrayType):
 
 class StrType(ArrayType):
 
-    def __init__(self, location, implementation_builders=None):
-        ArrayType.__init__(
-            self,
-            location,
-            implementation_builders=implementation_builders or
-            [str_implementation_builder]
-        )
-
-    # pylint: disable=arguments-differ
-    def get_or_create_monomorphization(self, location, element_count):
-        for mm in self.monomorphizations:
-            if mm.element_count == element_count:
-                return mm
-
-        mm = MonoStrType(location, element_count=element_count)
-        self.add_monomorphization(mm)
-
-        return mm
+    def __init__(self, location):
+        ArrayType.__init__(self, location)
+        self.add_implementation_builder(str_implementation_builder)
 
 
 class StrLiteralExpr(LiteralExpr):

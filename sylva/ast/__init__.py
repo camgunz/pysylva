@@ -47,6 +47,7 @@ from .str import StrType, StrLiteralExpr
 from .string import StringType
 from .struct import MonoStructType, StructType
 from .type_singleton import IfaceSingletons, TypeSingletons
+from .type_var import TypeVar
 from .unary import UnaryExpr
 from .value import Value
 from .variant import MonoVariantType, VariantType

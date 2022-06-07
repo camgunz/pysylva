@@ -10,13 +10,13 @@ Some old friends here:
 req random
 
 fn get_random_name(): str {
-  let index: random.random(int)(0, 3)
+  let index: random.random(0u, 3u)
 
   switch (index) {
-    case (0) { return "Alice" }
-    case (1) { return "Bernadette" }
-    case (2) { return "Charlie" }
-    case (3) { return "Diana" }
+    case (0u) { return "Alice" }
+    case (1u) { return "Bernadette" }
+    case (2u) { return "Charlie" }
+    case (3u) { return "Diana" }
     default  { return "" }
   }
 
