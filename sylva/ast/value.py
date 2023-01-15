@@ -54,10 +54,10 @@ class Value(Bind, AttributeLookupMixIn, ReflectionLookupMixIn):
                     location=Location.Generate(),
                     element_type=TypeSingletons.U8,
                     element_count=self.type.get_size()
-                ),
+                )[1],
                 is_reference=True,
                 is_exclusive=False
-            )
+            )[1]
 
     def emit_reflection_lookup(self, module, builder, scope, name):
         from .type_singleton import TypeSingletons
@@ -78,10 +78,10 @@ class Value(Bind, AttributeLookupMixIn, ReflectionLookupMixIn):
                         location=Location.Generate(),
                         element_type=TypeSingletons.U8,
                         element_count=self.type.get_size()
-                    ),
+                    )[1],
                     is_reference=True,
                     is_exclusive=False
-                ),
+                )[1],
                 value=self.get_bytes()
             )
 

@@ -2,6 +2,17 @@
 
 ## General
 
+- Continue to push through monomorphization changes to all generic types:
+  * array
+  * carray
+  * cptr
+  * dynarray
+  * fn
+  * pointer
+  * str
+  * string
+  * struct
+  - variant
 - Pointer types need to pass Attribute/Reflection calls to their
   `referenced_type`
 - Unclear what to do about ::type and ::bytes for interfaces

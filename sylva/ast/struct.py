@@ -82,28 +82,65 @@ class MonoStructType(BaseStructType):
 
 class StructType(SylvaParamType):
 
-    def __init__(self, location, fields):
+    def __init__(self, location, name, module, fields):
         SylvaParamType.__init__(self, location)
+        self.name = name
+        self.module = module
         self.fields = fields
+        self._type_parameters = [f.name for f in fields if f.is_type_parameter]
+
+    @property
+    def type_parameters(self):
+        return self._type_parameters
+
+    def parameterize(self, location, params):
+        fields = self.get_parameterized_types(location, self.fields, params)
+
+        for n, mm in enumerate(self.monomorphizations):
+            if mm.equals_params(self.name, fields):
+                return n, mm
+
+        index = len(self.monomorphizations)
+
+        mm = MonoStructType(
+            location=location, name=self.name, module=self.module
+        )
+        # [FIXME] Normally we have access to the type when building fields,
+        #         meaning that building self-referential fields is easy. But
+        #         here we've wrapped that all up in this method, so it's
+        #         currently not possible to create a struct monomorphization
+        #         with a self-referential field. I think the fix here is
+        #         something like a `SelfReferentialField`, probably.
+        mm.set_fields(fields)
+        self.monomorphizations.append(mm)
+
+        return index, mm
 
     # pylint: disable=arguments-differ
-    def add_monomorphization(self, location, name, module, fields):
-        if len(self.fields) != len(fields):
-            raise errors.InvalidParameterization(
-                location, 'Mismatched number of fields'
-            )
+    def get_or_create_monomorphization(self, location, exprs):
+        fields = self.get_parameterized_types_from_expressions(
+            location, self.fields, exprs
+        )
 
-        for sf, f in zip(self.fields, fields):
-            if sf.type is None:
-                continue
-            if sf.type != f.type:
-                raise errors.InvalidParameterization(
-                    f.location, 'Mismatched field type'
-                )
+        for n, mm in enumerate(self.monomorphizations):
+            if mm.equals_params(self.name, fields):
+                return n, mm
 
-        mst = MonoStructType(location, name, module)
-        mst.set_fields(fields)
-        return SylvaParamType.add_monomorphization(self, mst)
+        index = len(self.monomorphizations)
+
+        mm = MonoStructType(
+            location=location, name=self.name, module=self.module
+        )
+        # [FIXME] Normally we have access to the type when building fields,
+        #         meaning that building self-referential fields is easy. But
+        #         here we've wrapped that all up in this method, so it's
+        #         currently not possible to create a struct monomorphization
+        #         with a self-referential field. I think the fix here is
+        #         something like a `SelfReferentialField`, probably.
+        mm.set_fields(fields)
+        self.monomorphizations.append(mm)
+
+        return index, mm
 
 
 class Struct(Value):

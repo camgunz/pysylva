@@ -2,7 +2,6 @@ from functools import cached_property
 
 from llvmlite import ir
 
-from .. import errors
 from ..location import Location
 from .attribute import Attribute
 from .attribute_lookup import AttributeLookupExpr
@@ -19,7 +18,7 @@ def dynarray_implementation_builder(dynarray_type):
 
     str_eight = TypeSingletons.STR.get_or_create_monomorphization(
         Location.Generate(), 8
-    )
+    )[1]
 
     # pylint: disable=unused-argument
     def emit_name_param(obj, location, module, builder, scope):
@@ -129,33 +128,25 @@ class MonoDynarrayType(SylvaType):
     def equals_params(self, element_type):
         return self.element_type == element_type
 
-    def equals_binds(self, binds):
-        return self.equals_params(binds[0].value)
-
 
 class DynarrayType(SylvaParamType):
 
     def __init__(self, location):
-        SylvaParamType.__init__(
-            self,
-            location, [self.BIND_CLASS(Location.Generate(), 'element_type')]
-        )
+        SylvaParamType.__init__(self, location)
         self.add_implementation_builder(dynarray_implementation_builder)
 
-    def _build_monomorphization(self, location, binds, bind_types):
-        return MonoDynarrayType(location, element_type=binds[0].value)
+    # pylint: disable=arguments-differ
+    def get_or_create_monomorphization(self, location, element_type):
+        for n, mm in enumerate(self.monomorphizations):
+            if mm.equals_params(element_type):
+                return n, mm
 
-    def _bind_type_parameters(self, location, exprs):
-        binds, bind_types = SylvaParamType._bind_type_parameters(
-            self, location, exprs
-        )
-        if not bind_types['element_type'] == SylvaType:
-            raise errors.InvalidParameterization(
-                exprs[0].location,
-                'Type mismatch (expected a value of type "type")'
-            )
+        index = len(self.monomorphizations)
 
-        return binds, bind_types
+        mm = MonoDynarrayType(location, element_type=element_type)
+        self.monomorphizations.append(mm)
+
+        return index, mm
 
 
 # [FIXME] This involves heap allocation

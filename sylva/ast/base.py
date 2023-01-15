@@ -1,11 +1,12 @@
+from attrs import frozen, field
+from sylva.location import Location
+
+
+@frozen
 class Node:
-
-    def __init__(self, location):
-        self.location = location
+    location: Location = field(kw_only=True, factory=Location.Generate)
 
 
+@frozen
 class Decl(Node):
-
-    def __init__(self, location, name):
-        Node.__init__(self, location)
-        self.name = name
+    name: str

@@ -1,11 +1,9 @@
-#!/usr/bin/env python
-
 import argparse
 import traceback
 
 from pathlib import Path
+from pprint import pprint
 
-# pylint: disable=import-self, no-name-in-module
 from sylva import errors, debug
 from sylva.program import Program
 from sylva.stream import Stream
@@ -42,9 +40,13 @@ def parse(file_paths, stdlib=None, target_triple=None):
     program = _load_program(file_paths, stdlib, target_triple)
 
     try:
-        program_errors = program.parse()
-        for error in program_errors:
-            print(error.pformat(), end='\n\n')
+        modules, program_errors = program.parse()
+        if program_errors:
+            for error in program_errors:
+                print(error.pformat(), end='\n\n')
+        else:
+            for mod in modules:
+                pprint(mod)
     except errors.SylvaError as error:
         debug('main', traceback.format_exc())
         print(error.pformat())
@@ -65,7 +67,7 @@ def compile(file_paths, output_folder, stdlib=None, target_triple=None):
         print(error.pformat())
 
 
-def main():
+def run():
     """Main function."""
     parser = argparse.ArgumentParser(description='Sylva')
     parser.add_argument(
@@ -86,4 +88,5 @@ def main():
         compile(args.files, args.output_folder, args.stdlib, args.target)
 
 
-main()
+if __name__ == '__main__':
+    run()

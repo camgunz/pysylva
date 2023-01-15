@@ -28,7 +28,7 @@ def string_impl_builder(string_type):
                         referenced_type=string_type,
                         is_reference=True,
                         is_exclusive=False
-                    )
+                    )[1]
                 )
             ],
             return_type=TypeSingletons.UINT

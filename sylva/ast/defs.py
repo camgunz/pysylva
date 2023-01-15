@@ -8,6 +8,10 @@ from .bind import Bind
 
 class BaseDef(Bind):
 
+    def __init__(self, location, name, type=None):
+        Bind.__init__(self, location, name, type=type)
+        self.llvm_value = None
+
     def _check_definition(self, module):
         existing_alias = module.aliases.get(self.name)
         if existing_alias:
@@ -23,29 +27,31 @@ class BaseDef(Bind):
                 existing_definition.location,
             )
 
-    def define(self, module):
+    def emit(self, *args, **kwargs):
+        module = kwargs['module']
+
         self._check_definition(module)
         debug('define', f'Define {self.name} -> {self}')
         module.vars[self.name] = self
 
-    def emit(self, obj, module, builder, scope, name):
-        raise NotImplementedError()
+        if self.type.llvm_type:
+            llvm_value = self.get_llvm_value(*args, **kwargs)
+            return llvm_value
+
+        return self
 
 
 class TypeDef(BaseDef):
 
-    def define(self, module):
-        self._check_definition(module)
-        debug('define', f'Define {self.name} ({self.mname}) -> {self}')
-        module.vars[self.mname] = self
+    def get_llvm_value(self, *args, **kwargs):
+        module = kwargs['module']
+        return ir.GlobalVariable(
+            module.type.llvm_type, self.type.llvm_type, self.name
+        )
 
     @cached_property
     def mname(self):
         return self.type.mname
-
-    def emit(self, obj, module, builder, scope, name):
-        llvm_module = module.type.llvm_type
-        return ir.GlobalVariable(llvm_module, self.type.llvm_type, self.name)
 
 
 class ParamTypeDef(BaseDef):

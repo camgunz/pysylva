@@ -1,7 +1,10 @@
-from .base import Node
+from attrs import frozen
+
+from sylva.ast.base import Node
 
 
 class Bind(Node):
+    type: SylvaType
 
     def __init__(self, location, name, type=None):
         Node.__init__(self, location)
@@ -11,6 +14,3 @@ class Bind(Node):
     @property
     def is_type_parameter(self):
         return self.type is None
-
-    def emit(self, obj, module, builder, scope, name):
-        raise NotImplementedError()

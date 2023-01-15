@@ -1,0 +1,38 @@
+[project]
+name = "sylva"
+dynamic = ["version"]
+requires-python = ">= 3.10"
+readme = "README.md"
+description = "Compiler for the Sylva prograrmming language"
+urls = {"Home-page" = "https://www.mizar5.xyz/git/pysylva"}
+dependencies = [
+    "attrs",
+    "lark",
+    "llvmlite",
+    "pyparsing",
+    "sylva_libc @ file:///Users/charlie/code/sylva_libc",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy",
+  "pylint",
+  "yapf",
+]
+
+[project.scripts]
+sylva = "sylva.cli:run"
+
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2", "wheel"]
+
+[tool.setuptools]
+include-package-data = true
+packages = ["sylva"]
+
+[tool.setuptools.package-data]
+"*" = ["Sylva.lark"]
+
+[tool.setuptools_scm]
+write_to = "sylva/_version.py"

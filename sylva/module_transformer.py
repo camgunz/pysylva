@@ -64,7 +64,7 @@ class TypeModifier(enum.Enum):
         return cls.Reference
 
 
-class ModuleBuilder(lark.Visitor):
+class ModuleTransformer(lark.Transformer):
 
     # [TODO] Save parameterization info in the module.
     # [TODO] Add argument scope requirements to functions at assignment sites
@@ -403,30 +403,41 @@ class ModuleBuilder(lark.Visitor):
         self, type_obj, scope=None, accept_missing=False, outer_types=None
     ):
         if isinstance(type_obj, lark.lexer.Token):
-            location = Location.FromToken(type_obj, self._stream)
-            result = self._lookup(type_obj.value, scope=scope)
+            return ast.LookupExpr(
+                location=Location.FromToken(type_obj, self._stream),
+                type=None,
+                name=type_obj.value
+            )
 
-            if result is not None:
-                return result.type
+            # result = self._lookup(type_obj.value, scope=scope)
 
-            if not accept_missing:
-                raise errors.UndefinedSymbol(location, type_obj.value)
+            # if result is not None:
+            #     return result.type
 
-            return None
+            # if not accept_missing:
+            #     raise errors.UndefinedSymbol(location, type_obj.value)
+
+            # # return None
 
         location = Location.FromTree(type_obj, self._stream)
 
         if type_obj.data == 'identifier':
-            name = type_obj.children[0]
-            result = self._lookup(name, scope=scope)
+            return ast.LookupExpr(
+                location=location,
+                type=type_obj.value,
+                name=type_obj.children[0],
+            )
 
-            if result is not None:
-                return result.type
+            # name = type_obj.children[0]
+            # result = self._lookup(name, scope=scope)
 
-            if not accept_missing:
-                raise errors.UndefinedSymbol(location, name)
+            # if result is not None:
+            #     return result.type
 
-            return None
+            # if not accept_missing:
+            #     raise errors.UndefinedSymbol(location, name)
+
+            # return None
 
         if type_obj.data == 'c_array_type_expr':
             element_count = int(type_obj.children[0].children[1])
@@ -499,7 +510,9 @@ class ModuleBuilder(lark.Visitor):
                 referenced_type = outer_types.get(referenced_type_name)
 
             if referenced_type is None:
-                referenced_type = self._get_type(type_obj.children[0])
+                referenced_type = self._get_type(
+                    type_obj.children[0], accept_missing=accept_missing
+                )
 
             return ast.TypeSingletons.CPTR.get_or_create_monomorphization(
                 location=location,
@@ -607,44 +620,44 @@ class ModuleBuilder(lark.Visitor):
         print(type(type_obj), type_obj.data)
         raise NotImplementedError
 
-    def alias_def(self, tree):
-        ad = ast.Alias(
-            location=Location.FromTree(tree, self._stream),
-            name=tree.children[0].value,
-            value=self._get_type(tree.children[1])
-        )
-        ad.emit(module=self._module)
-        # ad.emit(None, self._module, None, None, None)
+    def alias_def(self, alias_def):
+        value_token, _type_param = alias_def
+        aliased_type = self._get_type(_type_param)
 
-    def const_def(self, tree):
-        value = self._handle_expr(tree.children[1], scope={})
-        cd = ast.Const(
-            location=Location.FromTree(tree, self._stream),
-            name=tree.children[0].value,
-            value=value,
+        return ast.Alias(
+            location=Location.FromToken(value_token, self._stream),
+            name=value_token.value,
+            value=aliased_type
         )
-        cd.emit(module=self._module)
-        # cd.emit(None, self._module, None, None, None)
+        # ad.emit(module=self._module)
 
-    def c_array_type_def(self, tree):
+    def const_def(self, const_def):
+        value_token, literal_expr = const_def
+        return ast.Const(
+            location=Location.FromToken(value_token, self._stream),
+            name=value_token.value,
+            value=self._handle_expr(literal_expr, scope={}),
+        )
+        # cd.emit(module=self._module)
+
+    def c_array_type_def(self, c_array_type_def):
+        value_token, array_type_expr = c_array_type_def
         debug('defer', 'Making array')
-        cad = ast.TypeDef(
-            location=Location.FromTree(tree, self._stream),
-            name=tree.children[0].value,
+        return ast.TypeDef(
+            location=Location.FromToken(value_token, self._stream),
+            name=value_token.value,
             type=ast.TypeSingletons.CARRAY.get_or_create_monomorphization(
-                location=Location.FromTree(tree, self._stream),
-                element_type=self._get_type(
-                    tree.children[1].children[0], accept_missing=False
-                ),
-                element_count=int(tree.children[1].children[2])
+                location=Location.FromToken(value_token, self._stream),
+                element_type=self._get_type(array_type_expr.children[0]),
+                element_count=int(array_type_expr.children[2])
             )[1]
         )
-        cad.emit(module=self._module)
-        # cad.emit(None, self._module, None, None, None)
+        # cad.emit(module=self._module)
 
-    def c_function_type_def(self, tree):
-        param_objs = tree.children[1].children[:-1]
-        return_type_obj = tree.children[1].children[-1]
+    def c_function_type_def(self, c_function_type_def):
+        value_token, function_type_expr = c_function_type_def
+        param_objs = function_type_expr.children[:-1]
+        return_type_obj = function_type_expr.children[-1]
         parameters = []
         for param_obj in param_objs:
             name_token, param_type_obj = param_obj.children
@@ -660,23 +673,24 @@ class ModuleBuilder(lark.Visitor):
         else:
             return_type = None
 
-        cfd = ast.CFn(
-            location=Location.FromTree(tree, self._stream),
-            name=tree.children[0].value,
+        return ast.CFn(
+            location=Location.FromToken(value_token, self._stream),
+            name=value_token.value,
             type=ast.CFnType(
-                location=Location.FromTree(tree, self._stream),
+                location=Location.FromToken(value_token, self._stream),
                 parameters=parameters,
                 return_type=return_type
             )
         )
-        cfd.emit(module=self._module)
-        # cfd.emit(None, self._module, None, None, None)
+        # cfd.emit(module=self._module)
 
-    def c_struct_type_def(self, tree):
+    def c_struct_type_def(self, c_struct_type_def):
         debug('defer', 'Making struct')
-        name = tree.children[0].value
+        value_token = c_struct_type_def[0]
+        _type_param_pair_list = c_struct_type_def[1:]
+        name = value_token.value
         struct_type = ast.CStructType(
-            location=Location.FromTree(tree, self._stream),
+            location=Location.FromToken(value_token, self._stream),
             name=name,
             module=self._module
         )
@@ -684,14 +698,16 @@ class ModuleBuilder(lark.Visitor):
         # [TODO] Check that this isn't already defined
         outer_types = {name: struct_type}
         fields = []
-        for i, field_obj in enumerate(tree.children[1:]):
+        for i, field_obj in enumerate(_type_param_pair_list):
             name_token, field_type_obj = field_obj.children
             fields.append(
                 ast.Field(
                     location=Location.FromToken(name_token, self._stream),
                     name=name_token.value,
                     type=self._get_type(
-                        field_type_obj, outer_types=outer_types
+                        field_type_obj,
+                        outer_types=outer_types,
+                        accept_missing=True
                     ),
                     index=i,
                 )
@@ -699,23 +715,24 @@ class ModuleBuilder(lark.Visitor):
 
         struct_type.set_fields(fields)
 
-        csd = ast.CStructTypeDef(struct_type)
-        csd.emit(module=self._module)
-        # csd.emit(None, self._module, None, None, None)
+        return ast.CStructTypeDef(struct_type)
+        # csd.emit(module=self._module)
 
-    def c_union_type_def(self, tree):
+    def c_union_type_def(self, c_union_type_def):
+        value_token = c_union_type_def[0]
+        _type_param_pair_list = c_union_type_def[1:]
         debug('defer', 'Making union')
-        name = tree.children[0].value
+        name = value_token.value
         union_type = ast.CUnionType(
-            location=Location.FromTree(tree, self._stream),
-            name=tree.children[0].value,
+            location=Location.FromToken(value_token, self._stream),
+            name=name,
             module=self._module
         )
 
         # [TODO] Check that this isn't already defined
         outer_types = {name: union_type}
         fields = []
-        for i, field_obj in enumerate(tree.children[1:]):
+        for i, field_obj in enumerate(_type_param_pair_list):
             name_token, field_type_obj = field_obj.children
             fields.append(
                 ast.Field(
@@ -729,9 +746,8 @@ class ModuleBuilder(lark.Visitor):
             )
 
         union_type.set_fields(fields)
-        cud = ast.CUnionTypeDef(union_type)
-        cud.emit(module=self._module)
-        # cud.emit(None, self._module, None, None, None)
+        return ast.CUnionTypeDef(union_type)
+        # cud.emit(module=self._module)
 
     def function_def(self, tree):
         function_type_def, code_block = tree.children
@@ -767,7 +783,7 @@ class ModuleBuilder(lark.Visitor):
                 return_type=fn_type.return_type
             )
             fn_type.monomorphizations.append(mono_fn_type)
-            func_def = ast.Fn(
+            return ast.Fn(
                 location=mono_fn_type.location,
                 name=function_type_def.children[0].value,
                 type=mono_fn_type,
@@ -776,4 +792,4 @@ class ModuleBuilder(lark.Visitor):
                     scope={param.name: param.type for param in parameters}
                 )
             )
-            func_def.emit(module=self._module)
+            # func_def.emit(module=self._module)

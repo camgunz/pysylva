@@ -3,6 +3,7 @@ from llvmlite import ir
 from .. import errors, sylva
 from ..location import Location
 from ..module_builder import ModuleBuilder
+from ..module_transformer import ModuleTransformer
 from ..parser import Parser
 from .attribute import Attribute
 from .attribute_lookup import AttributeLookupMixIn
@@ -81,8 +82,13 @@ class Mod(TypeDef, AttributeLookupMixIn):
         if self.parsed:
             return self.errors
 
+        trees = []
+
         for s in self.streams:
-            ModuleBuilder(self, s).visit(Parser().parse(s.data))
+            # ModuleBuilder(self, s).visit(Parser().parse(s.data))
+            trees.append(
+                ModuleTransformer(self, s).transform(Parser().parse(s.data))
+            )
 
         self.parsed = True
 
@@ -91,39 +97,47 @@ class Mod(TypeDef, AttributeLookupMixIn):
     def get_attribute(self, name):
         aliased_value = self.aliases.get(name)
         if aliased_value is not None:
-            return Attribute(
+            return Attribute( # yapf: disable
                 location=aliased_value.location,
                 name=name,
                 type=aliased_value.value,
-                func=lambda *args: aliased_value
+                func=lambda *args, **kwargs: aliased_value
             )
 
         attribute = self.vars.get(name)
         if attribute is not None:
-            return Attribute(
+            return Attribute( # yapf: disable
                 location=attribute.location,
                 name=name,
                 type=(
                     SylvaType
                     if isinstance(attribute, SylvaType) else attribute.type
                 ),
-                func=lambda *args: attribute
+                func=lambda *args, **kwargs: attribute
             )
 
         if self.name != sylva.BUILTIN_MODULE_NAME:
             builtin_module = self.program.get_module(sylva.BUILTIN_MODULE_NAME)
             return builtin_module.get_attribute(name)
 
-    def emit_attribute_lookup(self, module, builder, scope, name):
+    def emit_attribute_lookup(self, *args, **kwargs):
+        name = kwargs['name']
+
         aliased_value = self.aliases.get(name)
         if aliased_value is not None:
             return aliased_value.value
 
         return self.vars.get(name)
 
-    def emit(self, obj, module, builder, scope, name):
+    def emit(self, *args, **kwargs):
+        kwargs = {
+            k: kwargs[k]
+            for k in ['obj', 'module', 'builder', 'scope', 'name']
+            if k in kwargs
+        }
+
         for var in self.vars.values():
-            var.emit(obj, module, builder, scope, name)
+            var.emit(**kwargs)
 
         return self.type.llvm_type
 

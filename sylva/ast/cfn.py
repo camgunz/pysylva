@@ -100,6 +100,16 @@ class CFn(TypeDef):
     def mname(self):
         return self.name
 
-    def emit(self, obj, module, builder, scope, name):
+    def get_llvm_value(self, *args, **kwargs):
+        if self.llvm_value:
+            return self.llvm_value
+
+        module = kwargs['module']
         llvm_module = module.type.llvm_type
-        return ir.Function(llvm_module, self.type.llvm_type, self.name)
+
+        # [TODO] Get the right monomorphization here
+        self.llvm_value = ir.Function(
+            llvm_module, self.type.llvm_type, name=self.name
+        )
+
+        return self.llvm_value

@@ -1,7 +1,5 @@
 from functools import cached_property
 
-from llvmlite import ir
-
 from .expr import BaseExpr
 from .sylva_type import SylvaParamType, SylvaType
 
@@ -13,7 +11,6 @@ class MonoPointerType(SylvaType):
         self.referenced_type = referenced_type
         self.is_reference = is_reference
         self.is_exclusive = is_exclusive
-        self.llvm_type = ir.PointerType(referenced_type.llvm_type)
 
     # def get_attribute(self, name):
     #     return self.referenced_type.get_attribute(name)
@@ -32,11 +29,12 @@ class MonoPointerType(SylvaType):
         return ''.join([f'2p{pointer_type}', self.referenced_type.mname])
 
     def __eq__(self, other):
-        return SylvaType.__eq__(self, other) and self.params_equal(
+        return SylvaType.__eq__(self, other) and self.equals_params(
             other.referenced_type, other.is_reference, other.is_exclusive
         )
 
-    def params_equal(self, referenced_type, is_reference, is_exclusive):
+    # pylint: disable=arguments-differ
+    def equals_params(self, referenced_type, is_reference, is_exclusive):
         return (
             self.referenced_type == referenced_type and
             self.is_reference == is_reference and
@@ -47,18 +45,24 @@ class MonoPointerType(SylvaType):
 class PointerType(SylvaParamType):
 
     # pylint: disable=arguments-differ
-    def add_monomorphization(
+    def get_or_create_monomorphization(
         self, location, referenced_type, is_reference, is_exclusive
     ):
-        return SylvaParamType.add_monomorphization(
-            self,
-            MonoPointerType(
-                location=location,
-                referenced_type=referenced_type,
-                is_reference=is_reference,
-                is_exclusive=is_exclusive
-            )
+        for n, mm in enumerate(self.monomorphizations):
+            if mm.equals_params(referenced_type, is_reference, is_exclusive):
+                return n, mm
+
+        index = len(self.monomorphizations)
+
+        mm = MonoPointerType(
+            location=location,
+            referenced_type=referenced_type,
+            is_reference=is_reference,
+            is_exclusive=is_exclusive
         )
+        self.monomorphizations.append(mm)
+
+        return index, mm
 
 
 class PointerExpr(BaseExpr):
@@ -71,6 +75,6 @@ class PointerExpr(BaseExpr):
             referenced_type=expr.type,
             is_reference=is_reference,
             is_exclusive=is_exclusive
-        )
+        )[1]
 
         BaseExpr.__init__(self, location, pointer_type)

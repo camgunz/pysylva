@@ -1,3 +1,5 @@
+import math
+
 from collections import defaultdict
 
 
@@ -37,6 +39,21 @@ def round_up_to_multiple(x, base):
     if rem == 0:
         return x
     return x + base - rem
+
+
+def round_up_to_power_of_two(x, start=8):
+    exp = int(math.log(start, 2))
+
+    if exp != math.log(start, 2):
+        raise ValueError(f'{start} is not a power of 2')
+
+    val = exp ** 2
+
+    while val < x:
+        exp += 1
+        val = exp ** 2
+
+    return val
 
 
 def len_prefix(s):

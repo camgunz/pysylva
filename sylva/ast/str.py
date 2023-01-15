@@ -30,7 +30,7 @@ def str_implementation_builder(str_type):
     else:
         str_three = TypeSingletons.STR.get_or_create_monomorphization(
             Location.Generate(), 3
-        )
+        )[1]
 
     # pylint: disable=unused-argument
     def emit_name_param(obj, location, module, builder, scope):
@@ -74,7 +74,7 @@ def str_implementation_builder(str_type):
                         referenced_type=str_type,
                         is_reference=True,
                         is_exclusive=False,
-                    )
+                    )[1]
                 )
             ],
             return_type=TypeSingletons.UINT
@@ -132,6 +132,21 @@ class StrType(ArrayType):
         ArrayType.__init__(self, location)
         self.add_implementation_builder(str_implementation_builder)
 
+    # pylint: disable=arguments-differ
+    def get_or_create_monomorphization(self, location, element_count):
+        from .type_singleton import TypeSingletons
+
+        for n, mm in enumerate(self.monomorphizations):
+            if mm.equals_params(TypeSingletons.U8, element_count):
+                return n, mm
+
+        index = len(self.monomorphizations)
+
+        mm = MonoStrType(location=location, element_count=element_count)
+        self.monomorphizations.append(mm)
+
+        return index, mm
+
 
 class StrLiteralExpr(LiteralExpr):
 
@@ -143,6 +158,6 @@ class StrLiteralExpr(LiteralExpr):
             location,
             TypeSingletons.STR.get_or_create_monomorphization(
                 location, len(value)
-            ),
+            )[1],
             value
         )

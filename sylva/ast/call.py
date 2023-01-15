@@ -15,10 +15,14 @@ class CallExpr(BaseExpr):
     # llvm_function: ir.Function | None = None
     # llvm_arguments: typing.List[ir.Value] | None = None
 
-    def emit(self, obj, module, builder, scope, name):
+    def emit(self, *args, **kwargs):
+        builder = kwargs['builder']
+
+        func = self.function.emit(*args, **kwargs)
+
         return builder.call(
             # [TODO] Specify the monomorphization here
-            self.function.emit(module, builder, scope),
-            [a.emit(module, builder, scope) for a in self.arguments],
+            func,
+            [a.emit(*args, **kwargs) for a in self.arguments],
             cconv='fastcc'
         )

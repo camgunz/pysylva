@@ -1,5 +1,0 @@
-../sylva_libc
-# attrs>=21.4.0,<21.5
-lark>=1.1.2,<1.2
-llvmlite>=0.38.0,<0.39
-pyparsing>=3.0.7,<3.1

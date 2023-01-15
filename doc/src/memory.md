@@ -77,8 +77,7 @@ allocation.
 
 Sylva's scalar types are `bool`, `float`, `int`, `uint`, `rune`, and `str`.
 Everything else (`array`, `dynarray`, `enum`, `iface`, `string`, `struct`,
-`variant`) is an aggregate type (even scalar types functioning as implemented
-interfaces).
+`variant`) is an aggregate type.
 
 Sylva will copy scalars for you (using `=`), but it will not copy aggregates (
 this would undermine pointer tracking by potentially creating multiple owners

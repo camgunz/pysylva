@@ -4,7 +4,6 @@ from .. import errors
 from ..target import get_target
 from .attribute_lookup import AttributeLookupMixIn
 from .base import Node
-from .bind import Bind
 
 
 class BaseSylvaType(Node):
@@ -21,6 +20,10 @@ class SylvaType(BaseSylvaType, AttributeLookupMixIn):
         AttributeLookupMixIn.__init__(self)
         self.llvm_type = None
         self.implementations = []
+
+    @property
+    def type_parameters(self):
+        return []
 
     def __eq__(self, other):
         return isinstance(other, type(self))
@@ -54,83 +57,72 @@ class SylvaType(BaseSylvaType, AttributeLookupMixIn):
 
 class SylvaParamType(BaseSylvaType):
 
-    PARAMETERS_NAME = 'fields'
-    BIND_CLASS = Bind
-
-    def __init__(self, location, binds):
+    def __init__(self, location):
         super().__init__(location)
-        self.binds = {b.name: b for b in binds}
         self.monomorphizations = []
         self.implementation_builders = []
 
+    def get_parameterized_types(self, location, binds, arguments):
+        if len(self.type_parameters) != len(arguments):
+            raise errors.InvalidParameterization(
+                location,
+                f'Expected {len(self.type_parameters)} type parameters, got '
+                f'{len(arguments)}'
+            )
+
+        type_args = {}
+        for a in arguments:
+            if a.name in type_args:
+                raise errors.InvalidParameterization(
+                    a.location, f'Duplicate type parameter "{a.name}"'
+                )
+            type_args[a.name] = a
+
+        types = []
+        for b in binds:
+            if not b.is_type_parameter:
+                types.append(b)
+            else:
+                bind_type = type_args.get(b.name)
+                if bind_type is None:
+                    raise errors.InvalidParameterization(
+                        location, f'Missing type parameter for {b.name}'
+                    )
+                types.append(bind_type)
+
+        return types
+
+    def get_parameterized_types_from_expressions(
+        self, location, binds, arg_exprs
+    ):
+        if len(binds) != len(arg_exprs):
+            raise errors.InvalidParameterization(
+                location,
+                f'Expected {len(binds)} type parameters, got {len(arg_exprs)}'
+            )
+
+        args = []
+        for b, ae in zip(binds, arg_exprs):
+            if b.is_type_parameter:
+                args.append(ae)
+            elif b.type != ae.type:
+                raise errors.InvalidParameterization(
+                    ae.location,
+                    f'Type mismatch: expected a value of type "{b.type}"; got '
+                    f'"{ae.type}"'
+                )
+        return self.get_parameterized_types(location, binds, args)
+
     @property
-    def is_polymorphic(self):
-        return any(b.is_type_parameter for b in self.binds.values())
+    def type_parameters(self):
+        raise NotImplementedError()
 
     @property
     def llvm_types(self):
         return [mm.llvm_type for mm in self.monomorphizations]
 
-    def _build_monomorphization(self, location, binds, bind_types):
-        raise NotImplementedError()
-
-    def _bind_type_parameters(self, location, exprs):
-        if len(self.binds) != len(exprs):
-            raise errors.InvalidParameterization(
-                location,
-                f'Expected {len(self.binds)} {self.PARAMETERS_NAME}, got '
-                f'{len(exprs)}'
-            )
-
-        binds = []
-        bind_types = {}.fromkeys(self.binds)
-
-        for bind, expr in zip(self.binds.values(), exprs):
-            if bind.type is None:
-                bind_type = bind_types[bind.name]
-                if bind_type is None:
-                    bind_types[bind.name] = expr.type
-                elif expr.type != bind_type:
-                    raise errors.InvalidParameterization(
-                        expr.location,
-                        f'Cannot parameterize {bind.name} as {expr.type}, '
-                        f'already set as {bind_type}'
-                    )
-                binds.append(
-                    self.BIND_CLASS(expr.location, bind.name, expr.type)
-                )
-            elif bind.type != expr.type:
-                raise errors.InvalidParameterization(
-                    expr.location,
-                    'Type mismatch (expected a value of type "{bind.type}")'
-                )
-            else:
-                binds.append(bind)
-
-        return binds, bind_types
-
-    def _get_or_create_monomorphization_from_binds(
-        self, location, binds, bind_types
-    ):
-        for n, mm in enumerate(self.monomorphizations):
-            if mm.equals_binds(binds):
-                return n, mm
-
-        mm = self._build_monomorphization(location, binds, bind_types)
-        for ib in self.implementation_builders:
-            ib(mm)
-
-        index = len(self.monomorphizations)
-        self.monomorphizations.append(mm)
-
-        return index, mm
-
     def add_implementation_builder(self, ib):
         self.implementation_builders.append(ib)
 
-    def get_or_create_monomorphization(self, location, exprs):
-        binds, bind_types = self._bind_type_parameters(location, exprs)
-
-        return self._get_or_create_monomorphization_from_binds(
-            location, binds, bind_types
-        )
+    def get_or_create_monomorphization(self, location, *args, **kwargs):
+        raise NotImplementedError()

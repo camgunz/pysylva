@@ -2,6 +2,7 @@ from .alias import Alias
 from .array import MonoArrayType, ArrayType, ArrayLiteralExpr
 from .attribute import Attribute
 from .attribute_lookup import AttributeLookupExpr, AttributeLookupMixIn
+from .bind import Bind
 from .bool import BoolType, BoolLiteralExpr
 from .call import CallExpr
 from .carray import CArrayType

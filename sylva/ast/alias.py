@@ -1,3 +1,5 @@
+from attrs import frozen
+
 from .. import debug, errors
 from ..llvm_alias import Alias as LLVMAlias
 from .defs import BaseDef
@@ -9,8 +11,8 @@ class Alias(BaseDef):
     def __init__(self, location, name, value):
         if isinstance(value, SylvaType):
             type = value
-        elif value == self.name:
-            raise errors.RedundantAlias(self.location, self.name)
+        elif value == name:
+            raise errors.RedundantAlias(location, name)
         else:
             type = value.type
 
@@ -18,8 +20,15 @@ class Alias(BaseDef):
 
         self.value = value
 
-    def define(self, module):
+    def emit(self, *args, **kwargs):
+        module = kwargs['module']
+        llvm_module = module.type.llvm_type
+
+        if self.llvm_value:
+            return self.llvm_value
+
         self._check_definition(module)
+
         name = ( # yapf: disable
             self.value.mname
             if isinstance(self.value, SylvaType)
@@ -28,9 +37,6 @@ class Alias(BaseDef):
         debug('define', f'Alias {self.name} ({name}) -> {self}')
         module.vars[self.name] = self
 
-    def emit(self, obj, module, builder, scope, name):
-        llvm_module = module.type.llvm_type
-
         if isinstance(self.value, str):
             target = llvm_module.get_global(self.value)
             type = target.type
@@ -38,10 +44,12 @@ class Alias(BaseDef):
             target = self.value.llvm_type
             type = target
 
-        return LLVMAlias(
+        self.llvm_value = LLVMAlias(
             module=llvm_module,
             name=self.name,
             target=target,
             type=type,
             linkage='internal'
         )
+
+        return self.llvm_value

@@ -20,11 +20,14 @@ class AttributeLookupMixIn:
             )
         self.attributes[attribute.name] = attribute
 
-    def emit_attribute_lookup(self, module, builder, scope, name):
+    def emit_attribute_lookup(self, *args, **kwargs):
+        name = kwargs['name']
+
         a = self.get_attribute(name)
         if a is None:
             return None
-        a.emit(self, module, builder, scope, name)
+
+        return a.emit(self, *args, **kwargs)
 
 
 class AttributeLookupExpr(BaseExpr):
@@ -34,10 +37,10 @@ class AttributeLookupExpr(BaseExpr):
         self.name = name
         self.obj = obj
 
-    def emit(self, obj, module, builder, scope, name):
-        result = self.obj.emit_attribute_lookup(
-            module, builder, scope, self.name
-        )
+    def emit(self, *args, **kwargs):
+        result = self.obj.emit( # yapf: disable
+            name=self.name, *args, **kwargs
+        ).emit_attribute_lookup(name=self.name, *args, **kwargs)
 
         if result is None:
             raise errors.NoSuchAttribute(self.location, self.name)

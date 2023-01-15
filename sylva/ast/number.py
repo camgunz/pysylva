@@ -37,6 +37,9 @@ class ComplexType(SizedNumericType):
     def mname(self):
         return f'c{self.bits}'
 
+    def __str__(self):
+        return f'<Complex{self.bits}>'
+
 
 class FloatType(SizedNumericType):
 
@@ -59,6 +62,9 @@ class FloatType(SizedNumericType):
     def mname(self):
         return f'f{self.bits}'
 
+    def __str__(self):
+        return f'<Float{self.bits}>'
+
 
 class IntType(SizedNumericType):
 
@@ -72,7 +78,7 @@ class IntType(SizedNumericType):
         return f'{"i" if self.signed else "u"}{self.bits}'
 
     def __str__(self):
-        return f'<IntType {self.bits} {self.signed}>'
+        return f'<{"U" if not self.signed else ""}Int{self.bits}>'
 
 
 class NumericLiteralExpr(LiteralExpr):

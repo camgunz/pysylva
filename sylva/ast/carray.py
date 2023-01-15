@@ -2,7 +2,6 @@ from functools import cached_property
 
 from .. import utils
 from .array import ArrayType, MonoArrayType
-from .sylva_type import SylvaParamType
 
 
 class MonoCArrayType(MonoArrayType):
@@ -18,7 +17,21 @@ class MonoCArrayType(MonoArrayType):
 
 class CArrayType(ArrayType):
 
-    def add_monomorphization(self, location, element_type, element_count):
-        return SylvaParamType.add_monomorphization(
-            self, MonoCArrayType(location, element_type, element_count)
+    # pylint: disable=arguments-differ
+    def get_or_create_monomorphization(
+        self, location, element_type, element_count
+    ):
+        for n, mm in enumerate(self.monomorphizations):
+            if mm.equals_params(element_type, element_count):
+                return n, mm
+
+        index = len(self.monomorphizations)
+
+        mm = MonoCArrayType(
+            location=location,
+            element_type=element_type,
+            element_count=element_count
         )
+        self.monomorphizations.append(mm)
+
+        return index, mm

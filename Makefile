@@ -1,9 +1,4 @@
-SHELL:=/bin/sh
-
-.PHONY: test
-
-test: install ## Build hello world example
-	sylva --output-folder sbuild/ examples/hello.sy
+SHELL:=/bin/bash
 
 .PHONY: venv
 
@@ -12,25 +7,30 @@ ifeq ($(VIRTUAL_ENV), )
 	$(error "Not running in a virtualenv")
 endif
 
-.PHONY: depinstall
-
-depinstall: venv ## Install dependencies
-	@pip install -r dev-requirements.txt
-
 .PHONY: install
 
-install: depinstall ## Install
+install: ## Install
 	@pip install .
+
+.PHONY: dev-install
+
+dev-install: venv ## Install dependencies
+	@pip install . .[dev]
+
+.PHONY: test
+
+test: dev-install ## Test hello world example
+	sylva --output-folder sbuild/ examples/hello.sy
 
 .PHONY: parsetest
 
-parsetest: install ## Run parser tests
+parsetest: dev-install ## Run parser tests
 	sylva --output-folder sbuild/ --only-parse examples/hello.sy
 
 .PHONY: utest
 
-utest: install ## Run unit tests
-	@echo "No testing framework set up yet"
+utest: dev-install ## Run unit tests
+	@echo "No unit testing framework set up yet"
 
 .PHONY: docs
 

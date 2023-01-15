@@ -19,16 +19,17 @@ def array_implementation_builder(array_type):
     # indices      | range  | range(0, element_count + 1)
     str_five = TypeSingletons.STR.get_or_create_monomorphization(
         Location.Generate(), 5
-    )
+    )[1]
 
     # pylint: disable=unused-argument
-    def emit_name_param(obj, location, module, builder, scope):
+    def emit_name_param(*args, **kwargs):
         return ir.Constant(
             str_five.llvm_type, bytearray('array', encoding='utf-8')
         )
 
     # pylint: disable=unused-argument
-    def emit_count_param(obj, location, module, builder, scope):
+    def emit_count_param(*args, **kwargs):
+        obj = kwargs['obj']
         return ir.Constant(TypeSingletons.UINT.llvm_type, obj.element_count)
 
     array_type.set_attribute(
@@ -81,49 +82,31 @@ class MonoArrayType(SylvaType):
             self.element_count == element_count
         )
 
-    def equals_binds(self, binds):
-        return self.equals_params(binds[0].value, binds[1].value)
-
 
 class ArrayType(SylvaParamType):
 
     def __init__(self, location):
-        SylvaParamType.__init__(
-            self,
-            location,
-            [
-                self.BIND_CLASS(Location.Generate(), 'element_type'),
-                self.BIND_CLASS(Location.Generate(), 'element_count'),
-            ]
-        )
+        SylvaParamType.__init__(self, location)
         self.implementation_builders.append(array_implementation_builder)
 
-    def _build_monomorphization(self, location, binds, bind_types):
-        return MonoArrayType(
+    # pylint: disable=arguments-differ
+    def get_or_create_monomorphization(
+        self, location, element_type, element_count
+    ):
+        for n, mm in enumerate(self.monomorphizations):
+            if mm.equals_params(element_type, element_count):
+                return n, mm
+
+        index = len(self.monomorphizations)
+
+        mm = MonoArrayType(
             location=location,
-            element_type=binds[0].value,
-            element_count=binds[1].value
+            element_type=element_type,
+            element_count=element_count
         )
+        self.monomorphizations.append(mm)
 
-    def _bind_type_parameters(self, location, exprs):
-        from .type_singleton import get_unsigned_int_types
-        # We expect exprs to be 2 LiteralExprs whose values are a SylvaType
-        # subclass instance and an integer
-        binds, bind_types = SylvaParamType._bind_type_parameters(
-            self, location, exprs
-        )
-        if not bind_types['element_type'] == SylvaType:
-            raise errors.InvalidParameterization(
-                exprs[0].location,
-                'Type mismatch (expected a value of type "type")'
-            )
-        if not bind_types['element_count'] in get_unsigned_int_types():
-            raise errors.InvalidParameterization(
-                exprs[1].location,
-                'Type mismatch (expected value of unsigned integer type)'
-            )
-
-        return binds, bind_types
+        return index, mm
 
     # def get_reflection_attribute(self, location, name):
     #     if name == 'type':
@@ -178,6 +161,6 @@ class ArrayLiteralExpr(LiteralExpr):
             location,
             TypeSingletons.ARRAY.get_or_create_monomorphization(
                 location, first_type, len(value)
-            ),
+            )[1],
             value
         )

@@ -23,5 +23,4 @@ class CVoidExpr(BaseExpr):
         from .type_singleton import TypeSingletons
 
         BaseExpr.__init__(self, location, TypeSingletons.CVOID)
-        print(expr)
         self.expr = expr

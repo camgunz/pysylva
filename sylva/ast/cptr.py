@@ -1,7 +1,7 @@
 from functools import cached_property
 
 from .expr import BaseExpr
-from .pointer import MonoPointerType, PointerType
+from .pointer import MonoPointerType
 from .sylva_type import SylvaParamType, SylvaType
 
 
@@ -30,14 +30,14 @@ class MonoCPtrType(MonoPointerType):
         return ''.join([f'4cp{ex}{ref_ex}', self.referenced_type.mname])
 
     def __eq__(self, other):
-        return SylvaType.__eq__(self, other) and self.params_equal(
+        return SylvaType.__eq__(self, other) and self.equals_params(
             other.referenced_type,
             other.is_exclusive,
             other.referenced_type_is_exclusive
         )
 
     # pylint: disable=arguments-differ,arguments-renamed
-    def params_equal(
+    def equals_params(
         self, referenced_type, is_exclusive, referenced_type_is_exclusive
     ):
         return (
@@ -47,24 +47,33 @@ class MonoCPtrType(MonoPointerType):
         )
 
 
-class CPtrType(PointerType):
+class CPtrType(SylvaParamType):
 
     # pylint: disable=arguments-differ,arguments-renamed
-    def add_monomorphization(
+    def get_or_create_monomorphization(
         self,
         location,
         referenced_type,
         is_exclusive,
         referenced_type_is_exclusive
     ):
-        return SylvaParamType.add_monomorphization(
-            MonoCPtrType(
-                location,
-                referenced_type,
-                is_exclusive,
-                referenced_type_is_exclusive
-            )
+        for n, mm in enumerate(self.monomorphizations):
+            if mm.equals_params(referenced_type,
+                                is_exclusive,
+                                referenced_type_is_exclusive):
+                return n, mm
+
+        index = len(self.monomorphizations)
+
+        mm = MonoCPtrType(
+            location,
+            referenced_type,
+            is_exclusive,
+            referenced_type_is_exclusive
         )
+        self.monomorphizations.append(mm)
+
+        return index, mm
 
 
 class CPtrExpr(BaseExpr):
@@ -82,6 +91,6 @@ class CPtrExpr(BaseExpr):
                 expr.type,
                 is_exclusive,
                 referenced_type_is_exclusive
-            )
+            )[1]
         )
         self.expr = expr

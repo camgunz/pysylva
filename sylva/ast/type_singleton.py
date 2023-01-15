@@ -148,11 +148,11 @@ class TypeSingletonsBuilder:
         if name == 'STR':
             return StrType(location=Location.Generate())
 
-        if name == 'STRUCT':
-            return StructType(location=Location.Generate())
+        # if name == 'STRUCT':
+        #     return StructType(location=Location.Generate())
 
-        if name == 'VARIANT':
-            return VariantType(location=Location.Generate())
+        # if name == 'VARIANT':
+        #     return VariantType(location=Location.Generate())
 
         raise AttributeError(
             f"'TypeSingletons' object has no attribute '{name}"

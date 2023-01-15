@@ -63,7 +63,7 @@ class Program:
                 compile_errors.extend(parse_errors)
             else:
                 try:
-                    llvm_module = module.emit(None, module, None, None, None)
+                    llvm_module = module.emit(module=module)
                 except errors.SylvaError as se:
                     compile_errors.append(se)
                 else:
