@@ -1,93 +1,37 @@
+from dataclasses import dataclass, field
 from functools import cached_property
+from typing import Union
 
-from llvmlite import ir
-
-from .. import errors, utils
-from .sylva_type import SylvaParamType, SylvaType
-from .value import Value
+from sylva.ast.mod import Mod
+from sylva.ast.sylva_type import MonoType, ParamType, SylvaType, TypeParam
 
 
-class BaseStructType(SylvaType):
-
-    def __init__(self, location, name, module):
-        SylvaType.__init__(self, location)
-
-        if name:
-            llvm_module = module.type.llvm_type
-            self.llvm_type = llvm_module.context.get_identified_type(name)
-
-        self.name = name
-        self.fields = []
-
-    def set_fields(self, fields):
-        dupes = utils.get_dupes(f.name for f in fields)
-        if dupes:
-            raise errors.DuplicateFields(self, dupes)
-
-        llvm_fields = [f.type.llvm_type for f in fields]
-
-        if self.name:
-            self.llvm_type.set_body(*llvm_fields)
-        else:
-            self.llvm_type = ir.LiteralStructType(llvm_fields)
-
-        self.fields = fields
-
-    # self._size = 0
-    # self._alignment = 1
-    # self._offsets = {}
-    # for name, type in self.fields:
-    #     self._size = utils.round_up_to_multiple(
-    #       self._size, type.alignment
-    #     )
-    #     self._alignment = max(self._alignment, type.alignment)
-    #     self._offsets[name] = self._size
-    #     self._size += type.size
-    # self._size = utils.round_up_to_multiple(self._size, self._alignment)
+@dataclass(kw_only=True)
+class BaseStructType(MonoType):
+    fields: dict[str, SylvaType] = field(default_factory=dict)
 
     @cached_property
     def mname(self):
         return ''.join(['6struct', ''.join(f.type.mname for f in self.fields)])
 
-    def get_attribute(self, name):
-        # [TODO] These are reflection attributes, but since we're inside the
-        #        type, they're really plain old attributes.
-        raise NotImplementedError()
 
-    def emit_attribute_lookup(self, module, builder, scope, name):
-        # [TODO] These are reflection attributes, but since we're inside the
-        #        type, they're really plain old attributes.
-        raise NotImplementedError()
-
-
+@dataclass(kw_only=True)
 class MonoStructType(BaseStructType):
-
-    def __eq__(self, other):
-        return (
-            SylvaType.__eq__(self, other) and
-            self.equals_params(other.name, other.fields)
-        )
-
-    # pylint: disable=arguments-differ
-    def equals_params(self, name, fields):
-        return ( # yapf: disable
-            self.name == name and
-            len(self.fields) == len(fields) and
-            all(
-                f.name == of.name and f.type == of.type
-                for f, of in zip(self.fields, fields)
-            )
-        )
+    pass
 
 
-class StructType(SylvaParamType):
+@dataclass(kw_only=True)
+class StructType(ParamType):
+    module: Mod
+    fields: dict[str, Union[SylvaType, TypeParam]] = field(
+        default_factory=dict
+    ) # yapf: ignore
+    _type_parameters: list[str] = field(default_factory=list, init=False)
 
-    def __init__(self, location, name, module, fields):
-        SylvaParamType.__init__(self, location)
-        self.name = name
-        self.module = module
-        self.fields = fields
-        self._type_parameters = [f.name for f in fields if f.is_type_parameter]
+    def __post_init__(self):
+        self._type_parameters = [
+            n for n, f in self.fields.items() if isinstance(f, TypeParam)
+        ]
 
     @property
     def type_parameters(self):
@@ -102,16 +46,14 @@ class StructType(SylvaParamType):
 
         index = len(self.monomorphizations)
 
-        mm = MonoStructType(
-            location=location, name=self.name, module=self.module
-        )
+        mm = MonoStructType(location=location, name=self.name)
         # [FIXME] Normally we have access to the type when building fields,
         #         meaning that building self-referential fields is easy. But
         #         here we've wrapped that all up in this method, so it's
         #         currently not possible to create a struct monomorphization
         #         with a self-referential field. I think the fix here is
         #         something like a `SelfReferentialField`, probably.
-        mm.set_fields(fields)
+        mm.fields = fields
         self.monomorphizations.append(mm)
 
         return index, mm
@@ -128,31 +70,14 @@ class StructType(SylvaParamType):
 
         index = len(self.monomorphizations)
 
-        mm = MonoStructType(
-            location=location, name=self.name, module=self.module
-        )
+        mm = MonoStructType(location=location, name=self.name)
         # [FIXME] Normally we have access to the type when building fields,
         #         meaning that building self-referential fields is easy. But
         #         here we've wrapped that all up in this method, so it's
         #         currently not possible to create a struct monomorphization
         #         with a self-referential field. I think the fix here is
         #         something like a `SelfReferentialField`, probably.
-        mm.set_fields(fields)
+        mm.fields = fields
         self.monomorphizations.append(mm)
 
         return index, mm
-
-
-class Struct(Value):
-
-    def get_attribute(self, name):
-        for f in self.type.fields:
-            if f.name == name:
-                return f
-        return Value.get_attribute(self, name)
-
-    def emit_attribute_lookup(self, module, builder, scope, name):
-        f = self.get_attribute(name)
-        if f is not None:
-            return f.emit(self, module, builder, scope, name)
-        return Value.emit_attribute_lookup(self, module, builder, scope, name)

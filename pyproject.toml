@@ -6,10 +6,8 @@ readme = "README.md"
 description = "Compiler for the Sylva prograrmming language"
 urls = {"Home-page" = "https://www.mizar5.xyz/git/pysylva"}
 dependencies = [
-    "attrs",
     "lark",
     "llvmlite",
-    "pyparsing",
     "sylva_libc @ file:///Users/charlie/code/sylva_libc",
 ]
 
@@ -29,7 +27,7 @@ requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2", "wheel"]
 
 [tool.setuptools]
 include-package-data = true
-packages = ["sylva"]
+packages = ["sylva", "sylva.ast"]
 
 [tool.setuptools.package-data]
 "*" = ["Sylva.lark"]

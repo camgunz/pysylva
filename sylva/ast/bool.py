@@ -1,30 +1,24 @@
+from dataclasses import dataclass, field
 from functools import cached_property
 
-from llvmlite import ir
-
-from .literal import LiteralExpr
-from .sylva_type import SylvaType
+from sylva.ast.expr import LiteralExpr
+from sylva.ast.sylva_type import SylvaType
 
 
+@dataclass(kw_only=True)
 class BoolType(SylvaType):
-
-    def __init__(self, location):
-        SylvaType.__init__(self, location)
-        self.llvm_type = ir.IntType(8)
+    name: str = field(init=False, default='bool')
 
     @cached_property
     def mname(self):
         return 'bool'
 
 
+@dataclass(kw_only=True)
 class BoolLiteralExpr(LiteralExpr):
+    type: BoolType = field(init=False)
 
-    def __init__(self, location, value):
+    def __post_init__(self):
         from .type_singleton import TypeSingletons
 
-        LiteralExpr.__init__(
-            self, location=location, type=TypeSingletons.BOOL, value=value
-        )
-
-    def emit(self, obj, module, builder, scope, name):
-        return self.type.llvm_type(1 if self.value else 0)
+        self.type = TypeSingletons.BOOL

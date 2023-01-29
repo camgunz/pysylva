@@ -1,72 +1,60 @@
-from .base import Node
+from dataclasses import dataclass, field
+from typing import Union
+
+from sylva.ast.expr import Expr
+from sylva.ast.node import Node
 
 
+@dataclass(kw_only=True)
 class Stmt(Node):
 
     def emit(self, obj, module, builder, scope, name):
         raise NotImplementedError()
 
 
+@dataclass(kw_only=True)
 class StmtBlock(Stmt):
-
-    def __init__(self, location, code):
-        Stmt.__init__(self, location)
-        self.code = code
+    code: list[Union[Expr | Stmt]] = field(default_factory=list)
 
 
+@dataclass(kw_only=True)
 class LetStmt(Stmt):
-
-    def __init__(self, location, name, expr):
-        Stmt.__init__(self, location)
-        self.name = name
-        self.expr = expr
-
-    def emit(self, obj, module, builder, scope, name):
-        value = self.expr.emit(obj, module, builder, scope, name)
-        return builder.store(value, self.name)
+    name: str
+    expr: Expr
 
 
+@dataclass(kw_only=True)
 class AssignStmt(Stmt):
-
-    def __init__(self, location, name, expr):
-        Stmt.__init__(self, location)
-        self.name = name
-        self.expr = expr
-
-    def emit(self, obj, module, builder, scope, name):
-        value = self.expr.emit(obj, module, builder, scope, name)
-        return builder.store(value, self.name)
+    name: str
+    expr: Expr
 
 
+@dataclass(kw_only=True)
 class BreakStmt(Stmt):
     pass
 
 
+@dataclass(kw_only=True)
 class ContinueStmt(Stmt):
     pass
 
 
+@dataclass(kw_only=True)
 class ReturnStmt(Stmt):
-
-    def __init__(self, location, expr):
-        Stmt.__init__(self, location)
-        self.expr = expr
+    expr: Expr
 
 
+@dataclass(kw_only=True)
 class IfStmt(StmtBlock):
-
-    def __init__(self, location, code, conditional_expr, else_code):
-        StmtBlock.__init__(self, location, code)
-        self.conditional_expr = conditional_expr
-        self.else_code = else_code
+    conditional_expr: Expr
+    else_code: list[Union[Expr | Stmt]] = field(default_factory=list)
 
 
+@dataclass(kw_only=True)
 class LoopStmt(StmtBlock):
     pass
 
 
+@dataclass(kw_only=True)
 class WhileStmt(StmtBlock):
-
-    def __init__(self, location, code, conditional_expr):
-        StmtBlock.__init__(self, location, code)
-        self.conditional_expr = conditional_expr
+    conditional_expr: Expr

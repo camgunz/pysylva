@@ -189,6 +189,38 @@ class DefinitionViolation(LocationError):
         )
 
 
+class MissingRequirements(SylvaError):
+
+    def __init__(self, missing_requirements):
+        error_msg = (
+            'Missing requirement'
+            if len(missing_requirements) == 1 else 'Missing requirements'
+        )
+        SylvaError.__init__(
+            self,
+            '\n\n'.join([ # yapf: disable
+                (
+                    f'{req.location.pformat()}'
+                    '\n'
+                    f'[Error: {req.location.shorthand}] Missing requirement'
+                )
+                for req in missing_requirements
+            ]) + '\n'
+        )
+
+    def pformat(self):
+        return str(self)
+
+
+class CyclicRequirements(SylvaError):
+
+    def __init__(self, requirements_chain):
+        SylvaError.__init__(
+            self,
+            f'Requirements cycle detected: {" -> ".join(requirements_chain)}'
+        )
+
+
 class NoSuchModule(LocationError):
 
     def __init__(self, location, module_name):
@@ -245,13 +277,11 @@ class EmptyEnum(LocationError):
         LocationError.__init__(self, location, 'Enum has no fields')
 
 
-class MismatchedEnumMemberType(LocationError):
+class InconsistentEnumMemberTypes(LocationError):
 
-    def __init__(self, type, member):
+    def __init__(self, enum):
         LocationError.__init__(
-            self,
-            member.location,
-            f'Mismatched enum type: expected {type}; got {member.type}'
+            self, enum.location, f'Unexpected enum type: expected {enum.type}'
         )
 
 
@@ -263,13 +293,11 @@ class MismatchedRangeTypes(LocationError):
         )
 
 
-class MismatchedElementType(LocationError):
+class InconsistentElementType(LocationError):
 
-    def __init__(self, type, element):
+    def __init__(self, location, type):
         LocationError.__init__(
-            self,
-            element.location,
-            f'Mismatched element type: expected {type}; got {element.type}'
+            self, location, f'Unexpected element type: expected {type}'
         )
 
 

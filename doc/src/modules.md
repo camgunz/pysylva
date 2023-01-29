@@ -66,7 +66,7 @@ mod main
 req pets.dog # Only pulls in `pets` as a result of the `req` in `pets.dog`
 
 fn main() {
-  let dog: Dog{"Rover"}
+  let dog: pets.dog.Dog{"Rover"}
   dog.greet()
 }
 ```

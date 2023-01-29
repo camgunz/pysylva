@@ -1,9 +1,11 @@
+from dataclasses import dataclass, field
 from functools import cached_property
 
 from .. import utils
 from .array import ArrayType, MonoArrayType
 
 
+@dataclass(kw_only=True)
 class MonoCArrayType(MonoArrayType):
 
     @cached_property
@@ -15,7 +17,9 @@ class MonoCArrayType(MonoArrayType):
         ])
 
 
+@dataclass(kw_only=True)
 class CArrayType(ArrayType):
+    name: str = field(init=False, default='carray')
 
     # pylint: disable=arguments-differ
     def get_or_create_monomorphization(

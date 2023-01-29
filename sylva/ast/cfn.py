@@ -1,44 +1,22 @@
+from dataclasses import dataclass, field
 from functools import cached_property
+from typing import Optional
 
-from llvmlite import ir
+from sylva import errors, utils
+from sylva.ast.parameter import Parameter
+from sylva.ast.sylva_type import SylvaType
+from sylva.ast.value import Value
 
-from .. import errors, utils
-from .defs import TypeDef
-from .sylva_type import SylvaType
 
-
+@dataclass(kw_only=True)
 class BaseCFnType(SylvaType):
+    parameters: list[Parameter] = field(default_factory=list)
+    return_type: Optional[SylvaType] = field(default=None)
 
-    def __init__(self, location, parameters, return_type):
-        SylvaType.__init__(self, location)
-
-        dupes = utils.get_dupes(p.name for p in parameters)
+    def __post_init__(self):
+        dupes = utils.get_dupes(p.name for p in self.parameters)
         if dupes:
             raise errors.DuplicateParameters(self, dupes)
-
-        self.parameters = parameters
-        self.return_type = return_type
-
-        params = []
-
-        for p in self.parameters:
-            params.append(p.type.llvm_type)
-
-        self.llvm_type = ir.FunctionType(
-            self.return_type.llvm_type if self.return_type else ir.VoidType(),
-            params
-        )
-
-    def __eq__(self, other):
-        return ( # yapf: disable
-            SylvaType.__eq__(self, other) and
-            len(self.parameters) == len(other.parameters) and
-            all(
-                p.name == op.name and p.type == op.type
-                for p, op in zip(self.parameters, other.parameters)
-            ) and
-            other.return_type == self.return_type
-        )
 
     @cached_property
     def mname(self):
@@ -49,15 +27,13 @@ class BaseCFnType(SylvaType):
         ])
 
 
+@dataclass(kw_only=True)
 class CFnType(BaseCFnType):
     pass
 
 
+@dataclass(kw_only=True)
 class CFnPointerType(BaseCFnType):
-
-    def __init__(self, location, parameters, return_type):
-        BaseCFnType.__init__(self, location, parameters, return_type)
-        self.llvm_type = self.llvm_type.as_pointer()
 
     @cached_property
     def mname(self):
@@ -68,6 +44,7 @@ class CFnPointerType(BaseCFnType):
         ])
 
 
+@dataclass(kw_only=True)
 class CBlockFnType(BaseCFnType):
 
     @cached_property
@@ -79,11 +56,8 @@ class CBlockFnType(BaseCFnType):
         ])
 
 
+@dataclass(kw_only=True)
 class CBlockFnPointerType(BaseCFnType):
-
-    def __init__(self, location, parameters, return_type):
-        BaseCFnType.__init__(self, location, parameters, return_type)
-        self.llvm_type = self.llvm_type.as_pointer()
 
     @cached_property
     def mname(self):
@@ -94,22 +68,9 @@ class CBlockFnPointerType(BaseCFnType):
         ])
 
 
-class CFn(TypeDef):
+@dataclass(kw_only=True)
+class CFn(Value):
 
     @cached_property
     def mname(self):
         return self.name
-
-    def get_llvm_value(self, *args, **kwargs):
-        if self.llvm_value:
-            return self.llvm_value
-
-        module = kwargs['module']
-        llvm_module = module.type.llvm_type
-
-        # [TODO] Get the right monomorphization here
-        self.llvm_value = ir.Function(
-            llvm_module, self.type.llvm_type, name=self.name
-        )
-
-        return self.llvm_value

@@ -1,90 +1,57 @@
+from dataclasses import dataclass
 from functools import cached_property
+from typing import Union
 
-from llvmlite import ir
-
-from .literal import LiteralExpr
-from .sylva_type import SylvaType
+from sylva.ast.expr import Expr, LiteralExpr
+from sylva.ast.sylva_type import SylvaType
 
 
+@dataclass(kw_only=True)
 class NumericType(SylvaType):
     pass
 
 
+@dataclass(kw_only=True)
 class SizedNumericType(NumericType):
-
-    def __init__(self, location, bits):
-        NumericType.__init__(self, location)
-        self.bits = bits
+    bits: int
 
 
+@dataclass(kw_only=True)
 class ComplexType(SizedNumericType):
 
-    def __init__(self, location, bits):
-        SizedNumericType.__init__(self, location, bits)
-        if self.bits == 8:
-            self.llvm_type = ir.HalfType()
-        if self.bits == 16:
-            self.llvm_type = ir.FloatType()
-        if self.bits == 32:
-            self.llvm_type = ir.DoubleType()
-        # [NOTE] llvmlite won't do float types > 64 bits
-        if self.bits == 64:
-            self.llvm_type = ir.DoubleType()
-        if self.bits == 128:
-            self.llvm_type = ir.DoubleType()
-
     @cached_property
-    def mname(self):
+    def mname(self) -> str:
         return f'c{self.bits}'
 
-    def __str__(self):
-        return f'<Complex{self.bits}>'
 
-
+@dataclass(kw_only=True)
 class FloatType(SizedNumericType):
 
-    def __init__(self, location, bits):
-        SizedNumericType.__init__(self, location, bits)
-        # [NOTE] llvmlite won't do float types < 16 bits
-        if self.bits == 8:
-            self.llvm_type = ir.HalfType()
-        if self.bits == 16:
-            self.llvm_type = ir.HalfType()
-        if self.bits == 32:
-            self.llvm_type = ir.FloatType()
-        if self.bits == 64:
-            self.llvm_type = ir.DoubleType()
-        # [NOTE] llvmlite won't do float types > 64 bits
-        if self.bits == 128:
-            self.llvm_type = ir.DoubleType()
-
     @cached_property
-    def mname(self):
+    def mname(self) -> str:
         return f'f{self.bits}'
 
-    def __str__(self):
-        return f'<Float{self.bits}>'
 
-
+@dataclass(kw_only=True)
 class IntType(SizedNumericType):
-
-    def __init__(self, location, bits, signed):
-        SizedNumericType.__init__(self, location, bits)
-        self.signed = signed
-        self.llvm_type = ir.IntType(self.bits)
+    signed: bool
 
     @cached_property
-    def mname(self):
+    def mname(self) -> str:
         return f'{"i" if self.signed else "u"}{self.bits}'
 
-    def __str__(self):
-        return f'<{"U" if not self.signed else ""}Int{self.bits}>'
 
-
+@dataclass(kw_only=True)
 class NumericLiteralExpr(LiteralExpr):
-    pass
+    type: Union[ComplexType, FloatType, IntType]
 
 
+@dataclass(kw_only=True)
+class IntExpr(Expr):
+    type: IntType
+
+
+@dataclass(kw_only=True)
 class IntLiteralExpr(NumericLiteralExpr):
 
     @classmethod
@@ -127,10 +94,10 @@ class IntLiteralExpr(NumericLiteralExpr):
         else: # [NOTE] Warn here?
             raise ValueError('Int missing signedness and/or size')
 
-        return cls(
+        return NumericLiteralExpr( # pylint: disable=too-many-function-args
+            get_int_type(bits=size, signed=signed),
+            value,
             location=location,
-            type=get_int_type(bits=size, signed=signed),
-            value=value
         )
 
     @property
@@ -148,14 +115,17 @@ class FloatLiteralExpr(NumericLiteralExpr):
     def FromRawValue(cls, location, raw_value):
         from .type_singleton import get_float_type
 
+        val = float(raw_value[:-3])
+
+        # pylint: disable=too-many-function-args
         if raw_value.endswith('f16'):
-            return cls(location, get_float_type(16), float(raw_value[:-3]))
+            return cls(get_float_type(16), val, location=location)
         if raw_value.endswith('f32'):
-            return cls(location, get_float_type(32), float(raw_value[:-3]))
+            return cls(get_float_type(32), val, location=location)
         if raw_value.endswith('f64'):
-            return cls(location, get_float_type(64), float(raw_value[:-3]))
+            return cls(get_float_type(64), val, location=location)
         if raw_value.endswith('f128'):
-            return cls(location, get_float_type(128), float(raw_value[:-4]))
+            return cls(get_float_type(128), val, location=location)
         raise Exception(f'Malformed float value {raw_value}')
 
     @property
@@ -169,16 +139,17 @@ class ComplexLiteralExpr(NumericLiteralExpr):
     def FromRawValue(cls, location, raw_value):
         from .type_singleton import get_complex_type
 
+        val = complex(raw_value[:-3])
+
+        # pylint: disable=too-many-function-args
         if raw_value.endswith('f16'):
-            return cls(location, get_complex_type(16), complex(raw_value[:-3]))
+            return cls(get_complex_type(16), val, location=location)
         if raw_value.endswith('f32'):
-            return cls(location, get_complex_type(32), complex(raw_value[:-3]))
+            return cls(get_complex_type(32), val, location=location)
         if raw_value.endswith('f64'):
-            return cls(location, get_complex_type(64), complex(raw_value[:-3]))
+            return cls(get_complex_type(64), val, location=location)
         if raw_value.endswith('f128'):
-            return cls(
-                location, get_complex_type(128), complex(raw_value[:-4])
-            )
+            return cls(get_complex_type(128), val, location=location)
         raise Exception(f'Malformed complex value {raw_value}')
 
     @property

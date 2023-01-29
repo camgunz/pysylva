@@ -1,65 +1,19 @@
+from dataclasses import dataclass, field
 from functools import cached_property
 
-from llvmlite import ir
-
-from .. import errors, utils
-from ..location import Location
-from .attribute import Attribute
-from .literal import LiteralExpr
-from .sylva_type import SylvaParamType, SylvaType
+from sylva import errors, utils
+from sylva.ast.expr import LiteralExpr
+from sylva.ast.sylva_type import MonoType, ParamType, SylvaType
 
 
-def array_implementation_builder(array_type):
-    from .type_singleton import TypeSingletons
+@dataclass(kw_only=True)
+class MonoArrayType(MonoType):
+    element_type: SylvaType
+    element_count: int
 
-    # name         | str(5) | 'array'
-    # size         | uint   | element_count * element_type.size
-    # count        | uint   | element_count
-    # element_type | type   | element_type
-    # indices      | range  | range(0, element_count + 1)
-    str_five = TypeSingletons.STR.get_or_create_monomorphization(
-        Location.Generate(), 5
-    )[1]
-
-    # pylint: disable=unused-argument
-    def emit_name_param(*args, **kwargs):
-        return ir.Constant(
-            str_five.llvm_type, bytearray('array', encoding='utf-8')
-        )
-
-    # pylint: disable=unused-argument
-    def emit_count_param(*args, **kwargs):
-        obj = kwargs['obj']
-        return ir.Constant(TypeSingletons.UINT.llvm_type, obj.element_count)
-
-    array_type.set_attribute(
-        Attribute(
-            location=Location.Generate(),
-            name='name',
-            type=str_five,
-            func=emit_name_param
-        )
-    )
-
-    array_type.set_attribute(
-        Attribute( # yapf: disable
-            location=Location.Generate(),
-            name='count',
-            type=TypeSingletons.UINT,
-            func=emit_count_param
-        )
-    )
-
-
-class MonoArrayType(SylvaType):
-
-    def __init__(self, location, element_type, element_count):
-        if element_count <= 0:
+    def __post_init__(self):
+        if self.element_count <= 0:
             raise errors.EmptyArray(self.location)
-        SylvaType.__init__(self, location)
-        self.element_type = element_type
-        self.element_count = element_count
-        self.llvm_type = ir.ArrayType(element_type.llvm_type, element_count)
 
     @cached_property
     def mname(self):
@@ -69,39 +23,23 @@ class MonoArrayType(SylvaType):
             utils.len_prefix(str(self.element_count))
         ])
 
-    def __eq__(self, other):
-        return (
-            SylvaType.__eq__(self, other) and
-            self.equals_params(other.element_type, other.element_count)
-        )
+
+@dataclass(kw_only=True)
+class ArrayType(ParamType):
+    name: str = field(init=False, default='array')
+    element_type: SylvaType
 
     # pylint: disable=arguments-differ
-    def equals_params(self, element_type, element_count):
-        return (
-            self.element_type == element_type and
-            self.element_count == element_count
-        )
-
-
-class ArrayType(SylvaParamType):
-
-    def __init__(self, location):
-        SylvaParamType.__init__(self, location)
-        self.implementation_builders.append(array_implementation_builder)
-
-    # pylint: disable=arguments-differ
-    def get_or_create_monomorphization(
-        self, location, element_type, element_count
-    ):
+    def get_or_create_monomorphization(self, location, element_count):
         for n, mm in enumerate(self.monomorphizations):
-            if mm.equals_params(element_type, element_count):
+            if mm.equals_params(self.element_type, element_count):
                 return n, mm
 
         index = len(self.monomorphizations)
 
         mm = MonoArrayType(
             location=location,
-            element_type=element_type,
+            element_type=self.element_type,
             element_count=element_count
         )
         self.monomorphizations.append(mm)
@@ -123,7 +61,7 @@ class ArrayType(SylvaParamType):
     # def emit_reflection_lookup(self, location, module, builder, scope, name):
     #     if name == 'type':
     #         # [FIXME]
-    #         return SylvaType
+    #         return MonoType
     #     if name == 'bytes':
     #         # [NOTE] Just overriding the type here _probably_ works, but only
     #         #        implicitly. It would be better if we had explicit
@@ -151,16 +89,14 @@ class ArrayLiteralExpr(LiteralExpr):
         if len(value) == 0:
             raise errors.EmptyArray(location)
 
-        first_type = value[0].type
-        for v in value[1:]:
-            if v.type != first_type:
-                raise errors.MismatchedElementType(first_type, v)
+        if any(e.type != value[0].type for e in value[1:]):
+            raise errors.InconsistentElementType(location, value[0].type)
 
         LiteralExpr.__init__(
             self,
-            location,
-            TypeSingletons.ARRAY.get_or_create_monomorphization(
-                location, first_type, len(value)
+            location=location,
+            type=TypeSingletons.ARRAY.get_or_create_monomorphization(
+                location, value[0].type, len(value)
             )[1],
-            value
+            value=value
         )

@@ -571,7 +571,7 @@ class ModuleBuilder(lark.Visitor):
             )
 
         if type_obj.data == 'typevarparam':
-            return ast.TypeVar(location=location, name=type_obj.data)
+            return ast.TypeParam(location=location, name=type_obj.data)
 
         if type_obj.data == 'ptrparam':
             return ast.TypeSingletons.POINTER.get_or_create_monomorphization(

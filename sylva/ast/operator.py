@@ -2,13 +2,12 @@ import enum
 
 
 @enum.unique
-class Operator(str, enum.Enum):
+class Operator(enum.Enum):
 
-    def __new__(cls, value, arity):
-        obj = str.__new__(cls, value)
-        obj._value_ = value
-        obj.arity = arity
-        obj.is_assignment = value.endswith('=')
+    def __init__(self, value, arity):
+        self._value_ = (value, arity)
+        self.arity = arity
+        self.is_assignment = value.endswith('=')
 
     AttributeLookup = ('.', 2)
     ReflectionLookup = ('::', 2)

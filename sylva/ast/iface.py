@@ -1,47 +1,25 @@
+from dataclasses import dataclass
 from functools import cached_property
+from typing import Union
 
-from .. import errors, utils
-from .defs import TypeDef
-from .fn import MonoFnType
-from .sylva_type import SylvaType
-from .value import Value
+from sylva import errors, utils
+from sylva.ast.fn import FnType, Fn
+from sylva.ast.sylva_type import SylvaType
 
 
+@dataclass(kw_only=True)
 class IfaceType(SylvaType):
+    functions: dict[str, Union[FnType, Fn]]
 
-    def __init__(self, location, functions):
-        SylvaType.__init__(self, location)
-
-        dupes = utils.get_dupes(x.name for x in functions)
+    def __post_init__(self):
+        dupes = utils.get_dupes(self.functions.keys())
         if dupes:
             raise errors.DuplicateFields(self, dupes)
 
-        self.functions = functions
-
     def get_attribute(self, name):
-        for func_attr in self.functions:
-            if func_attr.name == name:
-                return func_attr.type
-        return super().get_attribute(name)
-
-    def emit_attribute_lookup(self, module, builder, scope, name):
-        f = self.get_attribute(name)
-        if f is not None:
-            return Value(
-                location=f.location, name=name, value=f, type=MonoFnType
-            )
-        return super().emit_attribute_lookup(module, builder, scope, name)
-
-    def add_implementation(self, implementation):
-        self.implementations.append(implementation)
+        return self.functions.get(name)
 
     @cached_property
     def mname(self):
-        return ''.join(['if', ''.join(f.type.mname for f in self.functions)])
-
-
-class IfaceDef(TypeDef):
-
-    @cached_property
-    def mname(self):
-        return self.name
+        function_mnames = sorted([f.mname for f in self.functions.values()])
+        return ''.join(['if', ''.join(function_mnames)])

@@ -1,66 +1,77 @@
+import enum
+
+from dataclasses import dataclass, field
 from functools import cached_property
 
-from .. import errors
-from ..target import get_target
-from .attribute_lookup import AttributeLookupMixIn
-from .base import Node
+from sylva import errors
+from sylva.ast.node import Node
 
 
-class BaseSylvaType(Node):
+class TypeModifier(enum.Enum):
+    NoMod = enum.auto()
+    Ptr = enum.auto()
+    Ref = enum.auto()
+    ExRef = enum.auto()
+
+    @classmethod
+    def FromTypeLiteral(cls, type_literal):
+        first_child = type_literal.children[0].getText()
+        last_child = type_literal.children[-1].getText()
+
+        if first_child == '*':
+            return cls.Ptr
+
+        if not first_child == '&':
+            return cls.NoMod
+
+        if last_child == '!':
+            return cls.ExRef
+
+        return cls.Ref
+
+
+@dataclass(kw_only=True)
+class SylvaType(Node):
+    mod: TypeModifier = TypeModifier.NoMod
 
     @cached_property
     def mname(self):
         raise NotImplementedError()
 
 
-class SylvaType(BaseSylvaType, AttributeLookupMixIn):
+@dataclass(kw_only=True)
+class PtrType(SylvaType):
+    mod: TypeModifier = field(init=False, default=TypeModifier.Ptr)
 
-    def __init__(self, location):
-        BaseSylvaType.__init__(self, location)
-        AttributeLookupMixIn.__init__(self)
-        self.llvm_type = None
-        self.implementations = []
+
+@dataclass(kw_only=True)
+class RefType(SylvaType):
+    mod: TypeModifier = field(init=False, default=TypeModifier.Ref)
+
+
+@dataclass(kw_only=True)
+class ExRefType(SylvaType):
+    mod: TypeModifier = field(init=False, default=TypeModifier.ExRef)
+
+
+@dataclass(kw_only=True)
+class MonoType(SylvaType):
+    implementations: list = field(default_factory=list)
 
     @property
     def type_parameters(self):
         return []
 
     def __eq__(self, other):
-        return isinstance(other, type(self))
-
-    def equals_params(self, *args, **kwargs):
-        raise NotImplementedError()
+        return isinstance(other, type(self)) # [FIXME] ???
 
     def add_implementation(self, implementation):
         self.implementations.append(implementation)
 
-    def make_value(self, location, name, value):
-        from .value import Value
-        return Value(location=location, name=name, value=value, type=self)
 
-    # def make_constant(self, value):
-    #     return self.llvm_type(value) # pylint: disable=not-callable
-
-    def get_alignment(self):
-        llvm_type = self.llvm_type
-        return llvm_type.get_abi_alignment(get_target().data)
-
-    def get_size(self):
-        return self.llvm_type.get_abi_size(get_target().data)
-
-    def get_pointer(self):
-        return self.llvm_type.as_pointer()
-
-    def emit(self, obj, module, builder, scope, name):
-        raise NotImplementedError()
-
-
-class SylvaParamType(BaseSylvaType):
-
-    def __init__(self, location):
-        super().__init__(location)
-        self.monomorphizations = []
-        self.implementation_builders = []
+@dataclass(kw_only=True)
+class ParamType(SylvaType):
+    monomorphizations: list = field(default_factory=list)
 
     def get_parameterized_types(self, location, binds, arguments):
         if len(self.type_parameters) != len(arguments):
@@ -113,16 +124,23 @@ class SylvaParamType(BaseSylvaType):
                 )
         return self.get_parameterized_types(location, binds, args)
 
+    def equals_params(self, *args, **kwargs):
+        raise NotImplementedError()
+
     @property
     def type_parameters(self):
         raise NotImplementedError()
 
-    @property
-    def llvm_types(self):
-        return [mm.llvm_type for mm in self.monomorphizations]
-
-    def add_implementation_builder(self, ib):
-        self.implementation_builders.append(ib)
-
     def get_or_create_monomorphization(self, location, *args, **kwargs):
         raise NotImplementedError()
+
+
+@dataclass(kw_only=True)
+class TypeDef(Node):
+    name: str
+    type: SylvaType
+
+
+@dataclass(kw_only=True)
+class TypeParam(Node):
+    name: str

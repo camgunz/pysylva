@@ -3,5 +3,6 @@
 build/*
 dist/*
 doc/doc/*
-Sylva.egg-info/*
+sylva.egg-info/*
 __pycache__
+sylva/_version.py

@@ -1,27 +1,15 @@
+from dataclasses import dataclass
 from functools import cached_property
 
-from llvmlite import ir
-
-from .. import utils
-from .sylva_type import SylvaType
+from sylva import utils
+from sylva.ast.sylva_type import MonoType
 
 
-class CBitFieldType(SylvaType):
-
-    def __init__(self, location, bits, signed, field_size):
-        SylvaType.__init__(self, location)
-        self.llvm_type = ir.IntType(bits)
-        self.bits = bits
-        self.signed = signed
-        self.field_size = field_size
-
-    def __eq__(self, other):
-        return ( # yapf: disable
-            SylvaType.__eq__(self, other) and
-            other.bits == self.bits and
-            other.signed == self.signed and
-            other.field_size == self.field_size
-        )
+@dataclass(kw_only=True)
+class CBitFieldType(MonoType):
+    bits: int
+    signed: bool
+    field_size: int
 
     @cached_property
     def mname(self):

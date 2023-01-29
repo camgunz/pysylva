@@ -2,9 +2,8 @@ import enum
 
 import lark
 
-from . import ast, debug, errors
-
-from .location import Location
+from sylva import ast, debug, errors
+from sylva.location import Location
 
 
 _EXPR_NODE_NAMES = [
@@ -41,30 +40,7 @@ _EXPR_NODE_NAMES = [
 ]
 
 
-class TypeModifier(enum.Enum):
-    Raw = enum.auto()
-    Pointer = enum.auto()
-    Reference = enum.auto()
-    ExclusiveReference = enum.auto()
-
-    @classmethod
-    def FromTypeLiteral(cls, type_literal):
-        first_child = type_literal.children[0].getText()
-        last_child = type_literal.children[-1].getText()
-
-        if first_child == '*':
-            return cls.Pointer
-
-        if not first_child == '&':
-            return cls.Raw
-
-        if last_child == '!':
-            return cls.ExclusiveReference
-
-        return cls.Reference
-
-
-class ModuleTransformer(lark.Transformer):
+class ASTBuilder(lark.Transformer):
 
     # [TODO] Save parameterization info in the module.
     # [TODO] Add argument scope requirements to functions at assignment sites
@@ -73,10 +49,10 @@ class ModuleTransformer(lark.Transformer):
     # [TODO] Check that call argument types match function parameter types
     # [TODO] Check that assignment rvalues match lvalues
 
-    def __init__(self, module, stream):
+    def __init__(self, location):
         super().__init__()
-        self._module = module
-        self._stream = stream
+        self._location = location
+        self._stream = location.stream
 
     # pylint: disable=too-many-locals
     def _handle_expr(self, expr, scope, expected_type=None):
@@ -584,7 +560,7 @@ class ModuleTransformer(lark.Transformer):
             )
 
         if type_obj.data == 'typevarparam':
-            return ast.TypeVar(location=location, name=type_obj.data)
+            return ast.TypeParam(location=location, name=type_obj.data)
 
         if type_obj.data == 'ptrparam':
             return ast.TypeSingletons.POINTER.get_or_create_monomorphization(
@@ -619,6 +595,29 @@ class ModuleTransformer(lark.Transformer):
         print(type_obj.pretty())
         print(type(type_obj), type_obj.data)
         raise NotImplementedError
+
+    def program(self, tree):
+        modules = tree.children
+        return ast.Program(modules=modules)
+
+    def module_decl(self, parts):
+        return ast.ModDecl(
+            location=Location.FromToken(parts[0], stream=self._stream),
+            name=parts[0].value
+        )
+
+    def module(self, parts):
+        mod_decl, defs = parts[0], parts[1:]
+        return ast.Mod(
+            location=mod_decl.location.copy(), name=mod_decl.name, defs=defs
+        )
+
+    def requirement_decl(self, tree):
+        return ast.Req(
+            location=Location.FromToken(tree[0], stream=self._stream),
+            name=tree[0].value,
+            bound_name=tree[1].value if tree[1] else None
+        )
 
     def alias_def(self, alias_def):
         value_token, _type_param = alias_def
@@ -692,7 +691,6 @@ class ModuleTransformer(lark.Transformer):
         struct_type = ast.CStructType(
             location=Location.FromToken(value_token, self._stream),
             name=name,
-            module=self._module
         )
 
         # [TODO] Check that this isn't already defined
@@ -713,9 +711,9 @@ class ModuleTransformer(lark.Transformer):
                 )
             )
 
-        struct_type.set_fields(fields)
+        struct_type.fields = fields
 
-        return ast.CStructTypeDef(struct_type)
+        return struct_type
         # csd.emit(module=self._module)
 
     def c_union_type_def(self, c_union_type_def):
@@ -726,7 +724,6 @@ class ModuleTransformer(lark.Transformer):
         union_type = ast.CUnionType(
             location=Location.FromToken(value_token, self._stream),
             name=name,
-            module=self._module
         )
 
         # [TODO] Check that this isn't already defined
@@ -749,47 +746,143 @@ class ModuleTransformer(lark.Transformer):
         return ast.CUnionTypeDef(union_type)
         # cud.emit(module=self._module)
 
-    def function_def(self, tree):
-        function_type_def, code_block = tree.children
-        param_objs = function_type_def.children[1].children[:-1]
-        return_type_obj = function_type_def.children[1].children[-1]
-        parameters = []
-        for param_obj in param_objs:
-            name_token, param_type_obj = param_obj.children
-            parameters.append(
-                ast.Parameter(
-                    location=Location.FromToken(name_token, self._stream),
-                    name=name_token.value,
-                    type=self._get_type(param_type_obj),
-                )
-            )
+    def typevarparam(self, parts):
+        return ast.TypeParam(
+            location=Location.FromToken(parts[0], stream=self._stream),
+            name=parts[0].value
+        )
 
-        fn_type = ast.FnType(
-            location=Location.FromTree(tree, self._stream),
-            parameters=parameters,
-            return_type_param=None if return_type_obj is None else ast.Bind(
-                location=Location
-                .FromToken(return_type_obj.children[0], self._stream),
-                name=return_type_obj.children[0].value,
-                type=self._get_type(return_type_obj.children[0]),
+    def ptrparam(self, parts):
+        return ast.Parameter(
+            location=Location.FromToken(parts[0], stream=self._stream),
+            name=parts[0].value,
+            type=ast.ConstLookupExpr(
+                location=Location.FromToken(parts[0], stream=self._stream),
+                name=parts[0].value,
+                type=ast.PtrType,
             )
         )
 
-        # [FIXME] Feels like this should be part of any ParamType
-        if not fn_type.type_parameters:
-            mono_fn_type = ast.MonoFnType(
-                location=fn_type.location,
-                parameters=fn_type.parameters,
-                return_type=fn_type.return_type
+    def refparam(self, parts):
+        return ast.Parameter(
+            location=Location.FromToken(parts[0], stream=self._stream),
+            name=parts[0].value,
+            type=ast.ConstLookupExpr(
+                location=Location.FromToken(parts[0], stream=self._stream),
+                name=parts[0].value,
+                type=ast.RefType,
             )
-            fn_type.monomorphizations.append(mono_fn_type)
-            return ast.Fn(
-                location=mono_fn_type.location,
-                name=function_type_def.children[0].value,
-                type=mono_fn_type,
-                code=self._process_code_block( # yapf: disable
-                    code_block,
-                    scope={param.name: param.type for param in parameters}
-                )
+        )
+
+    def exrefparam(self, parts):
+        return ast.Parameter(
+            location=Location.FromToken(parts[0], stream=self._stream),
+            name=parts[0].value,
+            type=ast.ConstLookupExpr(
+                location=Location.FromToken(parts[0], stream=self._stream),
+                name=parts[0].value,
+                type=ast.ExRefType,
             )
-            # func_def.emit(module=self._module)
+        )
+
+    def const_literal_expr(self, parts):
+        return ast.ConstLiteralExpr(
+            location=Location.FromToken(parts[0], stream=self._stream),
+        )
+
+    def const_lookup_expr(self, parts):
+        expr = ast.ConstLookupExpr(
+            location=Location.FromToken(parts[0], stream=self._stream),
+            name=parts.pop(0).value,
+            type=None
+        )
+
+        while True:
+            reflection = parts.pop(0).value == ':'
+            attr_name = parts.pop(0)
+
+            expr = ast.ConstAttributeLookupExpr(
+                location=Location.FromToken(attr_name, stream=self._stream),
+                name=attr_name.value,
+                obj=expr,
+                type=None
+            )
+
+        return expr
+
+    def lookup_expr(self, parts):
+        expr = ast.LookupExpr(
+            location=Location.FromToken(parts[0], stream=self._stream),
+            name=parts.pop(0).value,
+            type=None
+        )
+
+        while parts:
+            reflection = parts.pop(0).value == ':'
+            attr_name = parts.pop(0)
+
+            expr = ast.AttributeLookupExpr(
+                location=Location.FromToken(attr_name, stream=self._stream),
+                name=attr_name.value,
+                obj=expr,
+                type=None
+            )
+
+        return expr
+
+    def string_expr(self, parts):
+        str_token = parts[0].children[0]
+        return ast.StrLiteralExpr(
+            location=Location.FromToken(str_token, stream=self._stream),
+            value=str_token.value[1:-1]
+        )
+
+    def call_expr(self, parts):
+        func_lookup, args = parts[0], parts[1:]
+        return ast.CallExpr(
+            location=func_lookup.location.copy(),
+            function=func_lookup,
+            arguments=args,
+            type=None
+        )
+
+    def c_array_type_expr(self, parts):
+        _, sized_array_type_expr = parts
+        type_lookup, count_lookup_or_integer = sized_array_type_expr
+
+        return ast.CArray(location=Location.FromToken(parts[0], self._stream),)
+
+    def c_array_type_def(self, parts):
+        return ast.TypeDef(
+            location=Location.FromToken(value_token, self._stream),
+            name=value_token.value,
+            type=ast.TypeSingletons.CARRAY.get_or_create_monomorphization(
+                location=Location.FromToken(value_token, self._stream),
+                element_type=self._get_type(array_type_expr.children[0]),
+                element_count=int(array_type_expr.children[2])
+            )[1]
+        )
+        # cad.emit(module=self._module)
+
+    def function_type_def(self, parts):
+        name = parts[0]
+        params_and_return_type = parts[1].children
+        params = params_and_return_type[:-1]
+        return_type = params_and_return_type[-1]
+
+        return ast.FnType(
+            location=Location.FromToken(name, stream=self._stream),
+            name=name.value,
+            parameters=params,
+            return_type=return_type
+        )
+
+    def function_def(self, parts):
+        fn_type, exprs_and_stmts = parts[0], parts[1].children
+
+        return ast.Fn(
+            location=fn_type.location.copy(),
+            type=fn_type,
+            name=fn_type.name,
+            value=exprs_and_stmts
+        )

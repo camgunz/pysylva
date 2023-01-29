@@ -1,33 +1,33 @@
+from dataclasses import dataclass
 from functools import cached_property
 
-from .. import errors, utils
-from .sylva_type import SylvaType
+from sylva import errors, utils
+from sylva.ast.expr import LiteralExpr
+from sylva.ast.sylva_type import SylvaType
 
 
+@dataclass(kw_only=True)
 class EnumType(SylvaType):
+    values: dict[str, LiteralExpr]
 
-    def __init__(self, location, values):
-        SylvaType.__init__(self, location)
-        if len(values) <= 0:
+    def __post_init__(self):
+        if len(self.values) <= 0:
             raise errors.EmptyEnum(self.location)
 
-        dupes = utils.get_dupes(v.name for v in values)
+        dupes = utils.get_dupes(self.values.keys())
         if dupes:
             raise errors.DuplicateFields(self, dupes)
 
-        first_type = values[0].type
-        for value in values[1:]:
-            if value.type != first_type:
-                raise errors.MismatchedEnumMemberType(first_type, value)
-
-        self.values = values
-        self.llvm_type = self.values[0].type.llvm_type
+        if any(v.type != self.type for v in list(self.values.values())[1:]):
+            raise errors.InconsistentEnumMemberTypes(self)
 
     def get_attribute(self, name):
-        for val in self.values:
-            if val.name == name:
-                return val
+        return self.values.get(name)
 
     @cached_property
     def mname(self):
         return ''.join(['1e', self.values[0].type.mname])
+
+    @cached_property
+    def type(self):
+        return next(self.values.items()).type

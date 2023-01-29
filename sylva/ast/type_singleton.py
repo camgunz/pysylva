@@ -4,7 +4,6 @@ from functools import cache
 
 from .. import _SIZE_SIZE, errors
 from ..location import Location
-from .attribute import Attribute
 from .array import ArrayType
 from .bool import BoolType
 from .carray import CArrayType
@@ -29,43 +28,43 @@ class TypeSingletonsBuilder:
     @cache
     def __getattr__(self, name):
         if name == 'C16':
-            return ComplexType(location=Location.Generate(), bits=16)
+            return ComplexType(name='c16', bits=16)
 
         if name == 'C32':
-            return ComplexType(location=Location.Generate(), bits=32)
+            return ComplexType(name='c32', bits=32)
 
         if name == 'C64':
-            return ComplexType(location=Location.Generate(), bits=64)
+            return ComplexType(name='c64', bits=64)
 
         if name == 'C128':
-            return ComplexType(location=Location.Generate(), bits=128)
+            return ComplexType(name='c128', bits=128)
 
         if name == 'F16':
-            return FloatType(location=Location.Generate(), bits=16)
+            return FloatType(name='f16', bits=16)
 
         if name == 'F32':
-            return FloatType(location=Location.Generate(), bits=32)
+            return FloatType(name='f32', bits=32)
 
         if name == 'F64':
-            return FloatType(location=Location.Generate(), bits=64)
+            return FloatType(name='f64', bits=64)
 
         if name == 'F128':
-            return FloatType(location=Location.Generate(), bits=128)
+            return FloatType(name='f128', bits=128)
 
         if name == 'I8':
-            return IntType(location=Location.Generate(), bits=8, signed=True)
+            return IntType(name='i8', bits=8, signed=True)
 
         if name == 'I16':
-            return IntType(location=Location.Generate(), bits=16, signed=True)
+            return IntType(name='i16', bits=16, signed=True)
 
         if name == 'I32':
-            return IntType(location=Location.Generate(), bits=32, signed=True)
+            return IntType(name='i32', bits=32, signed=True)
 
         if name == 'I64':
-            return IntType(location=Location.Generate(), bits=64, signed=True)
+            return IntType(name='i64', bits=64, signed=True)
 
         if name == 'I128':
-            return IntType(location=Location.Generate(), bits=128, signed=True)
+            return IntType(name='i128', bits=128, signed=True)
 
         if name == 'INT':
             if _SIZE_SIZE == 8:
@@ -82,21 +81,19 @@ class TypeSingletonsBuilder:
             raise errors.UnsupportedPlatformIntegerSize(_SIZE_SIZE)
 
         if name == 'U8':
-            return IntType(location=Location.Generate(), bits=8, signed=False)
+            return IntType(name='u8', bits=8, signed=False)
 
         if name == 'U16':
-            return IntType(location=Location.Generate(), bits=16, signed=False)
+            return IntType(name='u16', bits=16, signed=False)
 
         if name == 'U32':
-            return IntType(location=Location.Generate(), bits=32, signed=False)
+            return IntType(name='u32', bits=32, signed=False)
 
         if name == 'U64':
-            return IntType(location=Location.Generate(), bits=64, signed=False)
+            return IntType(name='u64', bits=64, signed=False)
 
         if name == 'U128':
-            return IntType(
-                location=Location.Generate(), bits=128, signed=False
-            )
+            return IntType(name='u128', bits=128, signed=False)
 
         if name == 'UINT':
             if _SIZE_SIZE == 8:
@@ -113,40 +110,40 @@ class TypeSingletonsBuilder:
             raise errors.UnsupportedPlatformIntegerSize(_SIZE_SIZE)
 
         if name == 'BOOL':
-            return BoolType(location=Location.Generate())
+            return BoolType()
 
         if name == 'RUNE':
-            return RuneType(location=Location.Generate())
+            return RuneType()
 
         if name == 'STRING':
-            return StringType(location=Location.Generate())
+            return StringType()
 
         if name == 'CPTR':
-            return CPtrType(location=Location.Generate())
+            return CPtrType()
 
         if name == 'CSTR':
-            return CStrType(location=Location.Generate())
+            return CStrType()
 
         if name == 'CVOID':
-            return CVoidType(location=Location.Generate())
+            return CVoidType()
 
         if name == 'CARRAY':
-            return CArrayType(location=Location.Generate())
+            return CArrayType()
 
         # if name == 'CUNION':
         #     return CUnionType(location=Location.Generate())
 
         if name == 'ARRAY':
-            return ArrayType(location=Location.Generate())
+            return ArrayType()
 
         if name == 'DYNARRAY':
-            return DynarrayType(location=Location.Generate())
+            return DynarrayType()
 
         if name == 'POINTER':
-            return PointerType(location=Location.Generate())
+            return PointerType()
 
         if name == 'STR':
-            return StrType(location=Location.Generate())
+            return StrType()
 
         # if name == 'STRUCT':
         #     return StructType(location=Location.Generate())
@@ -165,31 +162,25 @@ TypeSingletons = TypeSingletonsBuilder()
 class IfaceSingletons(enum.Enum):
     ARRAY = IfaceType(
         location=Location.Generate(),
-        functions=[
-            Attribute(
-                location=Location.Generate(),
-                name='get_length',
-                type=MonoFnType(
+        functions={
+            'get_length':
+                MonoFnType(
                     location=Location.Generate(),
                     parameters=[],
-                    return_type=TypeSingletons.UINT,
+                    return_type=TypeSingletons.UINT, # type: ignore
                 )
-            )
-        ]
+        }
     )
     STRING = IfaceType(
         location=Location.Generate(),
-        functions=[
-            Attribute(
-                location=Location.Generate(),
-                name='get_length',
-                type=MonoFnType(
+        functions={
+            'get_length':
+                MonoFnType(
                     location=Location.Generate(),
                     parameters=[],
-                    return_type=TypeSingletons.UINT,
+                    return_type=TypeSingletons.UINT, # type: ignore
                 )
-            )
-        ]
+        }
     )
 
 

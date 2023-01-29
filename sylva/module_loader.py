@@ -1,100 +1,128 @@
-from collections import defaultdict
+from dataclasses import dataclass, field
 
 import lark
 
-from . import errors
-from .ast.mod import ModDecl, Mod
-from .ast.req import ReqDecl
-from .location import Location
-from .parser import Parser
-from .stream import Stream
+from sylva import errors
+from sylva.location import Location
+from sylva.parser import Parser
+from sylva.stream import Stream
 
 
-class ModDeclVisitor(lark.Visitor):
+@dataclass(kw_only=True, frozen=True, slots=True)
+class Requirement:
+    name: str
+    location: Location
 
-    def __init__(self, stream, decls):
+
+@dataclass(kw_only=True, slots=True)
+class Module:
+    name: str
+    locations: list[Location] = field(default_factory=list)
+    requirements: list[Requirement] = field(default_factory=list)
+
+
+class ModuleGatherer(lark.Visitor):
+
+    """
+    A Sylva program compiles source files. Internal requirements are
+    checked after all modules have been gathered. External dependencies
+    rely on module description files, which are single files in a
+    program's search path.
+    """
+
+    def __init__(self, stream, modules):
         self._stream = stream
-        self._decls = decls
+        self._modules = modules
+        self._current_module = None
 
     def module_decl(self, tree):
         loc = Location.FromTree(tree, stream=self._stream)
-        self._decls.append(ModDecl(loc, tree.children[0].value))
+        mod_name = tree.children[0].value
 
+        if mod_name not in self._modules:
+            mod = Module(name=mod_name, locations=[loc])
+            self._modules[mod_name] = mod
+        else:
+            mod = self._modules[mod_name]
+            mod.locations.append(loc)
 
-class ReqDeclVisitor(lark.Visitor):
+        pmod = self._current_module
+        self._current_module = mod
 
-    def __init__(self, stream, decls):
-        self._stream = stream
-        self._decls = decls
-        self._seen = set()
-
-    def requirement_decl(self, tree):
-        rd_name = tree.children[0].value
-        if rd_name in self._seen:
+        if not pmod:
             return
 
-        self._seen.add(rd_name)
+        ploc = mod.locations[-2] if mod == pmod else pmod.locations[-1]
+        loc = mod.locations[-1]
 
-        loc = Location.FromTree(tree, stream=self._stream)
-        self._decls.append(ReqDecl(loc, rd_name))
+        ploc.stream = Stream(
+            name=ploc.stream_name,
+            data=ploc.stream.data[ploc.index:loc.index] + '\n'
+        )
+
+    def requirement_decl(self, tree):
+        req = Requirement(
+            location=Location.FromTree(tree, stream=self._stream),
+            name=tree.children[0].value
+        )
+
+        if req.name not in [r.name for r in self._current_module.requirements]:
+            self._current_module.requirements.append(req)
+
+
+class RequirementLoader(lark.Visitor):
+
+    def __init__(self, program, location, modules, missing):
+        self._program = program
+        self._stream = location.stream
+        self._modules = modules
+        self._missing = missing
+
+    def requirement_decl(self, tree):
+        req = Requirement(
+            location=Location.FromTree(tree, stream=self._stream),
+            name=tree.children[0].value
+        )
+
+        if req.name in self._modules:
+            return
+
+        req_path = self._program.get_requirement_path(req.name)
+
+        if not req_path:
+            self._missing.append(req)
+            return
+
+        self._program.register_required_module(
+            Module(name=req.name, locations=[Location.FromPath(req_path)])
+        )
 
 
 class ModuleLoader:
 
     @staticmethod
-    def get_module_declarations_from_streams(streams):
-        mod_decls = []
-        for s in streams:
+    def load_from_streams(program, input_streams):
+        parser = Parser()
+        modules = {}
+
+        for stream in input_streams:
+            gatherer = ModuleGatherer(stream, modules)
             try:
-                ModDeclVisitor(s, mod_decls).visit(Parser().parse(s.data))
+                gatherer.visit(parser.parse(stream.data))
             except lark.UnexpectedToken as e:
                 raise errors.UnexpectedToken(
-                    Location.FromUnexpectedTokenError(e, stream=s),
+                    Location.FromUnexpectedTokenError(e, stream=stream),
                     e.token.value,
                     e.expected
                 ) from None
-        return mod_decls
 
-    @staticmethod
-    def gather_requirements_from_streams(streams):
-        req_decls = []
-        for s in streams:
-            ReqDeclVisitor(s, req_decls).visit(Parser().parse(s.data))
-        return req_decls
+        missing = []
+        for module in modules.values():
+            for loc in module.locations:
+                req_loader = RequirementLoader(program, loc, modules, missing)
+                req_loader.visit(parser.parse(loc.stream.data))
 
-    @staticmethod
-    def load_from_streams(program, input_streams):
-        names_to_streams = defaultdict(list)
+        if missing:
+            raise errors.MissingRequirements(missing)
 
-        module_declarations = (
-            ModuleLoader.get_module_declarations_from_streams(input_streams)
-        )
-
-        if not module_declarations:
-            return []
-
-        for n, md in enumerate(module_declarations):
-            loc = md.location
-            s = loc.stream
-            next_loc = (
-                module_declarations[n + 1].location
-                if n + 1 < len(module_declarations) else None
-            )
-
-            if next_loc and s == next_loc.stream:
-                data = s.data[loc.index:next_loc.index]
-            else:
-                data = s.data[loc.index:]
-
-            stream = Stream(name=loc.stream_name, data=data + '\n')
-            names_to_streams[md.name].append(stream)
-
-        return [ # yapf: disable
-            Mod(
-                name=name,
-                program=program,
-                streams=streams,
-                requirement_statements=ModuleLoader
-                .gather_requirements_from_streams(streams)
-            ) for name, streams in names_to_streams.items()
-        ]
+        return modules

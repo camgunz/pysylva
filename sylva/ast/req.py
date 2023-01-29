@@ -1,5 +1,10 @@
-from .base import Decl
+from dataclasses import dataclass
+from typing import Optional
+
+from sylva.ast.node import Node
 
 
-class ReqDecl(Decl):
-    pass
+@dataclass(kw_only=True)
+class Req(Node):
+    name: str
+    bound_name: Optional[str]

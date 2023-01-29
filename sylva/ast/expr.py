@@ -1,28 +1,54 @@
-from .base import Node
+from dataclasses import dataclass
+from typing import Any, Optional
+
+from sylva.ast.node import Node
+from sylva.ast.operator import Operator
+from sylva.ast.sylva_type import SylvaType
 
 
-class BaseExpr(Node):
-
-    def __init__(self, location, type):
-        Node.__init__(self, location)
-        self.type = type
-
-    def emit(self, obj, module, builder, scope, name):
-        raise NotImplementedError()
+@dataclass(kw_only=True)
+class Expr(Node):
+    type: Optional[SylvaType]
 
 
-class IndexExpr(BaseExpr):
-
-    def __init__(self, location, type, indexable, index):
-        super().__init__(location, type)
-        self.indexable = indexable
-        self.index = index
+@dataclass(kw_only=True)
+class LookupExpr(Expr):
+    name: str
 
 
-class BinaryExpr(BaseExpr):
+@dataclass(kw_only=True)
+class LiteralExpr(Expr):
+    value: Any
 
-    def __init__(self, location, type, operator, lhs, rhs):
-        super().__init__(location, type)
-        self.operator = operator
-        self.lhs = lhs
-        self.rhs = rhs
+
+@dataclass(kw_only=True)
+class UnaryExpr(Expr):
+    operator: Operator
+    expr: Expr
+
+
+@dataclass(kw_only=True)
+class BinaryExpr(Expr):
+    operator: Operator
+    lhs: Expr
+    rhs: Expr
+
+
+@dataclass(kw_only=True)
+class AttributeLookupExpr(Expr):
+    name: str
+    obj: Expr
+    reflection: bool = False
+
+
+@dataclass(kw_only=True)
+class ReflectionLookupExpr(Expr):
+    name: str
+    obj: Expr
+
+
+@dataclass(kw_only=True)
+class CallExpr(Expr):
+    function: Expr
+    arguments: list[Expr]
+    monomorphization_index: int = 0

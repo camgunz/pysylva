@@ -1,18 +1,10 @@
-from .expr import BaseExpr
+from dataclasses import dataclass
+
+from sylva.ast.expr import Expr
+from sylva.ast.number import IntExpr
 
 
-class IndexMixIn:
-
-    def get_index_type(self, location, index):
-        raise NotImplementedError()
-
-    def get_index(self, location, index):
-        raise NotImplementedError()
-
-
-class IndexExpr(BaseExpr):
-
-    def __init__(self, location, type, expr, index):
-        BaseExpr.__init__(self, location, expr.get_index_type(location, index))
-        self.expr = expr
-        self.index = index
+@dataclass(kw_only=True)
+class IndexExpr(Expr):
+    indexable: Expr
+    index: IntExpr

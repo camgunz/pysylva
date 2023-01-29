@@ -1,19 +1,22 @@
+from dataclasses import dataclass
 from functools import cached_property
 
-from .. import errors
-from .sylva_type import SylvaType
+from sylva import errors
+from sylva.ast.expr import LiteralExpr
+from sylva.ast.sylva_type import MonoType
 
 
-class RangeType(SylvaType):
+@dataclass(kw_only=True)
+class RangeType(MonoType):
+    min: LiteralExpr
+    max: LiteralExpr
 
-    def __init__(self, location, min, max):
-        if min.type != max.type:
-            raise errors.MismatchedRangeTypes(location, min.type, max.type)
-        SylvaType.__init__(self, location)
+    def __post_init__(self):
+        if self.min.type != self.max.type:
+            raise errors.MismatchedRangeTypes(
+                self.location, self.min.type, self.max.type
+            )
         self.type = min.type
-        self.min = min
-        self.max = max
-        self.llvm_type = self.type.llvm_type
 
     @cached_property
     def mname(self):

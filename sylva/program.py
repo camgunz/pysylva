@@ -1,59 +1,56 @@
+from os.path import sep as PATH_SEP
+from functools import cache
+from graphlib import CycleError, TopologicalSorter
+
+import lark
 import llvmlite # type: ignore
 
-from . import errors, sylva, sylva_builtins
-
-from .module_loader import ModuleLoader
-from .stdlib import Stdlib
-from .target import get_target, make_target
+from sylva import errors, sylva, target
+from sylva.ast_builder import ASTBuilder
+from sylva.module_loader import ModuleLoader
+from sylva.parser import Parser
 
 
 class Program:
 
-    def __init__(self, streams, stdlib_path=None, target_triple=None):
-        make_target(target_triple=target_triple)
+    def __init__(self, streams, search_paths, target_triple=None):
+        target.make_target(target_triple=target_triple)
 
-        # [TODO] Do some kind of searching
-        self.stdlib_path = stdlib_path or 'stdlib'
-        self.stdlib = Stdlib.FromPath(self.stdlib_path)
-        self.stdlib_modules = {
-            'builtin': sylva_builtins.get_module(self),
-            **{
-                module.name: module
-                for module in ModuleLoader.load_from_streams(
-                    self, self.stdlib.streams
-                )
-            }
+        self._search_paths = search_paths
+        self._required_modules = []
+
+        modules = { # yapf: ignore
+            **ModuleLoader.load_from_streams(self, streams),
+            **{m.name: m for m in self._required_modules}
         }
+
+        ts = TopologicalSorter()
+        for n, m in modules.items():
+            ts.add(n, *[req.name for req in m.requirements])
+
+        try:
+            ordered_module_names = list(ts.static_order())
+        except CycleError as e:
+            raise errors.CyclicRequirements(e.args[1])
+
         self.modules = {
-            module.name: module
-            for module in ModuleLoader.load_from_streams(self, streams)
+            m.name: m
+            for m in [modules[n] for n in ordered_module_names]
         }
-
-        for module in self.modules.values():
-            module.resolve_requirements()
-
-        ordered_modules = []
-        for module in self.modules.values():
-            self.order_module(module, ordered_modules)
-
-        self.modules = {module.name: module for module in ordered_modules}
-
-    def order_module(self, module, modules):
-        if module in modules:
-            return
-        for req in module.requirements:
-            self.order_module(req, modules)
-        modules.append(module)
-
-    @property
-    def is_executable(self):
-        return sylva.MAIN_MODULE_NAME in self.modules
 
     def parse(self):
-        parse_errors = []
-        for module in self.modules.values():
-            parse_errors.extend(module.parse())
-        return parse_errors
+        parser = Parser()
+
+        module_trees = [
+            ASTBuilder(location=loc).transform(parser.parse(loc.stream.data))
+            for module in self.modules.values()
+            for loc in module.locations
+        ]
+
+        return lark.Tree( # yapf: disable
+            data='Program',
+            children=module_trees
+        )
 
     def compile(self, output_folder):
         compile_errors = []
@@ -72,25 +69,35 @@ class Program:
                     )
                     llvm_mod_ref.verify()
                     object_code = (
-                        get_target().machine.emit_object(llvm_mod_ref)
+                        target.get_target().machine.emit_object(llvm_mod_ref)
                     )
                     with open(output_folder / module.name, 'wb') as fobj:
                         fobj.write(object_code)
         return errors
 
+    def register_required_module(self, module):
+        if module.name not in [m.name for m in self._required_modules]:
+            self._required_modules.append(module)
+
     def get_module(self, name):
-        try:
-            return self.stdlib_modules[name]
-        except KeyError:
-            pass
+        return self.modules.get(name)
 
-        try:
-            return self.modules[name]
-        except KeyError:
-            pass
+    @cache
+    def get_requirement_path(self, name):
+        req_file = f'{name.replace(".", PATH_SEP)}.sy'
+        for search_path in self._search_paths:
+            req_path = (search_path / req_file).absolute()
+            if req_path.is_file():
+                return req_path
 
-    def get_main_module(self):
+    @property
+    def is_executable(self):
+        return sylva.MAIN_MODULE_NAME in self.modules
+
+    @property
+    def main_module(self):
         return self.get_module(sylva.MAIN_MODULE_NAME)
 
-    def get_default_module(self):
-        return self.get_main_module()
+    @property
+    def default_module(self):
+        return self.main_module

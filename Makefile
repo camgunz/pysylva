@@ -25,7 +25,11 @@ test: dev-install ## Test hello world example
 .PHONY: parsetest
 
 parsetest: dev-install ## Run parser tests
-	sylva --output-folder sbuild/ --only-parse examples/hello.sy
+	@sylva \
+		--only-parse \
+		--search-paths libs \
+		--output-folder sbuild/ \
+		examples/hello.sy
 
 .PHONY: utest
 

@@ -67,23 +67,23 @@ PIPE_PIPE_EQUAL:          "||="
 TRUE:                     "true"
 FALSE:                    "false"
 
-?value: VALUE
+_value: VALUE
 
 _identifier: VALUE ((DOT | COLON_COLON) VALUE)*
 
-?param: value
-     | "@" value     -> typevarparam
-     | "*" value     -> ptrparam
-     | "&" value     -> refparam
-     | "&" value "!" -> exrefparam
+param: _value
+     | "@" _value     -> typevarparam
+     | "*" _value     -> ptrparam
+     | "&" _value     -> refparam
+     | "&" _value "!" -> exrefparam
 
-_type_param: _type_expr | _identifier "(" _type_param_list ")" | param
+type_param: type_expr | _identifier "(" _type_param_list ")" | param
 
-c_array_type_expr: "carray" array_type_expr
+c_array_type_expr: "carray" _sized_array_type_expr
 
-c_array_type_def: "carray" VALUE array_type_expr
+c_array_type_def: "carray" VALUE _sized_array_type_expr
 
-c_bit_field_type_expr: "cbitfield" "(" _type_param "," INTEGER ")"
+c_bit_field_type_expr: "cbitfield" "(" type_param "," INTEGER ")"
 
 c_block_function_type_expr: "cblockfntype" function_type_expr
 
@@ -94,7 +94,7 @@ c_function_type_expr: "cfn" function_type_expr
 c_function_type_def: "cfn" VALUE function_type_expr
 
 c_pointer_type_expr: "cptr" "(" ( \
-  _type_expr | _identifier ["(" _type_param_list ")"]) BANG? \
+  type_expr | _identifier ["(" _type_param_list ")"]) BANG? \
 ")" BANG?
 
 c_struct_type_expr: "cstruct" "(" _type_param_pair_list? ")"
@@ -107,14 +107,17 @@ c_union_type_def: "cunion" VALUE "{" _type_param_pair_list "}"
 
 c_void_type_expr: "cvoid"
 
-array_type_expr: "[" _type_param "*" (_identifier | INTEGER) "]"
-               | "[" _type_param ELLIPSIS "]"
+_sized_array_type_expr: "[" type_param "*" (_identifier | INTEGER) "]"
+
+_unsized_array_type_expr: "[" type_param ELLIPSIS "]"
+
+array_type_expr: _sized_array_type_expr | _unsized_array_type_expr
 
 array_type_def: "array" VALUE array_type_expr
 
 enum_type_def: "enum" VALUE "{" _expr_pair_list "}"
 
-function_type_expr: "(" _type_param_pair_list? ")" [return_type]
+function_type_expr: "(" _type_param_pair_list? ")" [":" type_param]
 
 function_type_def: "fn" VALUE function_type_expr
 
@@ -135,29 +138,29 @@ struct_type_def: "struct" VALUE struct_type_expr
 
 variant_type_def: "variant" VALUE "{" _type_param_pair_list "}"
 
-_type_expr: STAR? array_type_expr
-          | AMP array_type_expr BANG?
-          | function_type_expr
-          | STAR? range_type_expr
-          | AMP range_type_expr BANG?
-          | STAR? struct_type_expr
-          | AMP struct_type_expr BANG?
-          | c_array_type_expr
-          | c_bit_field_type_expr
-          | c_block_function_type_expr
-          | c_function_type_expr
-          | c_pointer_type_expr
-          | c_struct_type_expr
-          | c_union_type_expr
-          | c_void_type_expr
-          | STAR? _identifier "(" INTEGER ")"
-          | AMP _identifier "(" INTEGER ")" BANG?
+type_expr: STAR? array_type_expr
+         | AMP array_type_expr BANG?
+         | function_type_expr
+         | STAR? range_type_expr
+         | AMP range_type_expr BANG?
+         | STAR? struct_type_expr
+         | AMP struct_type_expr BANG?
+         | c_array_type_expr
+         | c_bit_field_type_expr
+         | c_block_function_type_expr
+         | c_function_type_expr
+         | c_pointer_type_expr
+         | c_struct_type_expr
+         | c_union_type_expr
+         | c_void_type_expr
+         | STAR? _identifier "(" INTEGER ")"
+         | AMP _identifier "(" INTEGER ")" BANG?
 
-_type_param_list: _type_param
-                | _type_param ("," _type_param)+ [","]
-                | _type_param ","
+_type_param_list: type_param
+                | type_param ("," type_param)+ [","]
+                | type_param ","
 
-?type_param_pair: VALUE ":" _type_param
+?type_param_pair: VALUE ":" type_param
 
 _type_param_pair_list: type_param_pair
                      | type_param_pair ("," type_param_pair)+ [","]
@@ -165,14 +168,14 @@ _type_param_pair_list: type_param_pair
 
 module_decl: "mod" _identifier
 
-requirement_decl: "req" _identifier
-
-alias_def: "alias" VALUE ":" _type_param
+requirement_decl: "req" _identifier [":" VALUE]
 
 const_def: "const" VALUE ":" literal_expr
 
 implementation_def: \
   "impl" _identifier ["(" _identifier ")"] "{" function_def* "}"
+
+type_def: "typedef" VALUE ":" type_param
 
 module: module_decl (requirement_decl
                    | array_type_def
@@ -182,7 +185,7 @@ module: module_decl (requirement_decl
                    | range_type_def
                    | struct_type_def
                    | variant_type_def
-                   | alias_def
+                   | type_def
                    | const_def
                    | function_def
                    | implementation_def
@@ -192,7 +195,7 @@ module: module_decl (requirement_decl
                    | c_struct_type_def
                    | c_union_type_def)*
 
-return_type: ":" _type_param
+program: module*
 
 _expr_list: expr | expr ("," expr)+ [","] | expr ","
 
@@ -230,30 +233,70 @@ _arg_list: _expr_list | _expr_pair_list
 ?power_expr: atom_expr ("**" unary_expr)*
        | "(" atom_expr ("**" unary_expr)+ ")"
 
-?atom_expr: atom_expr "(" [_arg_list] ")" -> call_expr
-          | atom_expr "[" atom_expr "]"   -> index_expr
-          | "(" atom_expr ")"
-          | maybe_const_expr
-
-?maybe_const_expr: \
-    "*" atom_expr                                      -> move_expr
+?atom_expr: \
+    atom_expr "(" [_arg_list] ")"                      -> call_expr
+  | atom_expr "[" atom_expr "]"                        -> index_expr
+  | "(" atom_expr ")"
+  | "*" atom_expr                                      -> move_expr
   | "&" atom_expr                                      -> ref_expr
   | "&" atom_expr "!"                                  -> exref_expr
   | "cptr" "(" atom_expr ")" BANG?                     -> cpointer_expr
   | "cvoid" "(" atom_expr ")" BANG?                    -> cvoid_expr
-  | array_type_expr                                    -> array_expr
+  | "[" _expr_list "]"                                 -> array_expr
   | (_identifier | struct_type_expr) "{" _arg_list "}" -> struct_expr
   | function_literal                                   -> function_expr
   | _identifier                                        -> lookup_expr
-  | literal_expr
+  | bool_literal_expr                                  -> bool_expr
+  | complex_literal_expr                               -> complex_expr
+  | float_literal_expr                                 -> float_expr
+  | int_literal_expr                                   -> int_expr
+  | rune_literal_expr                                  -> rune_expr
+  | string_literal_expr                                -> string_expr
 
-?literal_expr: (TRUE | FALSE)       -> bool_expr
-             | COMPLEX              -> complex_expr
-             | FLOAT                -> float_expr
-             | INTEGER              -> int_expr
-             | RUNE                 -> rune_expr
-             | STRING               -> string_expr
-             | "(" literal_expr ")"
+_const_expr_list: \
+    const_expr
+  | const_expr ("," const_expr)+ [","]
+  | const_expr ","
+
+_const_expr_pair_list: \
+    VALUE ":" const_expr
+  | VALUE ":" const_expr ("," VALUE ":" const_expr)+ [","]
+  | VALUE ":" const_expr ","
+
+_const_arg_list: _const_expr_list | _const_expr_pair_list
+
+const_expr: \
+    "(" const_expr ")"
+  | const_expr "[" const_expr "]"                            -> const_index_expr
+  | "[" _const_expr_list "]"                                 -> const_array_expr
+  | (_identifier | struct_type_expr) "{" _const_arg_list "}" -> const_struct_expr
+  | _identifier                                              -> const_lookup_expr
+  | bool_literal_expr                                        -> const_bool_expr
+  | complex_literal_expr                                     -> const_complex_expr
+  | float_literal_expr                                       -> const_float_expr
+  | int_literal_expr                                         -> const_int_expr
+  | rune_literal_expr                                        -> const_rune_expr
+  | string_literal_expr                                      -> const_string_expr
+
+literal_expr: bool_literal_expr
+            | complex_literal_expr
+            | float_literal_expr
+            | int_literal_expr
+            | rune_literal_expr
+            | string_literal_expr
+            | "(" literal_expr ")"
+
+bool_literal_expr: (TRUE | FALSE)       
+
+complex_literal_expr: COMPLEX              
+
+float_literal_expr: FLOAT                
+
+int_literal_expr: INTEGER              
+
+rune_literal_expr: RUNE                 
+
+string_literal_expr: STRING               
 
 if_block: "if" "(" expr ")" code_block ["else" (if_block | code_block)]
 
@@ -261,9 +304,9 @@ switch_block: "switch" "(" _identifier ")" "{" ( \
   default_block | (case_block+ default_block?) \
 ) "}"
 
-case_block: "case" "(" maybe_const_expr ")" code_block
+case_block: "case" "(" expr ")" code_block
 
-match_block: "match" "(" _identifier ")" "{" ( \
+match_block: "match" "(" expr ")" "{" ( \
   default_block | (match_case_block+ default_block?) \
 ) "}"
 

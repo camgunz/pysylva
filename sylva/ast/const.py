@@ -1,32 +1,32 @@
-from llvmlite import ir
+from dataclasses import dataclass
+from typing import Any
 
-from .defs import BaseDef
+from sylva.ast.expr import Expr
 
 
-class Const(BaseDef):
+@dataclass(kw_only=True)
+class ConstExpr(Expr):
+    pass
 
-    def __init__(self, location, name, value):
-        BaseDef.__init__(self, location, name, value.type)
-        self.value = value
 
-    def _check_definition(self, module):
-        existing_definition = module.vars.get(self.name)
-        if existing_definition:
-            raise errors.DuplicateDefinition(
-                self.name,
-                self.location,
-                existing_definition.location,
-            )
+@dataclass(kw_only=True)
+class ConstLookupExpr(ConstExpr):
+    name: str
 
-    def emit(self, *args, **kwargs):
-        module = kwargs['module']
 
-        self._check_definition(module)
+@dataclass(kw_only=True)
+class ConstLiteralExpr(ConstExpr):
+    value: Any
 
-        const = ir.GlobalVariable(
-            module.type.llvm_type, self.type.llvm_type, self.name
-        )
-        # const.initializer = self.value.emit(obj, module, builder, scope, name)
-        const.initializer = ir.Constant(self.type.llvm_type, self.value)
-        const.global_constant = True
-        return const
+
+@dataclass(kw_only=True)
+class ConstAttributeLookupExpr(ConstExpr):
+    name: str
+    obj: ConstExpr
+    reflection: bool = False
+
+
+@dataclass(kw_only=True)
+class ConstReflectionLookupExpr(ConstExpr):
+    name: str
+    obj: ConstExpr

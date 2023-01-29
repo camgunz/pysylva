@@ -1,15 +1,9 @@
-from .bind import Bind
+from dataclasses import dataclass
+
+from sylva.ast.node import Node
+from sylva.ast.sylva_type import SylvaType
 
 
-class Parameter(Bind):
-
-    # pylint: disable=unused-argument
-    def emit(self, *args, **kwargs):
-        scope = kwargs['scope']
-        arg = kwargs['arg']
-        # I think alloca is only necessary for pointer args?
-        # alloca = builder.alloca(self.type.llvm_type, self.name)
-        # builder.store(obj, alloca)
-        scope[self.name] = arg
-
-        return self
+@dataclass(kw_only=True)
+class Parameter(Node):
+    type: SylvaType

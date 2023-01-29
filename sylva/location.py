@@ -1,12 +1,15 @@
+from dataclasses import dataclass, field
+from typing import Optional
+
+from sylva.stream import Stream
+
+
+@dataclass(slots=True)
 class Location:
-
-    __slots__ = ('stream', 'index', 'line', 'column')
-
-    def __init__(self, stream=None, index=0, line=1, column=1):
-        self.stream = stream
-        self.index = index
-        self.line = line
-        self.column = column
+    stream: Optional[Stream] = field(default=None)
+    index: int = field(default=0)
+    line: int = field(default=1)
+    column: int = field(default=1)
 
     @classmethod
     def FromToken(cls, token, stream=None):
@@ -25,6 +28,10 @@ class Location:
         return cls.FromMeta(tree.meta, stream=stream)
 
     @classmethod
+    def FromPath(cls, path):
+        return cls(stream=Stream.FromFile(str(path)))
+
+    @classmethod
     def FromUnexpectedTokenError(cls, err, stream=None):
         return cls(
             stream=stream,
@@ -38,12 +45,7 @@ class Location:
         return cls()
 
     def __repr__(self):
-        if self.is_generated:
-            return 'Location(<generated>)'
-
-        return 'Location(%r, %d, %d, %d)' % (
-            self.stream_name, self.index, self.line, self.column
-        )
+        return self.shorthand
 
     def __str__(self):
         return self.shorthand
@@ -69,6 +71,14 @@ class Location:
             return '<generated>'
 
         return '%s:%d:%d' % (self.stream_name, self.line, self.column)
+
+    def copy(self):
+        return Location(
+            stream=self.stream,
+            index=self.index,
+            line=self.line,
+            column=self.column
+        )
 
     def pformat(self):
         if self.is_generated:

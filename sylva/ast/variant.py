@@ -1,17 +1,15 @@
+from dataclasses import dataclass, field
 from functools import cached_property
+from typing import Union
 
-from llvmlite import ir
-
-from .. import errors, utils
-from .struct import StructType
-from .union import BaseUnionType, Union
+from sylva.ast.struct import StructType
+from sylva.ast.union import UnionType
+from sylva.ast.sylva_type import SylvaType, TypeParam
 
 
-class MonoVariantType(BaseUnionType):
-
-    def __init__(self, location, name, module):
-        BaseUnionType.__init__(self, location, name, module)
-        self._type_parameters = []
+@dataclass(kw_only=True)
+class MonoVariantType(UnionType):
+    fields: dict[str, SylvaType] = field(default_factory=dict)
 
     @cached_property
     def mname(self):
@@ -19,65 +17,58 @@ class MonoVariantType(BaseUnionType):
             '7variant', ''.join(f.type.mname for f in self.fields)
         ])
 
-    @property
-    def type_parameters(self):
-        return self._type_parameters
+    # def set_fields(self, fields):
+    #     dupes = utils.get_dupes(f.name for f in fields)
+    #     if dupes:
+    #         raise errors.DuplicateFields(self, dupes)
 
-    def set_fields(self, fields):
-        dupes = utils.get_dupes(f.name for f in fields)
-        if dupes:
-            raise errors.DuplicateFields(self, dupes)
+    #     llvm_fields = []
+    #     largest_field = None
 
-        llvm_fields = []
-        largest_field = None
+    #     seen = set()
+    #     self.type_parameters = []
 
-        seen = set()
-        self.type_parameters = []
+    #     for f in fields:
+    #         llvm_fields.append(f.type.llvm_type)
 
-        for f in fields:
-            llvm_fields.append(f.type.llvm_type)
+    #         self._type_parameters.extend([
+    #             tp for tp in f.type_parameters
+    #             if tp.name not in seen and not seen.add(tp.name)
+    #         ])
 
-            self._type_parameters.extend([
-                tp for tp in f.type_parameters
-                if tp.name not in seen and not seen.add(tp.name)
-            ])
+    #         if largest_field is None:
+    #             largest_field = f
+    #             continue
 
-            if largest_field is None:
-                largest_field = f
-                continue
+    #         if f.type.get_size() > largest_field.type.get_size():
+    #             largest_field = f
 
-            if f.type.get_size() > largest_field.type.get_size():
-                largest_field = f
+    #     if self.name:
+    #         self.llvm_type.set_body(
+    #             largest_field.type.llvm_type,
+    #             ir.IntType(utils.round_up_to_power_of_two(len(fields)))
+    #         )
+    #     else:
+    #         self.llvm_type = ir.LiteralStructType([
+    #             largest_field.type.llvm_type,
+    #             ir.IntType(utils.round_up_to_power_of_two(len(fields)))
+    #         ])
 
-        if self.name:
-            self.llvm_type.set_body(
-                largest_field.type.llvm_type,
-                ir.IntType(utils.round_up_to_power_of_two(len(fields)))
-            )
-        else:
-            self.llvm_type = ir.LiteralStructType([
-                largest_field.type.llvm_type,
-                ir.IntType(utils.round_up_to_power_of_two(len(fields)))
-            ])
-
-        self.fields = fields
+    #     self.fields = fields
 
 
 class VariantType(StructType):
+    fields: dict[str, SylvaType] = field(default_factory=dict) # type: ignore
+    _type_parameters: list[str] = field(default_factory=list, init=False)
 
-    def __init__(self, location, name, module, fields):
-        StructType.__init__(self, location, name, module, fields)
+    def __post_init__(self):
         seen = set()
         self._type_parameters = []
-        for field in self.fields:
+        for field in self.fields.values():
             self._type_parameters.extend([
                 tp for tp in field.type_parameters
                 if tp.name not in seen and not seen.add(tp.name)
             ])
-
-    @property
-    def type_parameters(self):
-        return self._type_parameters
 
     def parameterize(self, location, params):
         # Result(u32)
@@ -131,5 +122,5 @@ class VariantType(StructType):
         return index, mm
 
 
-class Variant(Union):
+class Variant(UnionType):
     pass

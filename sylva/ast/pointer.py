@@ -1,22 +1,15 @@
+from dataclasses import dataclass, field
 from functools import cached_property
 
-from .expr import BaseExpr
-from .sylva_type import SylvaParamType, SylvaType
+from sylva.ast.expr import Expr
+from sylva.ast.sylva_type import MonoType, ParamType, SylvaType
 
 
-class MonoPointerType(SylvaType):
-
-    def __init__(self, location, referenced_type, is_reference, is_exclusive):
-        SylvaType.__init__(self, location)
-        self.referenced_type = referenced_type
-        self.is_reference = is_reference
-        self.is_exclusive = is_exclusive
-
-    # def get_attribute(self, name):
-    #     return self.referenced_type.get_attribute(name)
-
-    # def get_reflection_attribute(self, name):
-    #     return self.referenced_type.get_reflection_attribute(name)
+@dataclass(kw_only=True)
+class MonoPointerType(MonoType):
+    referenced_type: SylvaType
+    is_reference: bool
+    is_exclusive: bool
 
     @cached_property
     def mname(self):
@@ -28,21 +21,10 @@ class MonoPointerType(SylvaType):
             pointer_type = 'r'
         return ''.join([f'2p{pointer_type}', self.referenced_type.mname])
 
-    def __eq__(self, other):
-        return SylvaType.__eq__(self, other) and self.equals_params(
-            other.referenced_type, other.is_reference, other.is_exclusive
-        )
 
-    # pylint: disable=arguments-differ
-    def equals_params(self, referenced_type, is_reference, is_exclusive):
-        return (
-            self.referenced_type == referenced_type and
-            self.is_reference == is_reference and
-            self.is_exclusive == is_exclusive
-        )
-
-
-class PointerType(SylvaParamType):
+@dataclass(kw_only=True)
+class PointerType(ParamType):
+    name: str = field(init=False, default='pointer')
 
     # pylint: disable=arguments-differ
     def get_or_create_monomorphization(
@@ -65,16 +47,26 @@ class PointerType(SylvaParamType):
         return index, mm
 
 
-class PointerExpr(BaseExpr):
+@dataclass(kw_only=True)
+class PointerExpr(Expr):
+    expr: Expr
+    is_reference: bool
+    is_exclusive: bool
 
     def __init__(self, location, expr, is_reference, is_exclusive):
         from .type_singleton import TypeSingletons
 
-        pointer_type = TypeSingletons.POINTER.get_or_create_monomorphization(
+        Expr.__init__(
+            self,
             location=location,
-            referenced_type=expr.type,
-            is_reference=is_reference,
-            is_exclusive=is_exclusive
-        )[1]
+            type=TypeSingletons.POINTER.get_or_create_monomorphization(
+                location=location,
+                referenced_type=expr.type,
+                is_reference=is_reference,
+                is_exclusive=is_exclusive
+            )[1]
+        )
 
-        BaseExpr.__init__(self, location, pointer_type)
+        self.expr = expr
+        self.is_reference = is_reference
+        self.is_exclusive = is_exclusive

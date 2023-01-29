@@ -1,25 +1,24 @@
+from dataclasses import dataclass, field
 from functools import cached_property
 
-from llvmlite import ir
-
-from .literal import LiteralExpr
-from .sylva_type import SylvaType
+from sylva.ast.expr import LiteralExpr
+from sylva.ast.sylva_type import SylvaType
 
 
+@dataclass(kw_only=True)
 class RuneType(SylvaType):
-
-    def __init__(self, location):
-        SylvaType.__init__(self, location)
-        self.llvm_type = ir.IntType(32)
+    name: str = field(init=False, default='rune')
 
     @cached_property
     def mname(self):
         return 'rune'
 
 
+@dataclass(kw_only=True)
 class RuneLiteralExpr(LiteralExpr):
+    type: RuneType = field(init=False)
 
-    def __init__(self, location, value):
+    def __post_init__(self):
         from .type_singleton import TypeSingletons
 
-        LiteralExpr.__init__(self, location, TypeSingletons.RUNE, value)
+        self.type = TypeSingletons.RUNE

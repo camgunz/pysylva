@@ -1,25 +1,25 @@
+from dataclasses import dataclass, field
 from functools import cached_property
 
-from llvmlite import ir
-
-from .literal import LiteralExpr
-from .sylva_type import SylvaType
+from sylva.ast.expr import LiteralExpr
+from sylva.ast.sylva_type import MonoType
 
 
-class CStrType(SylvaType):
-
-    def __init__(self, location):
-        SylvaType.__init__(self, location)
-        self.llvm_type = ir.PointerType(ir.IntType(8))
+@dataclass(kw_only=True)
+class CStrType(MonoType):
+    name: str = field(init=False, default='cstr')
 
     @cached_property
     def mname(self):
         return 'cstr'
 
 
+@dataclass(kw_only=True)
 class CStrLiteralExpr(LiteralExpr):
 
     def __init__(self, location, value):
         from .type_singleton import TypeSingletons
 
-        LiteralExpr.__init__(self, location, TypeSingletons.CSTR, value)
+        LiteralExpr.__init__(
+            self, location=location, type=TypeSingletons.CSTR, value=value
+        )
