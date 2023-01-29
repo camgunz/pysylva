@@ -40,7 +40,8 @@ class StrType(ArrayType):
         from .type_singleton import TypeSingletons
 
         for n, mm in enumerate(self.monomorphizations):
-            if mm.equals_params(TypeSingletons.U8, element_count):
+            if (mm.element_type == TypeSingletons.U8 and
+                    mm.element_count == element_count):
                 return n, mm
 
         index = len(self.monomorphizations)

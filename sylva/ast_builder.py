@@ -798,13 +798,14 @@ class ASTBuilder(lark.Transformer):
         )
 
         while True:
-            reflection = parts.pop(0).value == ':'
+            reflection = parts.pop(0).value == '::'
             attr_name = parts.pop(0)
 
             expr = ast.ConstAttributeLookupExpr(
                 location=Location.FromToken(attr_name, stream=self._stream),
                 name=attr_name.value,
                 obj=expr,
+                reflection=reflection,
                 type=None
             )
 
@@ -818,17 +819,48 @@ class ASTBuilder(lark.Transformer):
         )
 
         while parts:
-            reflection = parts.pop(0).value == ':'
+            reflection = parts.pop(0).value == '::'
             attr_name = parts.pop(0)
 
             expr = ast.AttributeLookupExpr(
                 location=Location.FromToken(attr_name, stream=self._stream),
                 name=attr_name.value,
                 obj=expr,
+                reflection=reflection,
                 type=None
             )
 
         return expr
+
+    def int_expr(self, parts):
+        int_token = parts[0].children[0]
+
+        return ast.IntLiteralExpr.FromRawValue(
+            location=Location.FromToken(int_token, stream=self._stream),
+            raw_value=int_token.value
+        )
+
+    def cpointer_expr(self, parts):
+        # [FIXME] Can't get the real location of the cpointer expr because all
+        #         we get is the nested expr.
+        expr = parts[0]
+
+        return ast.CPtrExpr(
+            location=expr.location.copy(),
+            expr=expr,
+            is_exclusive=len(parts) > 1,
+            referenced_type_is_exclusive=(
+                expr.is_exclusive if isinstance(
+                    expr, (ast.PointerExpr, ast.CPtrExpr, ast.CVoidExpr)
+                ) else False
+            )
+        )
+
+    def cvoid_expr(self, parts):
+        # [FIXME] Can't get the real location of the cvoid expr because all
+        #         we get is the nested expr.
+        expr = parts[0]
+        return ast.CVoidExpr(location=expr.location.copy(), expr=expr)
 
     def string_expr(self, parts):
         str_token = parts[0].children[0]
@@ -863,6 +895,22 @@ class ASTBuilder(lark.Transformer):
             )[1]
         )
         # cad.emit(module=self._module)
+
+    def type_param_pair(self, parts):
+        name, type = parts
+
+        if not isinstance(type, ast.TypeParam):
+            type = ast.ConstLookupExpr(
+                location=Location.FromToken(type, stream=self._stream),
+                name=type.value,
+                type=ast.SylvaType
+            )
+
+        return ast.Parameter(
+            location=Location.FromToken(name, stream=self._stream),
+            name=name.value,
+            type=type
+        )
 
     def function_type_def(self, parts):
         name = parts[0]

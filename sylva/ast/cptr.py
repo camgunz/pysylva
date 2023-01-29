@@ -31,9 +31,9 @@ class CPtrType(ParamType):
         referenced_type_is_exclusive
     ):
         for n, mm in enumerate(self.monomorphizations):
-            if mm.equals_params(referenced_type,
-                                is_exclusive,
-                                referenced_type_is_exclusive):
+            if (mm.referenced_type == referenced_type and
+                    mm.is_exclusive == is_exclusive and
+                    mm.referenced_type_is_exclusive):
                 return n, mm
 
         index = len(self.monomorphizations)
@@ -52,8 +52,8 @@ class CPtrType(ParamType):
 @dataclass(kw_only=True)
 class CPtrExpr(Expr):
     expr: Expr
-    is_reference: bool
     is_exclusive: bool
+    referenced_type_is_exclusive: bool
 
     def __init__(
         self, location, expr, is_exclusive, referenced_type_is_exclusive
@@ -67,7 +67,7 @@ class CPtrExpr(Expr):
                 location,
                 expr.type,
                 is_exclusive,
-                referenced_type_is_exclusive
+                referenced_type_is_exclusive=referenced_type_is_exclusive
             )[1]
         )
         self.expr = expr

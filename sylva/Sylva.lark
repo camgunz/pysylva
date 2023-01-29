@@ -67,17 +67,15 @@ PIPE_PIPE_EQUAL:          "||="
 TRUE:                     "true"
 FALSE:                    "false"
 
-_value: VALUE
-
 _identifier: VALUE ((DOT | COLON_COLON) VALUE)*
 
-param: _value
-     | "@" _value     -> typevarparam
-     | "*" _value     -> ptrparam
-     | "&" _value     -> refparam
-     | "&" _value "!" -> exrefparam
+?param: VALUE
+      | "@" VALUE     -> typevarparam
+      | "*" VALUE     -> ptrparam
+      | "&" VALUE     -> refparam
+      | "&" VALUE "!" -> exrefparam
 
-type_param: type_expr | _identifier "(" _type_param_list ")" | param
+?type_param: type_expr | _identifier "(" _type_param_list ")" | param
 
 c_array_type_expr: "carray" _sized_array_type_expr
 

@@ -94,10 +94,10 @@ class IntLiteralExpr(NumericLiteralExpr):
         else: # [NOTE] Warn here?
             raise ValueError('Int missing signedness and/or size')
 
-        return NumericLiteralExpr( # pylint: disable=too-many-function-args
-            get_int_type(bits=size, signed=signed),
-            value,
+        return NumericLiteralExpr(
             location=location,
+            type=get_int_type(bits=size, signed=signed),
+            value=value,
         )
 
     @property
