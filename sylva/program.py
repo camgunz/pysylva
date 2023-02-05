@@ -1,7 +1,3 @@
-from os.path import sep as PATH_SEP
-from functools import cache
-from graphlib import CycleError, TopologicalSorter
-
 import lark
 import llvmlite # type: ignore
 
@@ -16,27 +12,9 @@ class Program:
     def __init__(self, streams, search_paths, target_triple=None):
         target.make_target(target_triple=target_triple)
 
-        self._search_paths = search_paths
-        self._required_modules = []
-
-        modules = { # yapf: ignore
-            **ModuleLoader.load_from_streams(self, streams),
-            **{m.name: m for m in self._required_modules}
-        }
-
-        ts = TopologicalSorter()
-        for n, m in modules.items():
-            ts.add(n, *[req.name for req in m.requirements])
-
-        try:
-            ordered_module_names = list(ts.static_order())
-        except CycleError as e:
-            raise errors.CyclicRequirements(e.args[1])
-
-        self.modules = {
-            m.name: m
-            for m in [modules[n] for n in ordered_module_names]
-        }
+        self.modules = ModuleLoader( # yapf: ignore
+            frozenset(search_paths)
+        ).load_streams(streams)
 
     def parse(self):
         parser = Parser()
@@ -75,20 +53,8 @@ class Program:
                         fobj.write(object_code)
         return errors
 
-    def register_required_module(self, module):
-        if module.name not in [m.name for m in self._required_modules]:
-            self._required_modules.append(module)
-
     def get_module(self, name):
         return self.modules.get(name)
-
-    @cache
-    def get_requirement_path(self, name):
-        req_file = f'{name.replace(".", PATH_SEP)}.sy'
-        for search_path in self._search_paths:
-            req_path = (search_path / req_file).absolute()
-            if req_path.is_file():
-                return req_path
 
     @property
     def is_executable(self):

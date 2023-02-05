@@ -1,4 +1,8 @@
 from dataclasses import dataclass, field
+from functools import cache
+from graphlib import CycleError, TopologicalSorter
+from os.path import sep as PATH_SEP
+from pathlib import Path
 
 import lark
 
@@ -21,31 +25,27 @@ class Module:
     requirements: list[Requirement] = field(default_factory=list)
 
 
+@cache
+def get_requirement_path(search_paths, req_name):
+    req_file = f'{req_name.replace(".", PATH_SEP)}.sy'
+    for search_path in search_paths:
+        req_path = (search_path / req_file).absolute()
+        if req_path.is_file():
+            return req_path
+
+
 class ModuleGatherer(lark.Visitor):
 
-    """
-    A Sylva program compiles source files. Internal requirements are
-    checked after all modules have been gathered. External dependencies
-    rely on module description files, which are single files in a
-    program's search path.
-    """
-
-    def __init__(self, stream, modules):
+    def __init__(self, stream, mod_tracker):
         self._stream = stream
-        self._modules = modules
+        self._mod_tracker = mod_tracker
         self._current_module = None
 
     def module_decl(self, tree):
-        loc = Location.FromTree(tree, stream=self._stream)
         mod_name = tree.children[0].value
+        loc = Location.FromTree(tree, stream=self._stream)
 
-        if mod_name not in self._modules:
-            mod = Module(name=mod_name, locations=[loc])
-            self._modules[mod_name] = mod
-        else:
-            mod = self._modules[mod_name]
-            mod.locations.append(loc)
-
+        mod = self._mod_tracker.upsert_module_from_location(mod_name, loc)
         pmod = self._current_module
         self._current_module = mod
 
@@ -69,60 +69,67 @@ class ModuleGatherer(lark.Visitor):
         if req.name not in [r.name for r in self._current_module.requirements]:
             self._current_module.requirements.append(req)
 
+        self._mod_tracker.resolve_requirement(req)
 
-class RequirementLoader(lark.Visitor):
 
-    def __init__(self, program, location, modules, missing):
-        self._program = program
-        self._stream = location.stream
-        self._modules = modules
-        self._missing = missing
+@dataclass
+class ModuleLoader:
+    search_paths: frozenset[Path]
+    missing: set[Requirement] = field(default_factory=set, init=False)
+    modules: dict[str, Module] = field(default_factory=dict, init=False)
+    _parser: lark.lark.Lark = field(default_factory=Parser, init=False)
 
-    def requirement_decl(self, tree):
-        req = Requirement(
-            location=Location.FromTree(tree, stream=self._stream),
-            name=tree.children[0].value
-        )
+    def process_stream(self, stream):
+        try:
+            ModuleGatherer(stream, self).visit(self._parser.parse(stream.data))
+        except lark.UnexpectedToken as e:
+            raise errors.UnexpectedToken(
+                Location.FromUnexpectedTokenError(e, stream=stream),
+                e.token.value,
+                e.expected
+            ) from None
 
-        if req.name in self._modules:
+    def upsert_module_from_location(self, mod_name, loc):
+        if mod_name not in self.modules:
+            mod = Module(name=mod_name, locations=[loc])
+            self.modules[mod_name] = mod
+        else:
+            mod = self.modules[mod_name]
+            mod.locations.append(loc)
+
+        return mod
+
+    def resolve_requirement(self, req):
+        mod = self.modules.get(req.name)
+        if mod:
             return
 
-        req_path = self._program.get_requirement_path(req.name)
+        req_path = get_requirement_path(self.search_paths, req.name)
 
         if not req_path:
-            self._missing.append(req)
+            self.missing.add(req)
             return
 
-        self._program.register_required_module(
-            Module(name=req.name, locations=[Location.FromPath(req_path)])
-        )
+        self.process_stream(Stream.FromFile(str(req_path)))
 
+    def load_streams(self, streams):
+        for s in streams:
+            self.process_stream(s)
 
-class ModuleLoader:
+        if self.missing:
+            raise errors.MissingRequirements(self.missing)
 
-    @staticmethod
-    def load_from_streams(program, input_streams):
-        parser = Parser()
-        modules = {}
+        ts = TopologicalSorter()
 
-        for stream in input_streams:
-            gatherer = ModuleGatherer(stream, modules)
-            try:
-                gatherer.visit(parser.parse(stream.data))
-            except lark.UnexpectedToken as e:
-                raise errors.UnexpectedToken(
-                    Location.FromUnexpectedTokenError(e, stream=stream),
-                    e.token.value,
-                    e.expected
-                ) from None
+        for n, m in self.modules.items():
+            ts.add(n, *[req.name for req in m.requirements])
 
-        missing = []
-        for module in modules.values():
-            for loc in module.locations:
-                req_loader = RequirementLoader(program, loc, modules, missing)
-                req_loader.visit(parser.parse(loc.stream.data))
+        try:
+            ordered_module_names = ts.static_order()
+        except CycleError as e:
+            raise errors.CyclicRequirements(e.args[1])
 
-        if missing:
-            raise errors.MissingRequirements(missing)
-
-        return modules
+        return {
+            m.name: m
+            for m in [self.modules[n] for n in ordered_module_names]
+        }
