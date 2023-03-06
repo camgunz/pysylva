@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from sylva.ast.expr import Expr
-from sylva.ast.number import IntExpr
+from sylva.expr import Expr
+from sylva.number import IntExpr
 
 
 @dataclass(kw_only=True)

@@ -22,16 +22,16 @@ Every type implements the `type` interface, which is:
 
 ```sylva
 iface type {
-  ## for scalars, `name` is "str", "int", etc., but for aggregate types it's
-  ## the bound name ("Person", "RingBuffer")
+  // for scalars, `name` is "str", "int", etc., but for aggregate types it's
+  // the bound name ("Person", "RingBuffer")
   fn name(self: type): &str
 
-  ## type_name is like `name`, but it is always the name of the type, not its
-  ## bound name (so "struct" instead of "Person", and so on)
+  // type_name is like `name`, but it is always the name of the type, not its
+  // bound name (so "struct" instead of "Person", and so on)
   fn type_name(self: type): &str
 
-  ## number of bytes an instance of this type requires, including padding if
-  ## relevant
+  // number of bytes an instance of this type requires, including padding if
+  // relevant
   fn size(self: type): uint
 }
 ```

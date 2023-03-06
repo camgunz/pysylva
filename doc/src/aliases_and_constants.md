@@ -3,22 +3,20 @@
 Aliases create a map between an identifier and another identifier or type parameter.
 
 ```sylva
-req org.apache.commons.collections4.comparators
-
-alias comparators: org.apache.commons.collections4.comparators
+req comparators: org.apache.commons.collections4.comparators
 
 struct Person {
   name: str,
   age: u8,
 }
 
-alias Astronaut: Person
+typedef Astronaut: Person
 
 struct TypeBox {
-  contents: @boxed_type
+  contents: $boxed_type
 }
 
-alias UintBox: TypeBox(uint)
+typedef UintBox: TypeBox($boxed_type: uint)
 ```
 
 To define a constant value, use `const`:

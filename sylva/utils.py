@@ -42,7 +42,7 @@ def round_up_to_multiple(x, base):
 
 
 def round_up_to_power_of_two(x, start=8):
-    exp = int(math.log(start, 2))
+    exp = math.floor(math.log(start, 2))
 
     if exp != math.log(start, 2):
         raise ValueError(f'{start} is not a power of 2')
@@ -77,3 +77,12 @@ def demangle(s):
         else:
             length.append(seq.pop(0))
     return tokens
+
+
+def bits_required_for_int(n, signed=False):
+    bits = math.ceil(math.log(n, 2))
+
+    if signed or n < 0:
+        bits += 1
+
+    return bits

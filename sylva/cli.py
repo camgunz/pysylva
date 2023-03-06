@@ -1,14 +1,12 @@
 import argparse
+import logging
 import traceback
 
 from pathlib import Path
 
 import lark
 
-from sylva import errors, debug
-from sylva.ast_builder import ASTBuilder
-from sylva.location import Location
-from sylva.parser import Parser
+from sylva import errors, debug, debugging
 from sylva.program import Program
 from sylva.stream import Stream
 
@@ -30,22 +28,15 @@ def print_bar(msg):
 
 
 def _load_program(file_paths, search_paths, target_triple=None):
-    streams = [Stream.FromFile(str(fp)) for fp in file_paths]
-
-    try:
-        return Program(streams, search_paths, target_triple)
-    except errors.SylvaError as error:
-        debug('main', traceback.format_exc())
-        print(error.pformat())
+    return Program([Stream.FromFile(str(p)) for p in file_paths], search_paths)
 
 
 def parse(file_paths, search_paths, target_triple=None):
     """Parses files and prints output."""
     print_bar('Parsing')
 
-    program = _load_program(file_paths, search_paths, target_triple)
-
     try:
+        program = _load_program(file_paths, search_paths, target_triple)
         print(program.parse().pretty())
     except errors.SylvaError as error:
         debug('main', traceback.format_exc())
@@ -56,9 +47,9 @@ def parse(file_paths, search_paths, target_triple=None):
 def compile(file_paths, output_folder, search_paths, target_triple=None):
     """Compiles files."""
     print_bar('Compiling')
-    program = _load_program(file_paths, search_paths, target_triple)
 
     try:
+        program = _load_program(file_paths, search_paths, target_triple)
         program_errors = program.compile(output_folder)
         for error in program_errors:
             print(error.pformat(), end='\n\n')
@@ -69,6 +60,9 @@ def compile(file_paths, output_folder, search_paths, target_triple=None):
 
 def run():
     """Main function."""
+    if debugging('parser'):
+        lark.logger.setLevel(logging.DEBUG)
+
     parser = argparse.ArgumentParser(description='Sylva')
     parser.add_argument(
         '--only-parse', action='store_true', help='Only perform parsing'

@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
-from sylva.ast.fn import Fn
-from sylva.ast.iface import IfaceType
-from sylva.ast.node import Node
-from sylva.ast.sylva_type import SylvaType
+from sylva.fn import Fn
+from sylva.iface import IfaceType
+from sylva.node import Node
+from sylva.sylva_type import SylvaType
 
 
 @dataclass(kw_only=True)

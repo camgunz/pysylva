@@ -1,13 +1,20 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from sylva.ast.node import Node
-from sylva.ast.operator import Operator
-from sylva.ast.sylva_type import SylvaType
+from sylva.location import Location
+from sylva.builtins import (
+    ComplexType,
+    FloatType,
+    IntType,
+    SylvaObject,
+    SylvaType,
+)
+from sylva.operator import Operator
 
 
 @dataclass(kw_only=True)
-class Expr(Node):
+class Expr(SylvaObject):
+    location: Location = field(default_factory=Location.Generate)
     type: Optional[SylvaType]
 
 
@@ -52,3 +59,18 @@ class CallExpr(Expr):
     function: Expr
     arguments: list[Expr]
     monomorphization_index: int = 0
+
+
+@dataclass(kw_only=True)
+class IntExpr(Expr):
+    type: IntType
+
+
+@dataclass(kw_only=True)
+class FloatExpr(Expr):
+    type: FloatType
+
+
+@dataclass(kw_only=True)
+class ComplexExpr(Expr):
+    type: ComplexType

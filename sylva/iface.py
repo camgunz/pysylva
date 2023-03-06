@@ -3,8 +3,8 @@ from functools import cached_property
 from typing import Union
 
 from sylva import errors, utils
-from sylva.ast.fn import FnType, Fn
-from sylva.ast.sylva_type import SylvaType
+from sylva.fn import FnType, Fn
+from sylva.sylva_type import SylvaType
 
 
 @dataclass(kw_only=True)

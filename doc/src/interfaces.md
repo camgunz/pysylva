@@ -5,7 +5,8 @@ available on a specific shape of data.
 
 ```sylva
 iface Orderable {
-  fn get_rank(self: &Orderable): uint
+  fn get_rank(self: &Orderable): uint,
+
   fn comes_before(self: &Orderable, other: &Orderable): bool {
     return self.get_rank() < other.get_rank()
   }
@@ -22,7 +23,7 @@ impl Sortable(&[Orderable]) {
 }
 
 impl Orderable(int) {
-  get_rank: (self: int): uint {
+  fn get_rank(self: int): uint {
     return self
   },
 }
@@ -73,10 +74,10 @@ interface opening a file would have to look something like:
 mod sys
 
 iface OpenFileResult {
-  succeeded: (): bool
-  get_file: (): *File
-  get_failure_code: (): uint
-  get_failure_message: (): str
+  fn succeeded(self: &OpenFileResult): bool
+  fn get_file(self: &OpenFileResult): *File
+  fn get_failure_code(self: &OpenFileResult): uint
+  fn get_failure_message(self &OpenFileResult): str
 }
 
 mod main

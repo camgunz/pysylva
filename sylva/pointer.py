@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from functools import cached_property
 
-from sylva.ast.expr import Expr
-from sylva.ast.sylva_type import MonoType, ParamType, SylvaType
+from sylva.expr import Expr
+from sylva.sylva_type import MonoType, ParamType, SylvaType
 
 
 @dataclass(kw_only=True)

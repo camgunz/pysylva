@@ -2,56 +2,17 @@
 
 ## General
 
-- Continue to push through monomorphization changes to all generic types:
-  * array
-  * carray
-  * cptr
-  * dynarray
-  * fn
-  * pointer
-  * str
-  * string
-  * struct
-  - variant
-- Pointer types need to pass Attribute/Reflection calls to their
-  `referenced_type`
-- Unclear what to do about ::type and ::bytes for interfaces
-  - I think it's fair that these are mostly not useful. ::type will give you
-    the interface and ::bytes will give you the bytes of the pointer.
-    - It won't always be a pointer though, will it?
-  - This means `String` needs something like a `to_bytes` function so `sys`
-    funcs using `String` can use it
 - Add an "interned string" type.
   - Consider double quotes for interned strings and backquotes for everything
     else (templates, etc.)
 
 ## Generics, Functions, Interfaces, Structs, Variants, etc.
 
-- Really don't like `<>`; it makes parsing expressions pretty hard, and it's
-  hard to read.
-  - But, it's what most people will be familiar with.
-- When definining new functions/structs/variants as literals, we'll sometimes
-  have to explicitly parameterize. Right now that's done with `()`, but
-  double-parens in function call expressions aren't wonderful.
-  - This is actually pretty common: `Result` and function pointers for two.
-- When defining new functions/structs/variants not as literals:
-  - We currently use `()` after the binding name.
-  - We _could_ use `@` at the params instead.
-    - Ideally this would be consistent with literals, but this wouldn't be,
-      and I haven't figured out a way to do that without implicitly
-      monomorphizing everywhere (which might be OK).
-    - This actually saves a lot of space
-
-OK, I think this means:
-- Definitions and literals use `@` for type parameters
-- Type parameterization uses `()`
-  - You only need this in type-land, i.e. `Result(i32)`
-- Expressions use inference
 - We will not monomorphize functions based on interfaces as an optimization
   - Weird property access and reflection (e.g. unclear what `::bytes` returns,
     etc.)
 
-## Interfaces
+## Can we toss interfaces?
 
 OK thinking about:
 
@@ -97,53 +58,61 @@ impl str {
   }
 }
 
-fn print(str_type)(s: str_type) {
+fn print(s: $str_type) {
   libc.write(libc.STDOUT_FILENO, cptr(cvoid(s.get_bytes())), msg.get_length())
 }
 ```
 
-As planned right now, there isn't a difference to the compiler. That it, these
-are two ways of expressing the same thing.
+What are interfaces good for?
 
-So what are interfaces good for? Or thinking about it the other way, why do we
-need generic functions when we have interfaces?
 
 Interfaces are nice as contracts. Here we definitely know what a `String` is,
 and the compiler can use that as the constraints on anything calling `print`:
 gotta implement `String`. Otherwise we have to read `print` and know that
 anything calling it has to implement `get_bytes(): &[u8...]` and `get_length():
-uint`.
+uint`. You can also avoid monomorphization if you specify an interface.
 
-I guess this is a nominal vs. structural problem? Not really though, as we
-require an `impl` in either case. The only extra work is definining the
-`iface`, which is probably 50/50 on "nice as documentation" vs. "annoying to
-name everything".
+This is a nominal vs. structural question. The downside of interfaces is naming
+and defining the `iface`; the downside of generic functions is you could
+accidentally implement enough methods to safely pass something to a function
+you didn't want to.
+- The deciding factor is do you want to use interfaces to filter out what you
+  can pass to a function, or do you want to use generic functions to widen what
+  you can pass to a function. I think our aim here is the latter.
+  - Also we could do something else for the former, like a union type specifier
+    - Good use of `typedef`??
 
 Editing things post hoc also feels the same: if you change a signature you
 gotta think deep about everything around it, whether that's an interface or
 not.
 
+I guess you could remove a method from say `Person`, and it might be hard to
+find everything that passes a `Person` to a function that expects that method
+with string-y tools like `grep`.
+- Nah, just look for `.have_birthday` or whatever. If your codebase is too big
+  for this to really work you're using a language server anyway.
+
 Organizing things in your mind is a little odd though.
 
-Another tradeoff is that the double paren thing isn't wonderful, but conversely
-having to name everything isn't wonderful either.
+Or thinking about it the other way, why do we need generic functions when we
+have interfaces?
+- generic functions use monomorphizations to avoid vtables and pointer derefs
+  - I suppose this also means we can enable working on things in registers
+- No need to name every abstracted bundle of behavior (structural
 
 OK. My feelings are:
 
 - `impl` is still useful, and we won't be able to remove it by removing `iface`
-- would be _very_ nice to remove double parens in function calls
 - removing `iface` would be a win
-- function type parameters _might_ be parameterizable using a different sigil,
-  perhaps `@`
 - it's a little unclear what the implementation difficulties are for either,
   but I think they're the same
-- there's a question of facilitating dynamic dispatch if you really want it
-  (size considerations)
+- there's a question of facilitating dynamic dispatch with interfaces to avoid
+  monomorphization size blow ups
 - I can't shake the idea that having to name everything is kind of a pain
 - Big downside of interfaces is that you don't get property access
-- Big upside of interfaces are heterogeneous collections
-  - Do we actually support this though? Can we have `&[*String * 10]`?
-    - This works if the "vtable" is attached to the "object"
+- Seems like interfaces support heterogeneous collections, but in practice I
+  think they're probably not useful because they have to use
+  lowest-common-denominator methods as we don't have an unsafe cast or RTTI.
 
 Wins:
 - (if) heterogeneous collections

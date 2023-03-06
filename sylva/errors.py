@@ -1,4 +1,4 @@
-from .utils import strlist
+from .utils import bits_required_for_int, strlist
 
 
 class SylvaError(Exception):
@@ -293,6 +293,16 @@ class MismatchedRangeTypes(LocationError):
         )
 
 
+class InvalidRangeValue(LocationError):
+
+    def __init__(self, location, value, min, max):
+        LocationError.__init__(
+            self,
+            location,
+            f'Invalid range value "{value}", must be > {min} and < {max}'
+        )
+
+
 class InconsistentElementType(LocationError):
 
     def __init__(self, location, type):
@@ -301,11 +311,16 @@ class InconsistentElementType(LocationError):
         )
 
 
-class MissingTypeParam(LocationError):
+class MismatchedTypeParams(LocationError):
 
-    def __init__(self, location, type_param):
+    def __init__(self, location, type_params):
         LocationError.__init__(
-            self, location, f'Missing type parameter {type_param}'
+            self,
+            location,
+            (
+                'Mismatched type params, expected '
+                f'{strlist([p.name for p in type_params])}'
+            )
         )
 
 
@@ -375,3 +390,23 @@ class InvalidParameterization(LocationError):
 
     def __init__(self, location, msg):
         LocationError.__init__(self, location, msg)
+
+
+class InvalidRuneValue(LocationError):
+
+    def __init__(self, location, msg):
+        LocationError.__init__(self, location, msg)
+
+
+class CBitFieldSizeExceeded(LocationError):
+
+    def __init__(self, location, value, field_size):
+        LocationError.__init__(
+            self,
+            location,
+            (
+                'cbitfield size exceeded; '
+                f'{value} requires {bits_required_for_int(value)}, '
+                f'has {field_size}'
+            )
+        )

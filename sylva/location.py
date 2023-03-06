@@ -4,7 +4,7 @@ from typing import Optional
 from sylva.stream import Stream
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True)
 class Location:
     stream: Optional[Stream] = field(default=None)
     index: int = field(default=0)

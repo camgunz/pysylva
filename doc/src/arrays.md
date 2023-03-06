@@ -54,24 +54,24 @@ fn print_iterable_people(people: Iterable(People)) {
   }
 }
 
-# An element count is specified here, but it doesn't do us a lot of good
-# because the domain of `index` is greater than that of `Triumverate`'s
-# indices.
+// An element count is specified here, but it doesn't do us a lot of good
+// because the domain of `index` is greater than that of `Triumverate`'s
+// indices.
 fn print_stored_person(people: &Triumverate, index: u8) {
   let person: &people[index].succeed_or_die()
 
   sys.echo("{person.name} is {person.age} years old")
 }
 
-# Here though, it allows us to avoid an `on_failure` check.
+// Here though, it allows us to avoid an `on_failure` check.
 fn print_third_person(people: &[Person * 3]) {
   let person: &people[2]
 
   sys.echo("{person.name} is {person.age} years old")
 }
 
-# Or the preferred method is to define `index` in terms of `Triumverate`'s
-# indices range.
+// Or the preferred method is to define `index` in terms of `Triumverate`'s
+// indices range.
 fn print_stored_person_safely(people: &Triumverate,
                               index: Triumverate::indices) {
   let person: &people[index]
@@ -145,11 +145,11 @@ struct Person {
   age: u8,
 }
 
-alias Triumverate: dynarray(Person)
+typedef Triumverate: dynarray(Person)
 
 fn print_people(people: &Triumverate) {
-  for (i: people::indices) { # Built at runtime based on the current size of
-    let person: &people[i]   # `people`.
+  for (i: people::indices) { // Built at runtime based on the current size of
+    let person: &people[i]   // `people`.
 
     sys.echo("{person.name} is {person.age} years old")
   }
@@ -173,16 +173,16 @@ struct slice(array_type, start) {
 ```
 
 ```sylva
-# An element count is specified here, but it doesn't do us a lot of good
-# because the domain of `index` is greater than that of `Triumverate`'s
-# indices.
+// An element count is specified here, but it doesn't do us a lot of good
+// because the domain of `index` is greater than that of `Triumverate`'s
+// indices.
 fn print_stored_person(people: &Triumverate, index: u8) {
   let person: people[index].succeed_or_die()
 
   sys.echo("{person.name} is {person.age} years old")
 }
 
-# Here though, it allows us to avoid an `on_failure` check.
+// Here though, it allows us to avoid an `on_failure` check.
 fn print_third_person(people: &[Person * 3]) {
   let person: people[2]
 

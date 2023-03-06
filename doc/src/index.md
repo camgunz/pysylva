@@ -17,58 +17,25 @@ struct Person {
   age: Age(0u8),
 }
 
-fn print_usage() {
-  sys.die("Usage: hello [name] [age]")
+fn print_usage(msg: String) {
+  sys.die("{msg}\nUsage: hello [name] [age]")
 }
 
 fn have_birthday(person: &Person!) {
-  let add_result: person.age + Age(1u8)
-
-  match (add_result) {
-    case (age: OK) {
-      person.age = age
-    }
-    case (f: Fail) {
-      sys.die("Person {person.name} is already the max age {person.age}")
-    }
-  }
+  return (person.age + Age(1u8)).ok_or_die(
+    "Person {person.name} is already the max age {person.age}"
+  )
 }
 
 fn greet_person(person: &Person) {
-  sys.echo("Hello {person.name}!")
+  sys.echo("Hello {person.name}! You are {person.age} years old.")
 }
 
 fn main() {
-  let name_index_result: sys.args.get(1)
-  let age_index_result: sys.args.get(2)
-  let person: Person{}
-
-  match (name_index_result) {
-    case (name: OK) {
-      person.name = *name
-    }
-    case (f: Fail) {
-      print_usage()
-    }
-  }
-
-  match (age_index_result) {
-    case (age_string: OK) {
-      let parse_result = Age.parse_from_string(age_string)
-      match (parse_result) {
-        case (age: OK) {
-          person.age = age
-        }
-        case (f: Fail) {
-          sys.echoerr("Invalid age: {r}")
-          print_usage()
-        }
-      }
-    }
-    case (f: Fail) {
-      print_usage()
-    }
-  }
+  let name: (sys.args.get(1)).on_fail(print_usage)
+  let age_as_string: (sys.args.get(2)).on_fail(print_usage)
+  let age: Age.parse_from_string(age_as_string).on_fail(print_usage)
+  let person: Person{name: name, age: age}
 
   person.have_birthday()
   greet_person(&person)
@@ -83,7 +50,7 @@ and to structure applications such that the robust thing is also the easy
 thing.
 
 Sylva is fast.  It is statically typed, compiled to native code ahead of time,
-does not use garbage collection, and requires no runtime.
+and does not use garbage collection.
 
 Sylva is pragmatic and unopinionated. Taste and style count, but Sylva is a
 tool, and practitioners are free to use Sylva in whatever style and for
@@ -96,7 +63,7 @@ Sylva is readable. We pay careful attention to how the syntax and organization
 scan, as well as to how constructs draw focus and concepts shape thought.
 
 Lastly, Sylva should be familiar to most programmers.  Where possible, it
-defers to what the programmer is likely to know.
+defers to what the programmer is likely to already know.
 
 These values are in order. If something would be faster but isn't safe, Sylva
 prioritizes safety. If something would be more readable but is inconsistent,

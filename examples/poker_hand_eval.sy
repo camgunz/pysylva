@@ -110,8 +110,7 @@ array Deck [*Card * DeckSize.count]
 
 array Hand [&Card * 5]
 
-# Generics
-alias DealResult: Result(&Card)
+typedef DealResult: Result($ok: &Card)
 
 fn rank_value_comparer(value1: Value, value2: Value): bool
 
@@ -207,7 +206,7 @@ impl Card {
 
 impl Deck {
   fn shuffle(self: &Deck!) {
-    random.shuffle(&Deck!)(self) # Generics
+    random.shuffle(self)
   }
 
   fn deal(deck: &Deck!): DealResult {
@@ -239,8 +238,7 @@ impl Hand {
       }
     }
 
-    # [TODO] Implement base.array_sort
-    base.array_sort(&self::type!)(&self!) # Generics
+    base.array_sort(&self!) // [TODO] Implement base.array_sort
   }
 
   fn remove_card_at_index(self: &Hand!, index: uint) {

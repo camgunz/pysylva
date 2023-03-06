@@ -15,7 +15,7 @@ syntax keyword SylvaType uint u8 u16 u32 u64 u128
 syntax keyword SylvaType float f16 f32 f64 f128
 syntax keyword SylvaType complex c16 c32 c64 c128
 syntax keyword SylvaType str string String
-syntax keyword SylvaType array dynarray Array
+syntax keyword SylvaType array dynarray
 syntax keyword SylvaType struct
 syntax keyword SylvaType variant
 syntax keyword SylvaType fn
@@ -35,7 +35,7 @@ syntax keyword SylvaStorageClass let
 
 syntax keyword SylvaInclude mod req
 
-syntax keyword SylvaStructure alias const impl iface
+syntax keyword SylvaStructure const impl iface typedef
 
 syntax keyword SylvaKeyword break continue
 

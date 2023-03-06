@@ -1,5 +1,7 @@
 import lark
 
+from sylva import debugging
+
 
 def Parser(start='module'):
     return lark.Lark.open(
@@ -9,4 +11,5 @@ def Parser(start='module'):
         propagate_positions=True,
         maybe_placeholders=True,
         start=start,
+        debug=debugging('parser')
     )

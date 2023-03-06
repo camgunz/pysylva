@@ -36,5 +36,7 @@ the code block.
 ```sylva
 fn int_stringer(i: int): str
 
-fn stringify_ints(func: int_stringer, ints: &[int...])
+fn stringify_ints(func: int_stringer, ints: &[int...]): *[str...] {
+  ...
+}
 ```

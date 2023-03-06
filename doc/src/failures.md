@@ -7,23 +7,20 @@ similar to Rust:
 
 ```sylva
 variant Result {
-  OK: @ok_type,
+  OK: $ok,
   Fail: String,
 }
 
-fn on_fail(r: Result(@ok), handler: fntype(msg: String)): Result(@ok) {
-  match (r) {
-    case (msg: Fail) { handler(msg) }
-    default {}
+impl Result {
+  fn on_fail(&self($ok), handler: fntype(msg: String)): $ok {
+    match (self) {
+      case(value: OK) { return value }
+      case (stringable: Fail) { handler(stringable) }
+    }
   }
 
-  return r
-}
-
-fn ok_or_die (r: Result(@ok)): @ok {
-  match (r) {
-    case (value: OK) { return value }
-    case (msg: Fail) { sys.die(msg) }
+  fn ok_or_die(&self($ok)): $ok {
+    return self.on_fail(sys.die)
   }
 }
 ```
@@ -52,7 +49,7 @@ fn main() {
 
 This simple function `increment` attempts to return the result of `age +
 Age(1)`, and this surprisingly yields an error. This is because that expression
-has the potential to extend the value beyond its range--imagine if `age` were
+has the potential to extend the value beyond its range--consider if `age` were
 already `Age(250u8)`--and the operation returns a `Result(age)`, but
 `increment`'s return value is `Age`. Simply changing the function's return type
 fixes this error:
@@ -126,29 +123,28 @@ performance:
 ```sylva
 mod checked
 
-# Mathematical "errors" we want to catch
-
+// Mathematical "errors" we want to catch
 enum MathFailure {
-  DivisionByZero: "Division by zero"
-  NonPositiveLogarithm: "Non-Positive logarithm"
-  NegativeSquareRoot: "Negative square root"
+  DivisionByZero: "Division by zero",
+  NonPositiveLogarithm: "Non-Positive logarithm",
+  NegativeSquareRoot: "Negative square root",
 }
 
-alias MathResult: Result(f64)
+typedef MathResult: Result(f64)
 
 fn div(x: f64, y: f64): MathResult {
   if (y == 0f64) {
-    # This operation would 'fail', instead let's return the reason of the
-    # failure wrapped in Fail
-    return MathResult.Fail.DivisionByZero
+    // This operation would 'fail', instead let's return the reason of the
+    // failure wrapped in Fail
+    return MathResult.Fail(DivisionByZero)
   }
-  # This operation is valid, return the result wrapped in `OK`
+  // This operation is valid, return the result wrapped in `OK`
   return MathResult.OK(x / y)
 }
 
 fn sqrt(x: f64): MathResult {
   if (x < 0f64) {
-    return MathResult.Fail.NegativeSquareRoot
+    return MathResult.Fail(NegativeSquareRoot)
   }
 
   return MathResult.OK(x.sqrt())
@@ -156,7 +152,7 @@ fn sqrt(x: f64): MathResult {
 
 fn ln(x: f64): MathResult {
   if (x <= 0f64) {
-    return MathResult.Fail.NonPositiveLogarithm
+    return MathResult.Fail(NonPositiveLogarithm)
   }
 
   return MathResult.OK(x.ln())
@@ -167,25 +163,18 @@ mod main
 req sys
 req checked
 
-# `op(x, y)` == `sqrt(ln(x / y))`
+// `op(x, y)` == `sqrt(ln(x / y))`
 fn op(x: f64, y: f64): f64 {
-  # This is a three level match pyramid!
   let div_res: checked.div(x, y).ok_or_die()
   let ln_res: checked.ln(div_res).ok_or_die()
   let sqrt_res: checked.sqrt(ln_res).ok_or_die()
 
   return sqrt_res
-
-  return checked.sqrt(
-    checked.ln(
-      checked.div(x, y).ok_or_die()
-    ).ok_or_die()
-  ).ok_or_die()
 }
 
 fn main() {
-  # Will this fail?
-  sys.echo(str(op(1f64, 10f64)))
+  // Will this fail?
+  sys.echo("{op(1f64, 10f64)}")
 }
 ```
 

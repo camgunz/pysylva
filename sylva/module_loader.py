@@ -8,21 +8,10 @@ import lark
 
 from sylva import errors
 from sylva.location import Location
+from sylva.mod import Mod
 from sylva.parser import Parser
+from sylva.req import Req
 from sylva.stream import Stream
-
-
-@dataclass(kw_only=True, frozen=True, slots=True)
-class Requirement:
-    name: str
-    location: Location
-
-
-@dataclass(kw_only=True, slots=True)
-class Module:
-    name: str
-    locations: list[Location] = field(default_factory=list)
-    requirements: list[Requirement] = field(default_factory=list)
 
 
 @cache
@@ -42,7 +31,8 @@ class ModuleGatherer(lark.Visitor):
         self._current_module = None
 
     def module_decl(self, tree):
-        mod_name = tree.children[0].value
+        print('module_decl', tree)
+        mod_name = '.'.join(t.value for t in tree.children[1:])
         loc = Location.FromTree(tree, stream=self._stream)
 
         mod = self._mod_tracker.upsert_module_from_location(mod_name, loc)
@@ -61,9 +51,11 @@ class ModuleGatherer(lark.Visitor):
         )
 
     def requirement_decl(self, tree):
-        req = Requirement(
+        print('requirement_decl', tree)
+
+        req = Req(
             location=Location.FromTree(tree, stream=self._stream),
-            name=tree.children[0].value
+            name='.'.join(t.value for t in tree.children[1:-1])
         )
 
         if req.name not in [r.name for r in self._current_module.requirements]:
@@ -75,8 +67,8 @@ class ModuleGatherer(lark.Visitor):
 @dataclass
 class ModuleLoader:
     search_paths: frozenset[Path]
-    missing: set[Requirement] = field(default_factory=set, init=False)
-    modules: dict[str, Module] = field(default_factory=dict, init=False)
+    missing: set[Req] = field(default_factory=set, init=False)
+    modules: dict[str, Mod] = field(default_factory=dict, init=False)
     _parser: lark.lark.Lark = field(default_factory=Parser, init=False)
 
     def process_stream(self, stream):
@@ -91,7 +83,7 @@ class ModuleLoader:
 
     def upsert_module_from_location(self, mod_name, loc):
         if mod_name not in self.modules:
-            mod = Module(name=mod_name, locations=[loc])
+            mod = Mod(name=mod_name, locations=[loc])
             self.modules[mod_name] = mod
         else:
             mod = self.modules[mod_name]

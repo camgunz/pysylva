@@ -24,8 +24,8 @@ test: dev-install ## Test hello world example
 
 .PHONY: parsetest
 
-parsetest: dev-install ## Run parser tests
-	@sylva \
+parsetest: ## Run parser tests
+	@PYTHONPATH=. python -m sylva.cli \
 		--only-parse \
 		--search-paths libs \
 		--output-folder sbuild/ \

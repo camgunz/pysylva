@@ -12,8 +12,8 @@ instances.
 req sys
 
 struct Person {
-  name: str
-  age: u8
+  name: str,
+  age: u8,
 }
 
 impl Person {
@@ -29,18 +29,18 @@ Implementations have access to their type's type parameters:
 req sys
 
 variant IndexResult {
-  OK: @element_type
-  Fail: str("No element at index")
+  OK: $element_type,
+  Fail: str("No element at index"),
 }
 
 struct Slots {
-  first: @element_type,
-  second: @element_type,
-  third: @element_type
+  first: $element_type,
+  second: $element_type,
+  third: $element_type,
 }
 
 impl Slots {
-  fn get_first(self: &Slots): @element_type {
+  fn get_first(self: &Slots): $element_type {
     return &slots.first
   }
 }
@@ -62,8 +62,8 @@ Implementations are also used to implement interfaces for types:
 req sys
 
 iface Nameable {
-  fn get_name_ref(self: &Nameable): &String
-  fn set_name(self: &Nameable, new_name: *String)
+  fn get_name_ref(self: &Nameable): &String,
+  fn set_name(self: &Nameable, new_name: *String),
 }
 
 struct Person {

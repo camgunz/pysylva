@@ -3,19 +3,19 @@ mod base.result
 req sys
 
 variant Result {
-  OK: @ok,
+  OK: $ok,
   Fail: String,
 }
 
 impl Result {
-  fn on_fail(self: &Result(@ok), handler: fn(msg: String)): @ok {
+  fn on_fail(self: &Result($ok), handler: fn(msg: String)): $ok {
     match (self) {
       case (value: OK) { return value }
       case (stringable: Fail) { handler(stringable) }
     }
   }
 
-  fn ok_or_die(self: &Result(@ok)): @ok {
+  fn ok_or_die(self: &Result($ok)): $ok {
     return self.on_fail(sys.die)
   }
 }

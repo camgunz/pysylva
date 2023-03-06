@@ -1,7 +1,6 @@
 import lark
-import llvmlite # type: ignore
 
-from sylva import errors, sylva, target
+from sylva import sylva
 from sylva.ast_builder import ASTBuilder
 from sylva.module_loader import ModuleLoader
 from sylva.parser import Parser
@@ -9,10 +8,8 @@ from sylva.parser import Parser
 
 class Program:
 
-    def __init__(self, streams, search_paths, target_triple=None):
-        target.make_target(target_triple=target_triple)
-
-        self.modules = ModuleLoader( # yapf: ignore
+    def __init__(self, streams, search_paths):
+        self.modules = ModuleLoader(  # yapf: ignore
             frozenset(search_paths)
         ).load_streams(streams)
 
@@ -20,38 +17,22 @@ class Program:
         parser = Parser()
 
         module_trees = [
-            ASTBuilder(location=loc).transform(parser.parse(loc.stream.data))
+            ASTBuilder(
+                program=self,  # yapf: ignore
+                module=module,
+                location=location,
+            ).transform(parser.parse(location.stream.data))
             for module in self.modules.values()
-            for loc in module.locations
+            for location in module.locations
         ]
 
-        return lark.Tree( # yapf: disable
+        return lark.Tree( # yapf: ignore
             data='Program',
             children=module_trees
         )
 
     def compile(self, output_folder):
-        compile_errors = []
-        for module in self.modules.values():
-            parse_errors = module.parse()
-            if parse_errors:
-                compile_errors.extend(parse_errors)
-            else:
-                try:
-                    llvm_module = module.emit(module=module)
-                except errors.SylvaError as se:
-                    compile_errors.append(se)
-                else:
-                    llvm_mod_ref = (
-                        llvmlite.binding.parse_assembly(str(llvm_module))
-                    )
-                    llvm_mod_ref.verify()
-                    object_code = (
-                        target.get_target().machine.emit_object(llvm_mod_ref)
-                    )
-                    with open(output_folder / module.name, 'wb') as fobj:
-                        fobj.write(object_code)
-        return errors
+        raise NotImplementedError
 
     def get_module(self, name):
         return self.modules.get(name)

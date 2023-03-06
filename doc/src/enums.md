@@ -3,7 +3,7 @@
 Enums define a set of constants as a type.
 
 ```sylva
-enum Evens {
+enum EvenNumber {
   Two: 2,
   Four: 4,
   Six: 6,
@@ -132,9 +132,9 @@ fn main() {
 
 ## Enums vs. ranges and variants
 
-- Ranges: collections of numbers
-- Enums: collections of named constant values
-- Variants: collections of named types
+- Range: sequence of numbers
+- Enum: set of named constant values
+- Variant: set of named types
 
 It may help to distinguish between enums and ranges by keeping in mind that
 arithmetic on enums is impossible. Enums are required to be neither continuous

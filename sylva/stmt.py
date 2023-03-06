@@ -1,12 +1,12 @@
 from dataclasses import dataclass, field
 from typing import Union
 
-from sylva.ast.expr import Expr
-from sylva.ast.node import Node
+from sylva.expr import Expr
+from sylva.builtins import SylvaObject
 
 
 @dataclass(kw_only=True)
-class Stmt(Node):
+class Stmt(SylvaObject):
 
     def emit(self, obj, module, builder, scope, name):
         raise NotImplementedError()

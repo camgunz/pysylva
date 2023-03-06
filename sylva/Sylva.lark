@@ -1,26 +1,23 @@
 %import common.CNAME -> VALUE
-%import common.SH_COMMENT -> COMMENT
+%import common.CPP_COMMENT -> COMMENT
 %import common.WS -> BS
 %import common.FLOAT -> _FLOAT
 
 %ignore COMMENT
 %ignore BS
 
-TYPE_PARAM_VARIABLE: "@" VALUE
-PTR_VALUE: "*" VALUE
-REF_VALUE: "&" VALUE
-EXREF_VALUE: "&" VALUE "!"
 INTEGER: /((0[Xx][a-fA-F0-9][a-fA-F0-9_]*)|([0-9][0-9_]*)|(0[Oo][0-7][0-7_]*)|(0[Bb][01]01_]*))(u8|u16|u32|u64|u128|u|i8|i16|i32|i64|i128)?/
 FLOAT: _FLOAT /("f16"|"f32"|"f64"|"f128")/
 COMPLEX: _FLOAT /("c16"|"c32"|"c64"|"c128")/
 RUNE: /'((~[\r\n])|(\\(([abfnrtv\\"'{])|(x[a-fA-F0-9][a-fA-F0-9])|(u[a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9])|(U[a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9]))))?'/
-// STRING: /"[^\r\n]*"/
 STRING: /"(([^\r\n])|(\\(([abfnrtv\\"'{])|(x[a-fA-F0-9][a-fA-F0-9])|(u[a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9])|(U[a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9]))))*"/
 
+DOLLAR:                   "$"
 EQUAL:                    "="
 COLON:                    ":"
 COLON_COLON:              "::"
 DOT:                      "."
+DOT_DOT:                  ".."
 ELLIPSIS:                 "..."
 PLUS_PLUS:                "++"
 MINUS_MINUS:              "--"
@@ -29,9 +26,7 @@ MINUS:                    "-"
 TILDE:                    "~"
 BANG:                     "!"
 STAR:                     "*"
-SLASH:                    "\/"
-SLASH_SLASH:              "\/\/"
-BACKSLASH:                "\\"
+SLASH:                    "/"
 PERCENT:                  "%"
 STAR_STAR:                "**"
 DOUBLE_OPEN_ANGLE:        "<<"
@@ -49,8 +44,7 @@ CARET:                    "^"
 PIPE:                     "|"
 PIPE_PIPE:                "||"
 STAR_EQUAL:               "*="
-SLASH_EQUAL:              "\/="
-SLASH_SLASH_EQUAL:        "\/\/="
+SLASH_EQUAL:              "/="
 PERCENT_EQUAL:            "%="
 PLUS_EQUAL:               "+="
 MINUS_EQUAL:              "-="
@@ -61,139 +55,132 @@ AMP_EQUAL:                "&="
 CARET_EQUAL:              "^="
 PIPE_EQUAL:               "|="
 TILDE_EQUAL:              "~="
-STAR_STAR_EQUAL:          "**="
 AMP_AMP_EQUAL:            "&&="
 PIPE_PIPE_EQUAL:          "||="
+STAR_STAR_EQUAL:          "**="
+
 TRUE:                     "true"
 FALSE:                    "false"
 
-_identifier: VALUE ((DOT | COLON_COLON) VALUE)*
+ARRAY: "array"
+CARRAY: "carray"
+CBITFIELD: "cbitfield"
+CBLOCKFN: "cblockfn"
+CFN: "cfn"
+CONST: "const"
+CPTR: "cptr"
+CSTRUCT: "cstruct"
+CUNION: "cunion"
+CVOID: "cvoid"
+ENUM: "enum"
+FN: "fn"
+IMPL: "impl"
+IFACE: "iface"
+MOD: "mod"
+RANGE: "range"
+REQ: "req"
+STRUCT: "struct"
+VARIANT: "variant"
+TYPEDEF: "typedef"
 
-?param: VALUE
-      | "@" VALUE     -> typevarparam
-      | "*" VALUE     -> ptrparam
-      | "&" VALUE     -> refparam
-      | "&" VALUE "!" -> exrefparam
+IF: "if"
+ELSE: "else"
+SWITCH: "switch"
+CASE: "case"
+MATCH: "match"
+DEFAULT: "default"
+FOR: "for"
+WHILE: "while"
+LOOP: "loop"
+BREAK: "break"
+CONTINUE: "continue"
+LET: "let"
+RETURN: "return"
 
-?type_param: type_expr | _identifier "(" _type_param_list ")" | param
+_base_identifier: VALUE ((DOT | COLON_COLON) VALUE)*
 
-c_array_type_expr: "carray" _sized_array_type_expr
+_no_ref_identifier: VALUE ("." VALUE)*
 
-c_array_type_def: "carray" VALUE _sized_array_type_expr
+identifier: _base_identifier
 
-c_bit_field_type_expr: "cbitfield" "(" type_param "," INTEGER ")"
+const_identifier: _base_identifier
 
-c_block_function_type_expr: "cblockfntype" function_type_expr
+const_lookup_expr: _base_identifier
 
-c_block_function_type_def: "cblockfntype" VALUE function_type_expr
+_sized_array_type_literal_expr: \
+  "[" _type_expr "*" const_expr "]"
 
-c_function_type_expr: "cfn" function_type_expr
+_unsized_array_type_literal_expr: "[" _type_expr ELLIPSIS "]"
 
-c_function_type_def: "cfn" VALUE function_type_expr
+_base_array_type_literal_expr: _sized_array_type_literal_expr
+                           | _unsized_array_type_literal_expr
+array_type_literal_expr: STAR? _base_array_type_literal_expr
+                         | AMP _base_array_type_literal_expr BANG?
 
-c_pointer_type_expr: "cptr" "(" ( \
-  type_expr | _identifier ["(" _type_param_list ")"]) BANG? \
-")" BANG?
+c_array_type_literal_expr: \
+  (STAR? CARRAY _sized_array_type_literal_expr)
+  | (AMP CARRAY _sized_array_type_literal_expr BANG?)
 
-c_struct_type_expr: "cstruct" "(" _type_param_pair_list? ")"
+c_bit_field_type_literal_expr: \
+  (STAR? CBITFIELD "(" _int_type "," const_expr ")")
+  | (AMP CBITFIELD "(" _int_type "," const_expr ")" BANG?)
 
-c_struct_type_def: "cstruct" VALUE "{" _type_param_pair_list? "}"
+_base_func: "(" _type_param_pair_list? ")" [":" _type_expr]
 
-c_union_type_expr: "cunion" "(" _type_param_pair_list ")"
+c_block_function_type_expr: CBLOCKFN _base_func
 
-c_union_type_def: "cunion" VALUE "{" _type_param_pair_list "}"
+c_function_type_expr: CFN _base_func
 
-c_void_type_expr: "cvoid"
+c_pointer_type_literal_expr: CPTR "(" _type_expr ")" BANG?
 
-_sized_array_type_expr: "[" type_param "*" (_identifier | INTEGER) "]"
+c_struct_type_literal_expr: \
+  (STAR? CSTRUCT "{" _type_param_pair_list? "}")
+  | (AMP CSTRUCT "{" _type_param_pair_list? "}" BANG?)
 
-_unsized_array_type_expr: "[" type_param ELLIPSIS "]"
+c_union_type_literal_expr: \
+  (STAR? CUNION "{" _type_param_pair_list "}")
+  | (AMP CUNION "{" _type_param_pair_list "}" BANG?)
 
-array_type_expr: _sized_array_type_expr | _unsized_array_type_expr
+!c_void_type_literal_expr: CVOID BANG?
 
-array_type_def: "array" VALUE array_type_expr
+function_type_literal_expr: FN _base_func
 
-enum_type_def: "enum" VALUE "{" _expr_pair_list "}"
+_base_range_type_literal_expr: (const_expr DOT_DOT const_expr)
 
-function_type_expr: "(" _type_param_pair_list? ")" [":" type_param]
+range_type_literal_expr: (STAR? _base_range_type_literal_expr)
+                         | (AMP _base_range_type_literal_expr BANG?)
 
-function_type_def: "fn" VALUE function_type_expr
+_base_struct_type_literal_expr: "{" _type_param_pair_list? "}"
 
-function_literal: "fn" function_type_expr code_block
+struct_type_literal_expr: (STAR? _base_struct_type_literal_expr)
+                          | (AMP _base_struct_type_literal_expr BANG?)
 
-function_def: function_type_def code_block
+_var_type_expr: (STAR? const_lookup_expr [ "(" _type_param_pair_list ")" ])
+              | (AMP const_lookup_expr [ "(" _type_param_pair_list ")" ] BANG?)
+              | (    const_lookup_expr [ "(" _type_param_pair_list ")" ] BANG?)
 
-interface_type_def: "iface" VALUE "{" (function_def | function_type_def)* "}"
+_literal_type_expr: array_type_literal_expr
+                  | c_array_type_literal_expr
+                  | c_bit_field_type_literal_expr
+                  | c_block_function_type_expr
+                  | c_function_type_expr
+                  | c_pointer_type_literal_expr
+                  | c_struct_type_literal_expr
+                  | c_union_type_literal_expr
+                  | c_void_type_literal_expr
+                  | function_type_literal_expr
+                  | range_type_literal_expr
+                  | struct_type_literal_expr
 
-range_type_expr: ((  FLOAT | _identifier) ".." (  FLOAT | _identifier))
-               | ((INTEGER | _identifier) ".." (INTEGER | _identifier))
+type_placeholder: "$" VALUE
 
-range_type_def: "range" VALUE range_type_expr
+_type_expr: _literal_type_expr | _var_type_expr | type_placeholder
 
-struct_type_expr: "{" _type_param_pair_list? "}"
-
-struct_type_def: "struct" VALUE struct_type_expr
-
-variant_type_def: "variant" VALUE "{" _type_param_pair_list "}"
-
-type_expr: STAR? array_type_expr
-         | AMP array_type_expr BANG?
-         | function_type_expr
-         | STAR? range_type_expr
-         | AMP range_type_expr BANG?
-         | STAR? struct_type_expr
-         | AMP struct_type_expr BANG?
-         | c_array_type_expr
-         | c_bit_field_type_expr
-         | c_block_function_type_expr
-         | c_function_type_expr
-         | c_pointer_type_expr
-         | c_struct_type_expr
-         | c_union_type_expr
-         | c_void_type_expr
-         | STAR? _identifier "(" INTEGER ")"
-         | AMP _identifier "(" INTEGER ")" BANG?
-
-_type_param_list: type_param
-                | type_param ("," type_param)+ [","]
-                | type_param ","
-
-?type_param_pair: VALUE ":" type_param
+?type_param_pair: VALUE ":" _type_expr
 
 _type_param_pair_list: type_param_pair
                      | type_param_pair ("," type_param_pair)+ [","]
                      | type_param_pair ","
-
-module_decl: "mod" _identifier
-
-requirement_decl: "req" _identifier [":" VALUE]
-
-const_def: "const" VALUE ":" literal_expr
-
-implementation_def: \
-  "impl" _identifier ["(" _identifier ")"] "{" function_def* "}"
-
-type_def: "typedef" VALUE ":" type_param
-
-module: module_decl (requirement_decl
-                   | array_type_def
-                   | enum_type_def
-                   | function_type_def
-                   | interface_type_def
-                   | range_type_def
-                   | struct_type_def
-                   | variant_type_def
-                   | type_def
-                   | const_def
-                   | function_def
-                   | implementation_def
-                   | c_array_type_def
-                   | c_block_function_type_def
-                   | c_function_type_def
-                   | c_struct_type_def
-                   | c_union_type_def)*
-
-program: module*
 
 _expr_list: expr | expr ("," expr)+ [","] | expr ","
 
@@ -203,17 +190,18 @@ _expr_pair_list: VALUE ":" expr
 
 _arg_list: _expr_list | _expr_pair_list
 
-?expr: and_expr ("||" and_expr)* | "(" and_expr ("||" and_expr)* ")" -> or_expr
+?expr: and_expr (PIPE_PIPE and_expr)*
+ | "(" and_expr ("||" and_expr)* ")" -> or_expr
 
-?and_expr: cmp_expr ("&&" cmp_expr)* | "(" cmp_expr ("&&" cmp_expr)* ")"
+?and_expr: cmp_expr (AMP_AMP cmp_expr)* | "(" cmp_expr (AMP_AMP cmp_expr)* ")"
 
 ?cmp_expr: bor_expr (_cmp_op bor_expr)* | "(" bor_expr (_cmp_op bor_expr)* ")"
 
-?bor_expr: bxor_expr ("|" bxor_expr)* | "(" bxor_expr ("|" bxor_expr)* ")"
+?bor_expr: bxor_expr (PIPE bxor_expr)* | "(" bxor_expr (PIPE bxor_expr)* ")"
 
-?bxor_expr: band_expr ("^" band_expr)* | "(" band_expr ("^" band_expr)* ")"
+?bxor_expr: band_expr (CARET band_expr)* | "(" band_expr (CARET band_expr)* ")"
 
-?band_expr: shift_expr ("&" shift_expr)* | "(" shift_expr ("&" shift_expr)* ")"
+?band_expr: shift_expr (AMP shift_expr)* | "(" shift_expr (AMP shift_expr)* ")"
 
 ?shift_expr: arith_expr (_shift_op arith_expr)*
        | "(" arith_expr (_shift_op arith_expr)* ")"
@@ -228,61 +216,98 @@ _arg_list: _expr_list | _expr_pair_list
 
 ?unary_expr: (_unary_op unary_expr) | power_expr
 
-?power_expr: atom_expr ("**" unary_expr)*
-       | "(" atom_expr ("**" unary_expr)+ ")"
+?power_expr: atom_expr (STAR_STAR unary_expr)*
+       | "(" atom_expr (STAR_STAR unary_expr)+ ")"
 
 ?atom_expr: \
-    atom_expr "(" [_arg_list] ")"                      -> call_expr
-  | atom_expr "[" atom_expr "]"                        -> index_expr
+    atom_expr "(" [_arg_list] ")"                       -> call_expr
+  | atom_expr "[" atom_expr "]"                         -> index_expr
   | "(" atom_expr ")"
-  | "*" atom_expr                                      -> move_expr
-  | "&" atom_expr                                      -> ref_expr
-  | "&" atom_expr "!"                                  -> exref_expr
-  | "cptr" "(" atom_expr ")" BANG?                     -> cpointer_expr
-  | "cvoid" "(" atom_expr ")" BANG?                    -> cvoid_expr
-  | "[" _expr_list "]"                                 -> array_expr
-  | (_identifier | struct_type_expr) "{" _arg_list "}" -> struct_expr
-  | function_literal                                   -> function_expr
-  | _identifier                                        -> lookup_expr
-  | bool_literal_expr                                  -> bool_expr
-  | complex_literal_expr                               -> complex_expr
-  | float_literal_expr                                 -> float_expr
-  | int_literal_expr                                   -> int_expr
-  | rune_literal_expr                                  -> rune_expr
-  | string_literal_expr                                -> string_expr
+  | "*" atom_expr                                       -> move_expr
+  | "&" atom_expr                                       -> ref_expr
+  | "&" atom_expr "!"                                   -> exref_expr
+  | CPTR "(" atom_expr ")"                              -> c_pointer_expr
+  | CVOID "(" atom_expr ")"                             -> c_void_expr
+  | "[" _expr_list "]"                                  -> array_expr
+  | ( identifier
+    | _base_struct_type_literal_expr) "{" _arg_list "}" -> struct_expr
+  | identifier                                          -> lookup_expr
+  | bool_literal_expr                                   -> bool_expr
+  | complex_literal_expr                                -> complex_expr
+  | function_literal_expr                               -> function_expr
+  | float_literal_expr                                  -> float_expr
+  | int_literal_expr                                    -> int_expr
+  | rune_literal_expr                                   -> rune_expr
+  | string_literal_expr                                 -> string_expr
 
-_const_expr_list: \
-    const_expr
-  | const_expr ("," const_expr)+ [","]
-  | const_expr ","
+_const_expr_list: const_expr
+                | const_expr ("," const_expr)+ [","]
+                | const_expr ","
 
-_const_expr_pair_list: \
-    VALUE ":" const_expr
-  | VALUE ":" const_expr ("," VALUE ":" const_expr)+ [","]
-  | VALUE ":" const_expr ","
+_const_expr_pair_list: VALUE ":" const_expr
+                     | VALUE ":" const_expr ("," VALUE ":" const_expr)+ [","]
+                     | VALUE ":" const_expr ","
 
 _const_arg_list: _const_expr_list | _const_expr_pair_list
 
-const_expr: \
-    "(" const_expr ")"
-  | const_expr "[" const_expr "]"                            -> const_index_expr
-  | "[" _const_expr_list "]"                                 -> const_array_expr
-  | (_identifier | struct_type_expr) "{" _const_arg_list "}" -> const_struct_expr
-  | _identifier                                              -> const_lookup_expr
-  | bool_literal_expr                                        -> const_bool_expr
-  | complex_literal_expr                                     -> const_complex_expr
-  | float_literal_expr                                       -> const_float_expr
-  | int_literal_expr                                         -> const_int_expr
-  | rune_literal_expr                                        -> const_rune_expr
-  | string_literal_expr                                      -> const_string_expr
+?const_expr: and_const_expr (PIPE_PIPE and_const_expr)*
+       | "(" and_const_expr ("||" and_const_expr)* ")" -> or_const_expr
 
-literal_expr: bool_literal_expr
-            | complex_literal_expr
-            | float_literal_expr
-            | int_literal_expr
-            | rune_literal_expr
-            | string_literal_expr
-            | "(" literal_expr ")"
+?and_const_expr: cmp_const_expr (AMP_AMP cmp_const_expr)*
+           | "(" cmp_const_expr (AMP_AMP cmp_const_expr)* ")"
+
+?cmp_const_expr: bor_const_expr (_cmp_op bor_const_expr)*
+           | "(" bor_const_expr (_cmp_op bor_const_expr)* ")"
+
+?bor_const_expr: bxor_const_expr (PIPE bxor_const_expr)*
+           | "(" bxor_const_expr (PIPE bxor_const_expr)* ")"
+
+?bxor_const_expr: band_const_expr (CARET band_const_expr)*
+            | "(" band_const_expr (CARET band_const_expr)* ")"
+
+?band_const_expr: shift_const_expr (AMP shift_const_expr)*
+            | "(" shift_const_expr (AMP shift_const_expr)* ")"
+
+?shift_const_expr: arith_const_expr (_shift_op arith_const_expr)*
+             | "(" arith_const_expr (_shift_op arith_const_expr)* ")"
+
+?arith_const_expr: mul_const_expr (_add_op mul_const_expr)*
+             | "(" mul_const_expr (_add_op mul_const_expr)* ")"
+
+?mul_const_expr: inc_dec_const_expr (_mul_op inc_dec_const_expr)*
+           | "(" inc_dec_const_expr (_mul_op inc_dec_const_expr)* ")"
+
+?inc_dec_const_expr: (inc_dec_const_expr _inc_dec_op) | unary_const_expr
+
+?unary_const_expr: (_unary_op unary_const_expr) | power_const_expr
+
+?power_const_expr: const_atom_expr (STAR_STAR unary_const_expr)*
+       | "(" const_atom_expr (STAR_STAR unary_const_expr)+ ")"
+
+?const_atom_expr: \
+    "(" const_atom_expr ")"
+  | const_atom_expr "[" const_atom_expr "]" -> const_index_expr
+  | "[" _const_expr_list "]"                -> const_array_expr
+  | ( identifier | \
+      _base_struct_type_literal_expr \
+    ) "{" _const_arg_list "}"               -> const_struct_expr
+  | const_lookup_expr
+  | bool_literal_expr                       -> const_bool_expr
+  | complex_literal_expr                    -> const_complex_expr
+  | float_literal_expr                      -> const_float_expr
+  | function_literal_expr                   -> const_function_expr
+  | int_literal_expr                        -> const_int_expr
+  | rune_literal_expr                       -> const_rune_expr
+  | string_literal_expr                     -> const_string_expr
+
+_literal_expr: bool_literal_expr
+             | complex_literal_expr
+             | float_literal_expr
+             | function_literal_expr
+             | int_literal_expr
+             | rune_literal_expr
+             | string_literal_expr
+             | "(" _literal_expr ")"
 
 bool_literal_expr: (TRUE | FALSE)       
 
@@ -290,41 +315,44 @@ complex_literal_expr: COMPLEX
 
 float_literal_expr: FLOAT                
 
+function_literal_expr: FN _base_func code_block
+
 int_literal_expr: INTEGER              
 
 rune_literal_expr: RUNE                 
 
 string_literal_expr: STRING               
 
-if_block: "if" "(" expr ")" code_block ["else" (if_block | code_block)]
+if_block: IF "(" expr ")" code_block [ELSE (if_block | code_block)]
 
-switch_block: "switch" "(" _identifier ")" "{" ( \
+switch_block: SWITCH "(" identifier ")" "{" ( \
   default_block | (case_block+ default_block?) \
 ) "}"
 
-case_block: "case" "(" expr ")" code_block
+case_block: CASE "(" expr ")" code_block
 
-match_block: "match" "(" expr ")" "{" ( \
+match_block: MATCH "(" expr ")" "{" ( \
   default_block | (match_case_block+ default_block?) \
 ) "}"
 
-match_case_block: "case" "(" param ":" _identifier ")" code_block
+match_case_block: CASE "(" _var_type_expr ":" identifier ")" code_block
 
-default_block: "default" code_block
+default_block: DEFAULT code_block
 
-for_block: "for" "(" param ":" (expr | range_type_expr) ")" code_block
+for_block: \
+  FOR "(" _var_type_expr ":" (expr | range_type_literal_expr) ")" code_block
 
-while_block: "while" "(" expr ")" code_block
+while_block: WHILE "(" expr ")" code_block
 
-loop_block: "loop" code_block
+loop_block: LOOP code_block
 
-break_stmt: "break"
+break_stmt: BREAK
 
-continue_stmt: "continue"
+continue_stmt: CONTINUE
 
-let_stmt: "let" VALUE BANG? ":" expr
+let_stmt: LET VALUE BANG? ":" expr
 
-return_stmt: "return" expr
+return_stmt: RETURN expr
 
 assign_stmt: expr _assign_op expr
 
@@ -341,18 +369,73 @@ code_block: "{" (if_block
                | continue_stmt
                | expr)* "}"
 
+array_type_def: ARRAY VALUE array_type_literal_expr
+
+c_array_type_def: CARRAY VALUE _sized_array_type_literal_expr
+
+c_block_function_decl: CBLOCKFN VALUE _base_func
+
+c_function_decl: CFN VALUE _base_func
+
+c_struct_type_def: CSTRUCT VALUE "{" _type_param_pair_list? "}"
+
+c_union_type_def: CUNION VALUE "{" _type_param_pair_list "}"
+
+const_def: CONST VALUE ":" _literal_expr
+
+enum_type_def: ENUM VALUE "{" _expr_pair_list "}"
+
+function_type_def: FN VALUE _base_func
+
+function_def: FN VALUE _base_func code_block
+
+implementation_def: \
+  IMPL const_lookup_expr ["(" const_lookup_expr ")"] "{" function_def* "}"
+
+interface_type_def: IFACE VALUE "{" (function_def | function_type_def)* "}"
+
+module_decl: MOD _no_ref_identifier
+
+range_type_def: RANGE VALUE range_type_literal_expr
+
+requirement_decl: REQ _no_ref_identifier [":" VALUE]
+
+struct_type_def: STRUCT VALUE struct_type_literal_expr
+
+variant_type_def: VARIANT VALUE "{" _type_param_pair_list "}"
+
+type_def: TYPEDEF VALUE ":" _type_expr
+
+module: module_decl (array_type_def
+                   | c_array_type_def
+                   | c_block_function_decl
+                   | c_function_decl
+                   | c_struct_type_def
+                   | c_union_type_def
+                   | const_def
+                   | enum_type_def
+                   | function_def
+                   | function_type_def
+                   | implementation_def
+                   | interface_type_def
+                   | range_type_def
+                   | requirement_decl
+                   | struct_type_def
+                   | type_def
+                   | variant_type_def)*
+
+program: module+
+
 !_cmp_op: "<"|">"|"<="|">="|"=="|"!="
 !_shift_op: "<<"|">>"|">>>"
 !_add_op: "+"|"-"
-!_mul_op: "*"|"/"|"//"|"%"
+!_mul_op: "*"|"/"|"%"
 !_inc_dec_op: "++"|"--"
 !_unary_op: "+"|"-"|"~"|"!"
 !_int_type: ("int" | "i8" | "i16" | "i32" | "i64" | "i128"
            | "uint" | "u8" | "u16" | "u32" | "u64" | "u128")
 !_assign_op: \
-  EQUAL |                                                                   \
-  PLUS_EQUAL | MINUS_EQUAL | PERCENT_EQUAL | CARET_EQUAL | AMP_EQUAL |      \
-    STAR_EQUAL | TILDE_EQUAL | PIPE_EQUAL | SLASH_EQUAL |                   \
-  SLASH_SLASH_EQUAL | AMP_AMP_EQUAL | PIPE_PIPE_EQUAL | SLASH_SLASH_EQUAL | \
-    DOUBLE_OPEN_ANGLE_EQUAL | DOUBLE_CLOSE_ANGLE_EQUAL |                    \
-  TRIPLE_CLOSE_ANGLE_EQUAL                                                  \
+  EQUAL PLUS_EQUAL | MINUS_EQUAL | PERCENT_EQUAL | CARET_EQUAL | AMP_EQUAL | \
+  STAR_EQUAL | TILDE_EQUAL | PIPE_EQUAL | SLASH_EQUAL | AMP_AMP_EQUAL |      \
+  PIPE_PIPE_EQUAL | STAR_STAR_EQUAL | DOUBLE_OPEN_ANGLE_EQUAL |              \
+  DOUBLE_CLOSE_ANGLE_EQUAL | TRIPLE_CLOSE_ANGLE_EQUAL                        \
