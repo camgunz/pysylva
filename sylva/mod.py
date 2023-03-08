@@ -16,14 +16,25 @@ class ModDecl(SylvaObject):
 class Mod:
     locations: list[Location] = field(default_factory=list)
     name: str
-    requirements: list[Req] = field(default_factory=list)
+    requirements: dict[str, Req] = field(default_factory=dict)
     type_defs: dict[str, TypeDef] = field(init=False, default_factory=dict)
     defs: dict[str, SylvaDef] = field(init=False, default_factory=dict)
 
     def add_def(self, d: Union[SylvaDef, TypeDef]):
         if preexisting := builtins.lookup(d.name):
             raise errors.RedefinedBuiltIn(d.location, d.name)
-        if preexisting := self.type_defs.get(d.name, self.defs.get(d.name)):
+
+        if preexisting := self.type_defs.get(d.name):
+            raise errors.DuplicateDefinition(
+                d.location, d.name, preexisting.location
+            )
+
+        if preexisting := self.defs.get(d.name):
+            raise errors.DuplicateDefinition(
+                d.location, d.name, preexisting.location
+            )
+
+        if preexisting := self.requirements.get(d.name):
             raise errors.DuplicateDefinition(
                 d.location, d.name, preexisting.location
             )
@@ -35,5 +46,8 @@ class Mod:
 
     def lookup(self, name):
         return self.type_defs.get(
-            name, self.defs.get(name, builtins.lookup(name))
+            name,
+            self.defs.get(
+                name, self.requirements.get(name, builtins.lookup(name))
+            )
         )

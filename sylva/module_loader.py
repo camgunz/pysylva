@@ -25,9 +25,9 @@ def get_requirement_path(search_paths, req_name):
 
 class ModuleGatherer(lark.Visitor):
 
-    def __init__(self, stream, mod_tracker):
+    def __init__(self, stream, mod_loader):
         self._stream = stream
-        self._mod_tracker = mod_tracker
+        self._mod_loader = mod_loader
         self._current_module = None
 
     def module_decl(self, tree):
@@ -35,7 +35,7 @@ class ModuleGatherer(lark.Visitor):
         mod_name = '.'.join(t.value for t in tree.children[1:])
         loc = Location.FromTree(tree, stream=self._stream)
 
-        mod = self._mod_tracker.upsert_module_from_location(mod_name, loc)
+        mod = self._mod_loader.upsert_module_from_location(mod_name, loc)
         pmod = self._current_module
         self._current_module = mod
 
@@ -58,10 +58,12 @@ class ModuleGatherer(lark.Visitor):
             name='.'.join(t.value for t in tree.children[1:-1])
         )
 
-        if req.name not in [r.name for r in self._current_module.requirements]:
-            self._current_module.requirements.append(req)
+        # [NOTE] Should we disallow duplicate requirements here?
+        self._current_module.requirements[  # yapf: ignore
+            req.bound_name if req.bound_name else req.name  # yapf: ignore
+        ] = req
 
-        self._mod_tracker.resolve_requirement(req)
+        self._mod_loader.resolve_requirement(req)
 
 
 @dataclass
@@ -92,8 +94,7 @@ class ModuleLoader:
         return mod
 
     def resolve_requirement(self, req):
-        mod = self.modules.get(req.name)
-        if mod:
+        if self.modules.get(req.name):
             return
 
         req_path = get_requirement_path(self.search_paths, req.name)
@@ -114,7 +115,7 @@ class ModuleLoader:
         ts = TopologicalSorter()
 
         for n, m in self.modules.items():
-            ts.add(n, *[req.name for req in m.requirements])
+            ts.add(n, *list(m.requirements.keys()))
 
         try:
             ordered_module_names = ts.static_order()
