@@ -462,11 +462,16 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
     def const_def(self, parts):
         debug('ast_builder', f'const_def: {parts}')
         const, name_token, value = parts
-        return ConstDef(
+
+        const_def = ConstDef(
             location=Location.FromToken(const, stream=self._stream),
             name=name_token.value,
             value=value
         )
+
+        self._module.add_def(const_def)
+
+        return const_def
 
     def exrefparam(self, parts):
         debug('ast_builder', f'exrefparam: {parts}')
@@ -509,7 +514,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         location = Location.FromToken(fn, stream=self._stream)
 
-        return SylvaDef(
+        function_def = SylvaDef(
             name=name,
             value=FnValue(
                 location=location,
@@ -521,6 +526,10 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
                 value=code_block
             ),
         )
+
+        self._module.add_def(function_def)
+
+        return function_def
 
     def int_expr(self, parts):
         debug('ast_builder', f'int_expr: {parts}')
@@ -575,9 +584,13 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
                 location=param_loc, name=param_name.value, type=param_type
             )
         else:
-            value = LookupExpr(
-                location=location, name=name.value, type=None
-            ).eval(self._module)
+            try:
+                value = LookupExpr(
+                    location=location, name=name.value, type=None
+                ).eval(self._module)
+            except:
+                breakpoint()
+                raise
 
         while tree.children:
             reflection = tree.children.pop(0).value == '::'

@@ -3,6 +3,7 @@ from typing import Union
 
 from sylva import builtins, errors
 from sylva.builtins import SylvaDef, SylvaObject, TypeDef
+from sylva.const import ConstDef
 from sylva.location import Location
 from sylva.req import Req
 
@@ -18,9 +19,11 @@ class Mod:
     name: str
     requirements: dict[str, Req] = field(default_factory=dict)
     type_defs: dict[str, TypeDef] = field(init=False, default_factory=dict)
-    defs: dict[str, SylvaDef] = field(init=False, default_factory=dict)
+    defs: dict[str, Union[ConstDef, SylvaDef]] = field(
+        init=False, default_factory=dict
+    )
 
-    def add_def(self, d: Union[SylvaDef, TypeDef]):
+    def add_def(self, d: Union[ConstDef, SylvaDef, TypeDef]):
         if preexisting := builtins.lookup(d.name):
             raise errors.RedefinedBuiltIn(d.location, d.name)
 
@@ -39,7 +42,7 @@ class Mod:
                 d.location, d.name, preexisting.location
             )
 
-        if isinstance(d, SylvaDef):
+        if isinstance(d, (ConstDef, SylvaDef)):
             self.defs[d.name] = d
         elif isinstance(d, TypeDef):
             self.type_defs[d.name] = d
