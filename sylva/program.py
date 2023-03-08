@@ -3,7 +3,7 @@ import lark
 from sylva import sylva
 from sylva.ast_builder import ASTBuilder
 from sylva.module_loader import ModuleLoader
-from sylva.self_referential_field_gatherer import SelfReferentialFieldGatherer
+from sylva.scope_gatherer import ScopeGatherer
 from sylva.parser import Parser
 
 
@@ -16,6 +16,7 @@ class Program:
 
     def parse(self):
         parser = Parser()
+        scope_gatherer = ScopeGatherer()
 
         module_trees = [ # yapf: ignore
             (module, location, parser.parse(location.stream.data))
@@ -23,10 +24,8 @@ class Program:
             for location in module.locations
         ]
 
-        srft = SelfReferentialFieldGatherer()
-
         for module, location, tree in module_trees:
-            srft.visit_topdown(tree)
+            scope_gatherer.visit_topdown(tree)
 
         module_trees = [ # yapf: ignore
             ASTBuilder( # yapf: ignore

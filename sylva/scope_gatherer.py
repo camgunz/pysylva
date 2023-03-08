@@ -1,9 +1,11 @@
+from copy import deepcopy
+
 import lark
 
 from sylva import debug
 
 
-class SelfReferentialFieldGatherer(lark.Visitor):
+class ScopeGatherer(lark.Visitor):
 
     def array_type_def(self, tree):
         debug('srft', f'array_type_def: {tree}')
@@ -36,6 +38,21 @@ class SelfReferentialFieldGatherer(lark.Visitor):
             if not hasattr(tree.meta, 'self_referential_field_names'):
                 tree.meta.self_referential_field_names = set()
             tree.meta.self_referential_field_names.add(srf_name)
+
+    def function_def(self, tree):
+        debug('ast_builder', f'function_def: {tree}')
+        params = {
+            c.children[0].value: deepcopy(c)
+            for c in tree.children
+            if isinstance(c, lark.Tree) and c.data.value == 'type_param_pair'
+        }
+
+        for subtree in tree.iter_subtrees():
+            if not hasattr(subtree.meta, 'function_parameters'):
+                subtree.meta.function_parameters = params
+            else:
+                # [FIXME] Disallow name collisions
+                subtree.meta.function_parameters.update(params)
 
     def struct_type_def(self, tree):
         debug('srft', f'struct_type_def: {tree}')

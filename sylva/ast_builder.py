@@ -101,27 +101,6 @@ class UndefinedSymbol:
     type: Optional[SylvaType] = None
 
 
-def separate_type_mod(parts: list):
-    if not isinstance(parts[0], lark.Token):
-        if isinstance(parts[-1], lark.Token) and parts[-1].value == '!':
-            return (TypeModifier.CMut, parts[1:-1])
-
-        return (TypeModifier.NoMod, parts)
-
-    first_child = parts[0].value
-
-    if first_child == '*':
-        return (TypeModifier.Ptr, parts[1:])
-
-    if not first_child == '&':
-        return (TypeModifier.NoMod, parts)
-
-    if isinstance(parts[-1], lark.Token) and parts[-1].value == '!':
-        return (TypeModifier.ExRef, parts[1:-1])
-
-    return (TypeModifier.Ref, parts[1:])
-
-
 def get_int_base(int_value: str) -> Literal[2, 8, 10, 16]:
     if int_value.startswith('0b') or int_value.startswith('0B'):
         return 2
@@ -274,7 +253,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
     def c_array_type_literal_expr(self, parts):
         debug('ast_builder', f'c_array_type_literal_expr: {parts}')
-        mod, parts = separate_type_mod(parts)
+        mod, parts = TypeModifier.separate_type_mod(parts)
         carray, element_type, element_count = parts
         location = Location.FromToken(carray, stream=self._stream)
 
@@ -287,7 +266,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
     def c_bit_field_type_literal_expr(self, parts):
         debug('ast_builder', f'c_bit_field_type_literal_expr: {parts}')
-        mod, parts = separate_type_mod(parts)
+        mod, parts = TypeModifier.separate_type_mod(parts)
         cbitfield, int_type_expr, field_size = parts
         location = Location.FromToken(cbitfield, stream=self._stream)
         int_type = LookupExpr(
@@ -362,7 +341,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
     def expr(self, parts):
         debug('ast_builder', f'expr: {parts}')
-        mod, expr = separate_type_mod(parts)
+        mod, expr = TypeModifier.separate_type_mod(parts)
         expr.type.mod = mod
 
         return expr
@@ -566,18 +545,39 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         debug('ast_builder', f'lookup_expr: {tree}')
         name = tree.children.pop(0)
         location = Location.FromToken(name, stream=self._stream)
-        try:
+
+        if (hasattr(tree.meta, 'self_referential_field_names') and
+                name in tree.meta.self_referential_field_names):
+            value = SelfReferentialField(location=location, name=name.value)
+        elif (hasattr(tree.meta, 'function_parameters') and
+              name in tree.meta.function_parameters):
+            func_param = tree.meta.function_parameters[name]
+            param_name, param_type_param = func_param.children
+            param_loc = Location.FromToken(param_name, stream=self._stream)
+            if param_type_param.data.value == 'type_placeholder':
+                param_type = TypePlaceholder(
+                    location=Location.FromTree(
+                        param_type_param, stream=self._stream
+                    ),
+                    name=param_type_param.children[0].value,
+                )
+            else:
+                mod, rest = TypeModifier.separate_type_mod(
+                    param_type_param.children
+                )
+                param_type = LookupExpr(
+                    location=Location.FromToken(rest[0], stream=self._stream),
+                    name=rest[0].value,
+                    type=SylvaType,
+                ).eval(self._module)
+                param_type.mod = mod
+            value = LookupExpr(
+                location=param_loc, name=param_name.value, type=param_type
+            )
+        else:
             value = LookupExpr(
                 location=location, name=name.value, type=None
             ).eval(self._module)
-        except errors.UndefinedSymbol:
-            if not hasattr(tree.meta, 'self_referential_field_names'):
-                raise
-
-            if name not in tree.meta.self_referential_field_names:
-                raise
-
-            value = SelfReferentialField(location=location, name=name.value)
 
         while tree.children:
             reflection = tree.children.pop(0).value == '::'
@@ -671,7 +671,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         type_param = parts.pop(0)
 
         if isinstance(type_param, lark.Tree):
-            mod, rest = separate_type_mod(type_param.children)
+            mod, rest = TypeModifier.separate_type_mod(type_param.children)
             type = rest[0].eval(self._module)
             type.mod = mod
         else:
@@ -693,7 +693,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
     def var_type_expr(self, parts):
         debug('ast_builder', f'var_type_expr: {parts}')
-        mod, parts = separate_type_mod(parts)
+        mod, parts = TypeModifier.separate_type_mod(parts)
         type = parts[0].eval(self._module)
 
         type.mod = mod

@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any, Optional, Union
 
+import lark
+
 from sylva import _SIZE_SIZE, errors, utils
 from sylva.location import Location
 
@@ -15,6 +17,27 @@ class TypeModifier(enum.Enum):
     Ref = enum.auto()
     ExRef = enum.auto()
     CMut = enum.auto()
+
+    @classmethod
+    def separate_type_mod(cls, parts: list):
+        if not isinstance(parts[0], lark.Token):
+            if isinstance(parts[-1], lark.Token) and parts[-1].value == '!':
+                return (cls.CMut, parts[1:-1])
+
+            return (cls.NoMod, parts)
+
+        first_child = parts[0].value
+
+        if first_child == '*':
+            return (cls.Ptr, parts[1:])
+
+        if not first_child == '&':
+            return (cls.NoMod, parts)
+
+        if isinstance(parts[-1], lark.Token) and parts[-1].value == '!':
+            return (cls.ExRef, parts[1:-1])
+
+        return (cls.Ref, parts[1:])
 
 
 @dataclass(kw_only=True)
@@ -40,7 +63,7 @@ class SylvaValue(SylvaObject):
 @dataclass(kw_only=True)
 class SylvaField(SylvaObject):
     name: str
-    type: Optional[Union[SylvaType, 'TypePlaceholder']]
+    type: Optional[SylvaType]
 
     @property
     def is_var(self):
@@ -1080,7 +1103,7 @@ class TypeDef(SylvaObject):
 
 
 @dataclass(kw_only=True)
-class TypePlaceholder(SylvaObject):
+class TypePlaceholder(SylvaType):
     name: str
 
     @property
