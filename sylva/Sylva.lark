@@ -103,12 +103,10 @@ _no_ref_identifier: VALUE ("." VALUE)*
 
 identifier: _base_identifier
 
-const_identifier: _base_identifier
-
-const_lookup_expr: _base_identifier
+lookup_expr: _base_identifier
 
 _sized_array_type_literal_expr: \
-  "[" _type_expr "*" (const_lookup_expr | INTEGER) "]"
+  "[" _type_expr "*" (lookup_expr | int_literal_expr) "]"
 
 _unsized_array_type_literal_expr: "[" _type_expr ELLIPSIS "]"
 
@@ -122,8 +120,8 @@ c_array_type_literal_expr: \
   | (AMP CARRAY _sized_array_type_literal_expr BANG?)
 
 c_bit_field_type_literal_expr: \
-  (STAR? CBITFIELD "(" _int_type "," INTEGER ")")
-  | (AMP CBITFIELD "(" _int_type "," INTEGER ")" BANG?)
+  (STAR? CBITFIELD "(" _int_type "," int_literal_expr ")")
+  | (AMP CBITFIELD "(" _int_type "," int_literal_expr ")" BANG?)
 
 _base_func: "(" _type_param_pair_list? ")" [":" _type_expr]
 
@@ -145,9 +143,10 @@ c_union_type_literal_expr: \
 
 function_type_literal_expr: FN _base_func
 
-_base_range_type_literal_expr: \
-    ((  FLOAT | const_lookup_expr) DOT_DOT (  FLOAT | const_lookup_expr))
-  | ((INTEGER | const_lookup_expr) DOT_DOT (INTEGER | const_lookup_expr))
+_base_range_type_literal_expr: ((float_literal_expr | lookup_expr) DOT_DOT \
+                                (float_literal_expr | lookup_expr))
+                             | ((  int_literal_expr | lookup_expr) DOT_DOT \
+                                  (int_literal_expr | lookup_expr))
 
 range_type_literal_expr: (STAR? _base_range_type_literal_expr)
                          | (AMP _base_range_type_literal_expr BANG?)
@@ -157,9 +156,9 @@ _base_struct_type_literal_expr: "{" _type_param_pair_list? "}"
 struct_type_literal_expr: (STAR? _base_struct_type_literal_expr)
                           | (AMP _base_struct_type_literal_expr BANG?)
 
-_var_type_expr: (STAR? const_lookup_expr [ "(" _type_param_pair_list ")" ])
-              | (AMP const_lookup_expr [ "(" _type_param_pair_list ")" ] BANG?)
-              | (    const_lookup_expr [ "(" _type_param_pair_list ")" ] BANG?)
+_var_type_expr: (STAR? lookup_expr [ "(" _type_param_pair_list ")" ])
+              | (AMP lookup_expr [ "(" _type_param_pair_list ")" ] BANG?)
+              | (    lookup_expr [ "(" _type_param_pair_list ")" ] BANG?)
 
 _literal_type_expr: array_type_literal_expr
                   | c_array_type_literal_expr
@@ -231,41 +230,16 @@ _arg_list: _expr_list | _expr_pair_list
   | CPTR "(" atom_expr ")" BANG?                        -> c_pointer_expr
   | CVOID "(" atom_expr ")" BANG?                       -> c_void_expr
   | "[" _expr_list "]"                                  -> array_expr
-  | ( identifier
+  | ( lookup_expr
     | _base_struct_type_literal_expr) "{" _arg_list "}" -> struct_expr
-  | identifier                                          -> lookup_expr
-  | bool_literal_expr                                   -> bool_expr
-  | complex_literal_expr                                -> complex_expr
-  | function_literal_expr                               -> function_expr
-  | float_literal_expr                                  -> float_expr
-  | int_literal_expr                                    -> int_expr
-  | rune_literal_expr                                   -> rune_expr
-  | string_literal_expr                                 -> string_expr
-
-_const_expr_list: const_expr
-                | const_expr ("," const_expr)+ [","]
-                | const_expr ","
-
-_const_expr_pair_list: VALUE ":" const_expr
-                     | VALUE ":" const_expr ("," VALUE ":" const_expr)+ [","]
-                     | VALUE ":" const_expr ","
-
-_const_arg_list: _const_expr_list | _const_expr_pair_list
-
-const_expr: "(" const_expr ")"
-  | const_expr "[" const_expr "]"      -> const_index_expr
-  | "[" _const_expr_list "]"           -> const_array_expr
-  | ( identifier | \
-      _base_struct_type_literal_expr \
-    ) "{" _const_arg_list "}"          -> const_struct_expr
-  | const_lookup_expr
-  | bool_literal_expr                  -> const_bool_expr
-  | complex_literal_expr               -> const_complex_expr
-  | float_literal_expr                 -> const_float_expr
-  | function_literal_expr              -> const_function_expr
-  | int_literal_expr                   -> const_int_expr
-  | rune_literal_expr                  -> const_rune_expr
-  | string_literal_expr                -> const_string_expr
+  | lookup_expr
+  | bool_literal_expr
+  | complex_literal_expr
+  | function_literal_expr
+  | float_literal_expr
+  | int_literal_expr
+  | rune_literal_expr
+  | string_literal_expr
 
 _literal_expr: bool_literal_expr
              | complex_literal_expr
@@ -357,7 +331,7 @@ function_type_def: FN VALUE _base_func
 function_def: FN VALUE _base_func code_block
 
 implementation_def: \
-  IMPL const_lookup_expr ["(" const_lookup_expr ")"] "{" function_def* "}"
+  IMPL identifier ["(" lookup_expr ")"] "{" function_def* "}"
 
 interface_type_def: IFACE VALUE "{" (function_def | function_type_def)* "}"
 

@@ -1,6 +1,9 @@
+from dataclasses import dataclass
+from typing import Literal, Optional, Tuple, Union
+
 import lark
 
-from sylva import _SIZE_SIZE
+from sylva import _SIZE_SIZE, debug, errors
 from sylva.builtins import (  # noqa: F403
     ARRAY,
     ArrayValue,
@@ -14,6 +17,7 @@ from sylva.builtins import (  # noqa: F403
     CArrayValue,
     CBITFIELD,
     CBitFieldValue,
+    CBLOCKFN,
     CFN,
     CFnValue,
     CPTR,
@@ -27,6 +31,7 @@ from sylva.builtins import (  # noqa: F403
     CVOID,
     CVOIDEX,
     CVoidValue,
+    ComplexType,
     ComplexValue,
     DYNARRAY,
     DynarrayValue,
@@ -37,6 +42,7 @@ from sylva.builtins import (  # noqa: F403
     F32,
     F64,
     FN,
+    FloatType,
     FloatValue,
     FnValue,
     I128,
@@ -44,11 +50,13 @@ from sylva.builtins import (  # noqa: F403
     I32,
     I64,
     I8,
+    IntType,
     IntValue,
     RANGE,
     RUNE,
     RangeValue,
     RuneValue,
+    SelfReferentialField,
     STR,
     STRING,
     STRUCT,
@@ -62,6 +70,7 @@ from sylva.builtins import (  # noqa: F403
     SylvaValue,
     TypeDef,
     TypeModifier,
+    TypePlaceholder,
     U128,
     U16,
     U32,
@@ -71,14 +80,25 @@ from sylva.builtins import (  # noqa: F403
     VariantValue,
 )
 from sylva.code_block import CodeBlock
-from sylva.const import (
-    ConstAttributeLookupExpr,
-    ConstDef,
-    ConstLookupExpr,
-    ConstReflectionLookupExpr,
+from sylva.const import ConstDef
+from sylva.expr import (
+    AttributeLookupExpr,
+    CallExpr,
+    CPtrExpr,
+    CVoidExpr,
+    IntLiteralExpr,
+    LookupExpr,
+    ReflectionLookupExpr,
+    StrLiteralExpr,
 )
-from sylva.expr import AttributeLookupExpr, CallExpr, ReflectionLookupExpr
 from sylva.location import Location
+
+
+@dataclass(kw_only=True)
+class UndefinedSymbol:
+    location: Location
+    name: str
+    type: Optional[SylvaType] = None
 
 
 def separate_type_mod(parts: list):
@@ -102,113 +122,93 @@ def separate_type_mod(parts: list):
     return (TypeModifier.Ref, parts[1:])
 
 
-def build_int_value(location, raw_value):
-    if raw_value.startswith('0b') or raw_value.startswith('0B'):
-        base = 2
-    elif raw_value.startswith('0o') or raw_value.startswith('0O'):
-        base = 8
-    elif raw_value.startswith('0x') or raw_value.startswith('0X'):
-        base = 16
-    else:
-        base = 10
+def get_int_base(int_value: str) -> Literal[2, 8, 10, 16]:
+    if int_value.startswith('0b') or int_value.startswith('0B'):
+        return 2
+    if int_value.startswith('0o') or int_value.startswith('0O'):
+        return 8
+    if int_value.startswith('0x') or int_value.startswith('0X'):
+        return 16
+    return 10
 
-    if raw_value.endswith('i'):
-        value = int(raw_value[:-1], base)
-        if _SIZE_SIZE == 8:
-            return IntValue(location=location, type=I8, value=value)
-        if _SIZE_SIZE == 16:
-            return IntValue(location=location, type=I16, value=value)
-        if _SIZE_SIZE == 32:
-            return IntValue(location=location, type=I32, value=value)
-        if _SIZE_SIZE == 64:
-            return IntValue(location=location, type=I64, value=value)
-        if _SIZE_SIZE == 128:
-            return IntValue(location=location, type=I128, value=value)
 
-    if raw_value.endswith('i8'):
-        return IntValue(
-            location=location,
-            type=I8,
-            value=int(raw_value[:-2], base),
+def get_int_type(bits: Optional[int], signed: bool) -> IntType:
+    bits = bits if bits else _SIZE_SIZE
+    if signed and bits == 8:
+        return I8
+    if signed and bits == 16:
+        return I16
+    if signed and bits == 32:
+        return I32
+    if signed and bits == 64:
+        return I64
+    if signed and bits == 128:
+        return I128
+    if bits == 8:
+        return U8
+    if bits == 16:
+        return U16
+    if bits == 32:
+        return U32
+    if bits == 64:
+        return U64
+    if bits == 128:
+        return U128
+
+    raise ValueError(
+        f'Unable to determine int type for bits={bits}, signed={signed}'
+    )
+
+
+def parse_int_value(location: Location, strval: str) -> Tuple[IntType, int]:
+    base = get_int_base(strval)
+    signed = (
+        strval.endswith('i') or strval.endswith('i8') or
+        strval.endswith('i16') or strval.endswith('i32') or
+        strval.endswith('i64') or strval.endswith('i128')
+    )
+    try:
+        int_type = get_int_type(
+            bits=( # yapf: ignore
+                8 if strval.endswith('8') else
+                16 if strval.endswith('16') else
+                32 if strval.endswith('32') else
+                64 if strval.endswith('64') else
+                128 if strval.endswith('128') else
+                None
+            ),
+            signed=signed
         )
+    except ValueError as e:
+        raise errors.LiteralParseFailure(location, 'int', str(e)) from None
 
-    if raw_value.endswith('i16'):
-        return IntValue(
-            location=location,
-            type=I16,
-            value=int(raw_value[:-3], base),
-        )
+    value = ( # yapf: ignore
+        int(strval[:-1], base=base) if strval.endswith('i') else
+        int(strval[:-1], base=base) if strval.endswith('u') else
+        int(strval[:-2], base=base) if strval.endswith('i8') else
+        int(strval[:-3], base=base) if strval.endswith('i16') else
+        int(strval[:-3], base=base) if strval.endswith('i32') else
+        int(strval[:-3], base=base) if strval.endswith('i64') else
+        int(strval[:-4], base=base) if strval.endswith('i128') else
+        int(strval[:-2], base=base) if strval.endswith('u8') else
+        int(strval[:-3], base=base) if strval.endswith('u16') else
+        int(strval[:-3], base=base) if strval.endswith('u32') else
+        int(strval[:-3], base=base) if strval.endswith('u64') else
+        int(strval[:-4], base=base) if strval.endswith('u128') else
+        int(strval, base=base)
+    )
 
-    if raw_value.endswith('i32'):
-        return IntValue(
-            location=location,
-            type=I32,
-            value=int(raw_value[:-3], base),
-        )
+    return (int_type, value)
 
-    if raw_value.endswith('i64'):
-        return IntValue(
-            location=location,
-            type=I64,
-            value=int(raw_value[:-3], base),
-        )
 
-    if raw_value.endswith('i128'):
-        return IntValue(
-            location=location,
-            type=I128,
-            value=int(raw_value[:-4], base),
-        )
+def build_int_value(location: Location, strval: str) -> IntValue:
+    int_type, value = parse_int_value(location, strval)
+    return IntValue(location=location, type=int_type, value=value)
 
-    if raw_value.endswith('u'):
-        value = int(raw_value[:-1], base)
-        if _SIZE_SIZE == 8:
-            return IntValue(location=location, type=U8, value=value)
-        if _SIZE_SIZE == 16:
-            return IntValue(location=location, type=U16, value=value)
-        if _SIZE_SIZE == 32:
-            return IntValue(location=location, type=U32, value=value)
-        if _SIZE_SIZE == 64:
-            return IntValue(location=location, type=U64, value=value)
-        if _SIZE_SIZE == 128:
-            return IntValue(location=location, type=U128, value=value)
 
-    if raw_value.endswith('u8'):
-        return IntValue(
-            location=location,
-            type=I8,
-            value=int(raw_value[:-2], base),
-        )
-
-    if raw_value.endswith('u16'):
-        return IntValue(
-            location=location,
-            type=I16,
-            value=int(raw_value[:-3], base),
-        )
-
-    if raw_value.endswith('u32'):
-        return IntValue(
-            location=location,
-            type=I32,
-            value=int(raw_value[:-3], base),
-        )
-
-    if raw_value.endswith('u64'):
-        return IntValue(
-            location=location,
-            type=I64,
-            value=int(raw_value[:-3], base),
-        )
-
-    if raw_value.endswith('u128'):
-        return IntValue(
-            location=location,
-            type=I128,
-            value=int(raw_value[:-4], base),
-        )
-
-    raise ValueError('Malformed int value {raw_value}')
+def build_int_literal_expr(location: Location, strval: str) -> IntLiteralExpr:
+    int_type, value = parse_int_value(location, strval)
+    return IntLiteralExpr(location=location, type=int_type, value=value)
 
 
 def build_float_value(location, raw_value):
@@ -241,7 +241,7 @@ def build_complex_value(location, raw_value):
     raise Exception(f'Malformed complex value {raw_value}')
 
 
-class ASTBuilder(lark.Transformer):
+class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
     def __init__(self, program, module, location):
         super().__init__()
@@ -251,7 +251,7 @@ class ASTBuilder(lark.Transformer):
         self._stream = location.stream
 
     def c_array_type_def(self, parts):
-        print('c_array_type_def', parts)
+        debug('ast_builder', f'c_array_type_def: {parts}')
         carray = parts.pop(0)
         name = parts.pop(0).value
         array_type_expr = parts.pop(0)
@@ -273,7 +273,7 @@ class ASTBuilder(lark.Transformer):
         return typedef
 
     def c_array_type_literal_expr(self, parts):
-        print('c_array_type_literal_expr', parts)
+        debug('ast_builder', f'c_array_type_literal_expr: {parts}')
         mod, parts = separate_type_mod(parts)
         carray, element_type, element_count = parts
         location = Location.FromToken(carray, stream=self._stream)
@@ -285,8 +285,27 @@ class ASTBuilder(lark.Transformer):
             element_count=element_count,
         )
 
+    def c_bit_field_type_literal_expr(self, parts):
+        debug('ast_builder', f'c_bit_field_type_literal_expr: {parts}')
+        mod, parts = separate_type_mod(parts)
+        cbitfield, int_type_expr, field_size = parts
+        location = Location.FromToken(cbitfield, stream=self._stream)
+        int_type = LookupExpr(
+            location=Location.FromToken(int_type_expr, stream=self._stream),
+            name=int_type_expr.value,
+            type=IntType
+        ).eval(self._module)
+
+        return CBITFIELD.build_type(
+            location=location,
+            mod=mod,
+            bits=int_type.bits,
+            signed=int_type.signed,
+            field_size=field_size.value
+        )
+
     def c_function_decl(self, parts):
-        print('c_function_decl', parts)
+        debug('ast_builder', f'c_function_decl: {parts}')
         cfn = parts.pop(0)
         name = parts.pop(0)
         location = Location.FromToken(cfn, stream=self._stream)
@@ -313,30 +332,60 @@ class ASTBuilder(lark.Transformer):
 
         return cfn_def
 
+    def c_block_function_type_expr(self, parts):
+        debug('ast_builder', f'c_block_function_type_expr: {parts}')
+        cfn = parts.pop(0)
+        location = Location.FromToken(cfn, stream=self._stream)
+
+        return CBLOCKFN.build_type(
+            location=location,
+            return_type=(
+                parts.pop(-1)
+                if parts and not isinstance(parts[-1], SylvaField) else None
+            ),
+            parameters=parts,
+        )
+
+    def c_function_type_expr(self, parts):
+        debug('ast_builder', f'c_function_type_expr: {parts}')
+        cfn = parts.pop(0)
+        location = Location.FromToken(cfn, stream=self._stream)
+
+        return CFN.build_type(
+            location=location,
+            return_type=(
+                parts.pop(-1)
+                if parts and not isinstance(parts[-1], SylvaField) else None
+            ),
+            parameters=parts,
+        )
+
     def expr(self, parts):
-        print('expr', parts)
+        debug('ast_builder', f'expr: {parts}')
         mod, expr = separate_type_mod(parts)
         expr.type.mod = mod
 
         return expr
 
     def c_pointer_expr(self, parts):
-        print('c_pointer_expr', parts)
-        cptr, atom_expr = parts
+        debug('ast_builder', f'c_pointer_expr: {parts}')
+        cptr = parts.pop(0)
+        expr = parts.pop(0)
+        is_exclusive = bool(parts)
         location = Location.FromToken(cptr, stream=self._stream)
-        ref_type = atom_expr.eval(self._module)
 
-        return CPtrValue(
+        return CPtrExpr(
             location=location,
             type=CPTR.build_type(
                 location=location,
-                referenced_type=ref_type,
+                mod=TypeModifier.CMut if is_exclusive else TypeModifier.NoMod,
+                referenced_type=expr.type,
             ),
-            value=None,
+            expr=expr,
         )
 
     def c_pointer_type_literal_expr(self, parts):
-        print('c_pointer_type_expr', parts)
+        debug('ast_builder', f'c_pointer_type_expr: {parts}')
         cptr = parts.pop(0)
         ref_type = parts.pop(0)
         mut = bool(parts)
@@ -349,10 +398,28 @@ class ASTBuilder(lark.Transformer):
         )
 
     def c_struct_type_def(self, parts):
-        print('c_struct_type_def', parts)
+        debug('ast_builder', f'c_struct_type_def: {parts}')
         cstruct = parts.pop(0)
         name = parts.pop(0).value
         location = Location.FromToken(cstruct, stream=self._stream)
+
+        cstruct_type = CSTRUCT.build_type(location=location)
+
+        for field in parts:
+            if not isinstance(field, UndefinedSymbol):
+                cstruct_type.fields.append(field)
+                continue
+
+            if field.name == name:
+                cstruct_type.fields.append(
+                    SylvaField(
+                        location=field.location, name=name, type=cstruct_type
+                    )
+                )
+
+            raise errors.UndefinedSymbol(
+                location=field.location, name=field.name
+            )
 
         type_def = TypeDef(
             location=location,
@@ -365,7 +432,7 @@ class ASTBuilder(lark.Transformer):
         return type_def
 
     def c_union_type_def(self, parts):
-        print('c_union_type_def', parts)
+        debug('ast_builder', f'c_union_type_def: {parts}')
         cunion = parts.pop(0)
         name = parts.pop(0).value
         location = Location.FromToken(cunion, stream=self._stream)
@@ -381,17 +448,24 @@ class ASTBuilder(lark.Transformer):
         return type_def
 
     def c_void_expr(self, parts):
-        print('c_void_expr', parts)
-        cvoid, expr = parts
+        debug('ast_builder', f'c_void_expr: {parts}')
+        cvoid = parts.pop(0)
+        expr = parts.pop(0)
+        is_exclusive = bool(parts)
         location = Location.FromToken(cvoid, stream=self._stream)
-        return CVoidValue(location=location, expr=expr)
+
+        return CVoidExpr(
+            location=location,
+            type=CVOIDEX if is_exclusive else CVOID,
+            expr=expr,
+        )
 
     def c_void_type_literal_expr(self, parts):
-        print('c_void_type_literal_expr', parts)
+        debug('ast_builder', f'c_void_type_literal_expr: {parts}')
         return CVOIDEX if len(parts) == 2 else CVOID
 
     def call_expr(self, parts):
-        print('call_expr', parts)
+        debug('ast_builder', f'call_expr: {parts}')
         # [TODO] After looking up the function, we need to get the right
         #        monomorphization.
         func_lookup, args = parts[0], parts[1:]
@@ -403,11 +477,11 @@ class ASTBuilder(lark.Transformer):
         )
 
     def code_block(self, parts):
-        print('code_block', parts)
+        debug('ast_builder', f'code_block: {parts}')
         return CodeBlock(code=parts)
 
     def const_def(self, parts):
-        print('const_def', parts)
+        debug('ast_builder', f'const_def: {parts}')
         const, name_token, value = parts
         return ConstDef(
             location=Location.FromToken(const, stream=self._stream),
@@ -415,36 +489,11 @@ class ASTBuilder(lark.Transformer):
             value=value
         )
 
-    def const_lookup_expr(self, parts):
-        print('const_lookup_expr', parts)
-        value = ConstLookupExpr(
-            location=Location.FromToken(parts[0], stream=self._stream),
-            name=parts.pop(0).value,
-            type=None
-        ).eval(self._module)
-
-        while parts:
-            reflection = parts.pop(0).value == '::'
-            attr_name = parts.pop(0)
-            LookupExprType = (
-                ConstReflectionLookupExpr
-                if reflection else ConstAttributeLookupExpr
-            )
-
-            value = LookupExprType(
-                location=Location.FromToken(attr_name, stream=self._stream),
-                name=attr_name.value,
-                obj=value,
-                type=None
-            ).eval(self._module)
-
-        return value
-
     def exrefparam(self, parts):
-        print('exrefparam', parts)
+        debug('ast_builder', f'exrefparam: {parts}')
         name = parts.pop(0)
         location = Location.FromToken(name, stream=self._stream)
-        type = ConstLookupExpr(
+        type = LookupExpr(
             location=location,
             name=name,
             type=SylvaType,
@@ -454,7 +503,7 @@ class ASTBuilder(lark.Transformer):
         return SylvaField(location=location, name=name, type=type)
 
     def function_type_def(self, parts):
-        print('function_type_def', parts)
+        debug('ast_builder', f'function_type_def: {parts}')
         location = Location.FromToken(parts.pop(0), stream=self._stream)
 
         type_def = TypeDef(
@@ -472,7 +521,7 @@ class ASTBuilder(lark.Transformer):
         return type_def
 
     def function_def(self, parts):
-        print('function_def', parts)
+        debug('ast_builder', f'function_def: {parts}')
 
         fn = parts.pop(0)
         name = parts.pop(0).value
@@ -495,33 +544,42 @@ class ASTBuilder(lark.Transformer):
         )
 
     def int_expr(self, parts):
-        print('int_expr', parts)
+        debug('ast_builder', f'int_expr: {parts}')
         int_token = parts[0].children[0]
 
         return build_int_value(
             location=Location.FromToken(int_token, stream=self._stream),
-            raw_value=int_token.value
+            strval=int_token.value
         )
 
     def int_literal_expr(self, parts):
-        print('int_literal_expr', parts)
+        debug('ast_builder', f'int_literal_expr: {parts}')
         int_token = parts[0]
 
-        return build_int_value(
+        return build_int_literal_expr(
             location=Location.FromToken(int_token, stream=self._stream),
-            raw_value=int_token.value
+            strval=int_token.value
         )
 
-    def lookup_expr(self, parts):
-        print('lookup_expr', parts)
-        tree = parts[0]
-        value = AttributeLookupExpr(
-            location=Location.FromToken(parts[0], stream=self._stream),
-            name=parts.pop(0).value,
-            type=None
-        ).eval(self._module)
+    @lark.visitors.v_args(tree=True)
+    def lookup_expr(self, tree):
+        debug('ast_builder', f'lookup_expr: {tree}')
+        name = tree.children.pop(0)
+        location = Location.FromToken(name, stream=self._stream)
+        try:
+            value = LookupExpr(
+                location=location, name=name.value, type=None
+            ).eval(self._module)
+        except errors.UndefinedSymbol:
+            if not hasattr(tree.meta, 'self_referential_field_names'):
+                raise
 
-        while parts:
+            if name not in tree.meta.self_referential_field_names:
+                raise
+
+            value = SelfReferentialField(location=location, name=name.value)
+
+        while tree.children:
             reflection = tree.children.pop(0).value == '::'
             attr_name = tree.children.pop(0)
             LookupExprType = (
@@ -538,10 +596,10 @@ class ASTBuilder(lark.Transformer):
         return value
 
     def ptrparam(self, parts):
-        print('ptrparam', parts)
+        debug('ast_builder', f'ptrparam: {parts}')
         name = parts.pop(0)
         location = Location.FromToken(name, stream=self._stream)
-        type = ConstLookupExpr(
+        type = LookupExpr(
             location=location,
             name=name,
             type=SylvaType,
@@ -551,10 +609,10 @@ class ASTBuilder(lark.Transformer):
         return SylvaField(location=location, name=name, type=type)
 
     def refparam(self, parts):
-        print('refparam', parts)
+        debug('ast_builder', f'refparam: {parts}')
         name = parts.pop(0)
         location = Location.FromToken(name, stream=self._stream)
-        type = ConstLookupExpr(
+        type = LookupExpr(
             location=location,
             name=name,
             type=SylvaType,
@@ -564,7 +622,7 @@ class ASTBuilder(lark.Transformer):
         return SylvaField(location=location, name=name, type=type)
 
     def string_expr(self, parts):
-        print('string_expr', parts)
+        debug('ast_builder', f'string_expr: {parts}')
         str_token = parts[0].children[0]
         location = Location.FromToken(str_token, stream=self._stream)
 
@@ -577,12 +635,12 @@ class ASTBuilder(lark.Transformer):
         )
 
     def string_literal_expr(self, parts):
-        print('string_literal_expr', parts)
+        debug('ast_builder', f'string_literal_expr: {parts}')
         str_token = parts[0]
         location = Location.FromToken(str_token, stream=self._stream)
 
-        return StrValue(
-            location=Location.FromToken(str_token, stream=self._stream),
+        return StrLiteralExpr(
+            location=location,
             value=str_token.value[1:-1],
             type=STR.build_type(
                 location=location, element_count=len(str_token.value) - 2
@@ -590,20 +648,25 @@ class ASTBuilder(lark.Transformer):
         )
 
     def type_def(self, parts):
-        print('type_def', parts)
-        type_def, name, type = parts
-        return TypeDef(
-            location=Location.FromToken(type_def, stream=self._stream),
+        debug('ast_builder', f'type_def: {parts}')
+        typedef, name, type = parts
+
+        type_def = TypeDef(
+            location=Location.FromToken(typedef, stream=self._stream),
             name=name.value,
             type=type,
         )
 
+        self._module.add_def(type_def)
+
+        return type_def
+
     def type_param(self, parts):
-        print('type_param', parts)
+        debug('ast_builder', f'type_param: {parts}')
         raise Exception('type_param')
 
     def type_param_pair(self, parts):
-        print('type_param_pair', parts)
+        debug('ast_builder', f'type_param_pair: {parts}')
         name = parts.pop(0)
         type_param = parts.pop(0)
 
@@ -620,8 +683,16 @@ class ASTBuilder(lark.Transformer):
             type=type
         )
 
+    def type_placeholder(self, parts):
+        debug('ast_builder', f'type_placeholder: {parts}')
+        name = parts.pop(0)
+        return TypePlaceholder(
+            location=Location.FromToken(name, stream=self._stream),
+            name=name.value
+        )
+
     def var_type_expr(self, parts):
-        print('var_type_expr', parts)
+        debug('ast_builder', f'var_type_expr: {parts}')
         mod, parts = separate_type_mod(parts)
         type = parts[0].eval(self._module)
 

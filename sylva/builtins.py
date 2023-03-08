@@ -40,7 +40,7 @@ class SylvaValue(SylvaObject):
 @dataclass(kw_only=True)
 class SylvaField(SylvaObject):
     name: str
-    type: Optional[SylvaType]
+    type: Optional[Union[SylvaType, 'TypePlaceholder']]
 
     @property
     def is_var(self):
@@ -58,30 +58,6 @@ class SylvaDef(SylvaObject):
     @property
     def type(self):
         return self.value.type
-
-
-# @dataclass(kw_only=True)
-# class CMutType(SylvaType):
-#     mod: TypeModifier = field(init=False, default=TypeModifier.CMut)
-#     referenced_type: SylvaType
-#
-#
-# @dataclass(kw_only=True)
-# class PtrType(SylvaType):
-#     mod: TypeModifier = field(init=False, default=TypeModifier.Ptr)
-#     referenced_type: SylvaType
-#
-#
-# @dataclass(kw_only=True)
-# class RefType(SylvaType):
-#     mod: TypeModifier = field(init=False, default=TypeModifier.Ref)
-#     referenced_type: SylvaType
-#
-#
-# @dataclass(kw_only=True)
-# class ExRefType(SylvaType):
-#     mod: TypeModifier = field(init=False, default=TypeModifier.ExRef)
-#     referenced_type: SylvaType
 
 
 @dataclass(kw_only=True)
@@ -110,9 +86,7 @@ class MonoCPtrType(SylvaType):
     @cached_property
     def referenced_type_is_exclusive(self) -> bool:
         return self.referenced_type.mod in (
-            TypeModifier.CMut,
-            TypeModifier.ExRef,
-            TypeModifier.Ptr,
+            TypeModifier.CMut, TypeModifier.ExRef, TypeModifier.Ptr
         )
 
 
@@ -128,7 +102,7 @@ class ParamCPtrType(SylvaType):
         location: Location,
         referenced_type: SylvaType,
     ) -> MonoCPtrType:
-        return MonoCPtrType(location, referenced_type)
+        return MonoCPtrType(location=location, referenced_type=referenced_type)
 
 
 @dataclass(kw_only=True)
@@ -140,12 +114,14 @@ class CPtrType(SylvaType):
         mod: TypeModifier = TypeModifier.NoMod,
         referenced_type: Optional[SylvaType] = None,
     ) -> Union[MonoCPtrType, ParamCPtrType]:
-        return (
+        return ( # yapf: ignore
             MonoCPtrType(
                 location=location,
                 mod=mod,
                 referenced_type=referenced_type,
-            ) if referenced_type is not None else ParamCPtrType(location)
+            )
+            if referenced_type is not None
+            else ParamCPtrType(location=location)
         )
 
 
@@ -265,20 +241,34 @@ class MonoCFnType(SylvaType):
 
 
 @dataclass(kw_only=True)
+class MonoCBlockFnType(SylvaType):
+    parameters: list[SylvaField] = field(default_factory=list)
+    return_type: Optional[SylvaType]
+
+    def __post_init__(self):
+        if dupes := utils.get_dupes(p.name for p in self.parameters):
+            raise errors.DuplicateParameters(self, dupes)
+
+    @cached_property
+    def mname(self):
+        return ''.join([
+            '4bcfn',
+            ''.join(p.type.mname for p in self.parameters),
+            self.return_type.mname if self.return_type else '1v'
+        ])
+
+
+@dataclass(kw_only=True)
 class ParamFnType(SylvaType):
-    return_type_param: Optional[SylvaField] = field(default=None)
+    parameters: list[SylvaField] = field(default_factory=list)
+    return_type: Optional[SylvaType] = None
+    return_type_param: Optional[SylvaField] = None
 
-    @property
-    def return_type_is_type_parameter(self):
-        return (
-            self.return_type_param and self.return_type_param.is_type_parameter
-        )
-
-    @property
-    def return_type(self):
-        return (
-            None if not self.return_type_param else self.return_type_param.type
-        )
+    def __post_init__(self):
+        if self.return_type and self.return_type_param:
+            raise ValueError(
+                'Cannot specify both return_type and return_type_param'
+            )
 
     @property
     def return_type_param_name(self):
@@ -289,15 +279,11 @@ class ParamFnType(SylvaType):
     @property
     def type_parameters(self):
         return ([p.name for p in self.parameters if p.is_var] +
-                ([self.return_type]
-                 if self.return_type_is_type_parameter else []))
+                ([self.return_type_param] if self.return_type_param else []))
 
     @property
     def return_type_must_be_inferred(self):
-        return (
-            self.return_type_is_type_parameter and self.return_type_param.name
-            not in [p.name for p in self.type_parameters]
-        )
+        return bool(self.return_type_param)
 
     def get_monomorphization(
         self,
@@ -366,6 +352,21 @@ class CFnType(SylvaType):
         return_type: Optional[SylvaType] = None,
     ) -> MonoCFnType:
         return MonoCFnType(
+            location=location, parameters=parameters, return_type=return_type
+        )
+
+
+@dataclass(kw_only=True)
+class CBlockFnType(SylvaType):
+
+    @staticmethod
+    def build_type(
+        location: Location,
+        mod: TypeModifier = TypeModifier.NoMod,
+        parameters: list[SylvaField] = field(default_factory=list),
+        return_type: Optional[SylvaType] = None,
+    ) -> MonoCBlockFnType:
+        return MonoCBlockFnType(
             location=location, parameters=parameters, return_type=return_type
         )
 
@@ -496,8 +497,9 @@ class MonoArrayType(SylvaType):
     element_count: int
 
     def __post_init__(self):
-        if self.element_count <= 0:
-            raise errors.EmptyArray(self.location)
+
+        if self.element_count.value <= 0:
+            raise errors.InvalidArraySize(self.location)
 
     @cached_property
     def mname(self):
@@ -518,18 +520,6 @@ class MonoCArrayType(MonoArrayType):
             self.element_type.mname,
             utils.len_prefix(str(self.element_count))
         ])
-
-
-@dataclass(kw_only=True)
-class MonoStrType(MonoArrayType):
-    element_type: SylvaType = field(init=False, default=None)
-
-    def __post_init__(self):
-        self.element_type = U8
-
-    @cached_property
-    def mname(self):
-        return utils.mangle(['3str', self.element_count])
 
 
 @dataclass(kw_only=True)
@@ -561,23 +551,6 @@ class ParamCArrayType(ParamArrayType):
             element_type=self.element_type,
             element_count=element_count
         )
-
-
-@dataclass(kw_only=True)
-class ParamStrType(ParamArrayType):
-    element_type: SylvaType = field(init=False, default=None)
-
-    def __post_init__(self):
-        self.element_type = U8
-
-    @property
-    def is_var(self):
-        return True
-
-    def get_monomorphization(
-        self, location: Location, element_count: int
-    ) -> MonoStrType:
-        return MonoStrType(location=location, element_count=element_count)
 
 
 @dataclass(kw_only=True)
@@ -666,28 +639,9 @@ class CBitFieldValue(SylvaValue):
 
     def __post_init__(self):
         if utils.bits_required_for_int(self.value) > self.type.field_size:
-            raise errors.InvalidBitFieldValue(self.value)
-
-
-@dataclass(kw_only=True)
-class StrType(ArrayType):
-
-    @staticmethod
-    def build_type(
-        location: Location,
-        mod: TypeModifier = TypeModifier.NoMod,
-        element_count: Optional[int] = None
-    ) -> Union[MonoStrType, ParamStrType]:
-        return (
-            MonoStrType(location=location, element_count=element_count)
-            if element_count is not None else ParamStrType(location=location)
-        )
-
-
-@dataclass(kw_only=True)
-class StrValue(SylvaValue):
-    type: MonoStrType
-    value: str
+            raise errors.CBitFieldSizeExceeded(
+                self.value, self.type.field_size
+            )
 
 
 @dataclass(kw_only=True)
@@ -738,28 +692,10 @@ class DynarrayValue(SylvaValue):
 
 
 @dataclass(kw_only=True)
-class StringType(MonoDynarrayType):
-    element_type: SylvaType = field(init=False, default=None)
-
-    def __post_init__(self):
-        self.element_type = U8
-
-    @cached_property
-    def mname(self):
-        return '6string'
-
-
-@dataclass(kw_only=True)
-class StringValue(SylvaValue):
-    type: StringType
-    value: str
-
-
-@dataclass(kw_only=True)
 class MonoStructType(SylvaType):
     fields: list[SylvaField] = field(default_factory=list)
 
-    @cached_property
+    @property
     def mname(self):
         return ''.join('6struct', ''.join(f.type.mname for f in self.fields))
 
@@ -772,7 +708,7 @@ class ParamStructType(SylvaType):
     def is_var(self):
         return True
 
-    @cached_property
+    @property
     def var_fields(self):
         return list(
             itertools.chain(
@@ -785,8 +721,9 @@ class ParamStructType(SylvaType):
         )
 
     def get_monomorphization(
-        self, location: Location, fields: list[SylvaField]
+        self, location: Location, fields: Optional[list[SylvaField]]
     ) -> MonoStructType:
+        fields = fields if fields else []
         # Check that all param fields are specified
         if len(fields) != len(self.var_fields):
             raise errors.MismatchedTypeParams(location, self.var_fields)
@@ -812,9 +749,10 @@ class StructType(SylvaType):
     @staticmethod
     def build_type(
         location: Location,
-        fields: list[SylvaField],
+        fields: Optional[list[SylvaField]] = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> Union[MonoStructType, ParamStructType]:
+        fields = fields if fields else []
         return (
             ParamStructType(location=location, fields=fields) if any(
                 f.is_var for f in fields
@@ -883,8 +821,11 @@ class ParamVariantType(ParamStructType):
         return True
 
     def get_monomorphization(
-        self, location: Location, fields: list[SylvaField]
+        self,
+        location: Location,
+        fields: Optional[list[SylvaField]] = None
     ) -> MonoVariantType:
+        fields = fields if fields else []
         if len(fields) != len(self.var_fields):
             raise errors.MismatchedTypeParams(location, self.var_fields)
 
@@ -909,13 +850,14 @@ class VariantType(StructType):
     @staticmethod
     def build_type(
         location: Location,
-        fields: list[SylvaField],
+        fields: Optional[list[SylvaField]] = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> Union[MonoVariantType, ParamVariantType]:
+        fields = fields if fields else []
         return (
-            ParamVariantType(location=location, fields=fields) if any(
+            ParamVariantType(location=location, mod=mod, fields=fields) if any(
                 f.is_var for f in fields
-            ) else MonoVariantType(location=location, fields=fields)
+            ) else MonoVariantType(location=location, mod=mod, fields=fields)
         )
 
 
@@ -926,11 +868,25 @@ class VariantValue(SylvaValue):
 
 
 @dataclass(kw_only=True)
-class CStructType(MonoStructType):
+class MonoCStructType(MonoStructType):
 
     @cached_property
     def mname(self):
         return 'cstruct'
+
+
+@dataclass(kw_only=True)
+class CStructType(StructType):
+
+    @staticmethod
+    def build_type(
+        location: Location,
+        fields: Optional[list[SylvaField]] = None,
+        mod: TypeModifier = TypeModifier.NoMod,
+    ) -> MonoCStructType:
+        return MonoCStructType(
+            location=location, mod=mod, fields=fields if fields else []
+        )
 
 
 @dataclass(kw_only=True)
@@ -940,11 +896,23 @@ class CStructValue(SylvaValue):
 
 
 @dataclass(kw_only=True)
-class CUnionType(MonoStructType):
+class MonoCUnionType(MonoStructType):
 
     @cached_property
     def mname(self):
         return ''.join(['6cunion', ''.join(f.type.mname for f in self.fields)])
+
+
+@dataclass(kw_only=True)
+class CUnionType(SylvaType):
+
+    @staticmethod
+    def build_type(
+        location: Location,
+        fields: list[SylvaField],
+        mod: TypeModifier = TypeModifier.NoMod,
+    ) -> MonoCUnionType:
+        return MonoCUnionType(location=location, mod=mod, fields=fields)
 
 
 @dataclass(kw_only=True)
@@ -975,10 +943,10 @@ BOOL = BoolType()
 RUNE = RuneType()
 ARRAY = ArrayType()
 CARRAY = CArrayType()
-STR = StrType()
 DYNARRAY = DynarrayType()
 STRUCT = StructType()
 CBITFIELD = CBitFieldType()
+CBLOCKFN = CBlockFnType()
 CFN = CFnType()
 CPTR = CPtrType()
 CSTR = CStrType()  # [NOTE] Should this also inherit from CARRAY or w/e?
@@ -990,7 +958,6 @@ ENUM = EnumType()
 FN = FnType()
 RANGE = RangeType()
 RUNE = RuneType()
-STRING = StringType()
 STRUCT = StructType()
 VARIANT = VariantType()
 
@@ -1038,11 +1005,96 @@ def lookup(name):
     }.get(name)
 
 
+@dataclass(kw_only=True)
+class MonoStrType(MonoArrayType):
+    element_type: SylvaType = field(init=False, default_factory=lambda: U8)
+
+    def __post_init__(self):
+        self.element_type = U8
+
+    @cached_property
+    def mname(self):
+        return utils.mangle(['3str', self.element_count])
+
+
+@dataclass(kw_only=True)
+class ParamStrType(ParamArrayType):
+    element_type: SylvaType = field(init=False, default_factory=lambda: U8)
+
+    def __post_init__(self):
+        self.element_type = U8
+
+    @property
+    def is_var(self):
+        return True
+
+    def get_monomorphization(
+        self, location: Location, element_count: int
+    ) -> MonoStrType:
+        return MonoStrType(location=location, element_count=element_count)
+
+
+@dataclass(kw_only=True)
+class StrType(ArrayType):
+
+    @staticmethod
+    def build_type( # type: ignore
+        location: Location,
+        mod: TypeModifier = TypeModifier.NoMod,
+        element_count: Optional[int] = None
+    ) -> Union[MonoStrType, ParamStrType]:
+        return (
+            MonoStrType(location=location, element_count=element_count)
+            if element_count is not None else ParamStrType(location=location)
+        )
+
+
+@dataclass(kw_only=True)
+class StrValue(SylvaValue):
+    type: MonoStrType
+    value: str
+
+
+@dataclass(kw_only=True)
+class StringType(MonoDynarrayType):
+    element_type: SylvaType = field(init=False, default_factory=lambda: U8)
+
+    def __post_init__(self):
+        self.element_type = U8
+
+    @cached_property
+    def mname(self):
+        return '6string'
+
+
+@dataclass(kw_only=True)
+class StringValue(SylvaValue):
+    type: StringType
+    value: str
+
+
 @dataclass(kw_only=True, slots=True)
 class TypeDef(SylvaObject):
     name: str
     type: SylvaType
 
+
+@dataclass(kw_only=True)
+class TypePlaceholder(SylvaObject):
+    name: str
+
+    @property
+    def is_var(self):
+        return True
+
+
+@dataclass(kw_only=True)
+class SelfReferentialField(SylvaObject):
+    name: str
+
+
+STR = StrType()
+STRING = StringType()
 
 # @dataclass(kw_only=True)
 # class ArrayTypeLiteralExpr(SylvaObject):

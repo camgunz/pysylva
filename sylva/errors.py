@@ -11,29 +11,6 @@ class EOF(SylvaError):
     pass
 
 
-class MutatingBuiltins(SylvaError):
-
-    def __init__(self, builtin_module_statements):
-        super().__init__(
-            'Cannot modify builtins:\n' + '\n'.join([
-                f'\t{module_name}: {location.pformat()}' for location,
-                module_name in builtin_module_statements
-            ])
-        )
-
-
-class CircularDependency(SylvaError):
-
-    def __init__(self, module, seen):
-        super().__init__(f'Circular dependency: {module} cannot be in {seen}')
-
-
-class UnsupportedPlatformIntegerSize(SylvaError):
-
-    def __init__(self, size):
-        super().__init__(f'Unsupported platform integer size {size}')
-
-
 class LocationError(SylvaError):
 
     def __init__(self, location, message):
@@ -50,54 +27,15 @@ class LocationError(SylvaError):
         )
 
 
-class UnexpectedTokenType(LocationError):
-
-    def __init__(self, token, expected_token_types):
-        LocationError.__init__(
-            self,
-            token.location,
-            (
-                f'Unexpected token type {token.token_type} ({token}); '
-                f'expected: {strlist(expected_token_types)}'
-            )
-        )
-
-
-class UnexpectedTokenCategory(LocationError):
-
-    def __init__(self, token, expected_token_categories):
-        LocationError.__init__(
-            self,
-            token.location,
-            (
-                f'Unexpected token {token}; '
-                f'expected: {strlist(expected_token_categories)}'
-            )
-        )
-
-
 class UnexpectedToken(LocationError):
 
     def __init__(self, location, token, expected_tokens):
-        if token == '"':
-            token = f"'{token}'"
-        else:
-            token = f'"{token}"'
+        token = f"'{token}'" if token == '"' else f'"{token}"'
+        expected_tokens = strlist(expected_tokens)
         LocationError.__init__(
             self,
             location,
-            (
-                f'Unexpected token {token}; '
-                f'expected: {strlist(expected_tokens)}'
-            )
-        )
-
-
-class SignedSizeError(LocationError):
-
-    def __init__(self, location):
-        LocationError.__init__(
-            self, location, 'Size must be an unsigned integer'
+            f'Unexpected token {token}; expected: {expected_tokens}'
         )
 
 
@@ -109,43 +47,7 @@ class LiteralParseFailure(LocationError):
         LocationError.__init__(
             self,
             token.location,
-            f'Unable to parse {token.value} as {name}{message}'
-        )
-
-
-class InvalidOperatorExpansion(LocationError):
-
-    def __init__(self, location, message):
-        LocationError.__init__(
-            self, location, f'Invalid operator expansion: {message}'
-        )
-
-
-class InvalidExpressionType(LocationError):
-
-    def __init__(self, location, expected):
-        LocationError.__init__(
-            self, location, f'Invalid expression type; expected {expected}'
-        )
-
-
-class InvalidExpression(LocationError):
-
-    def __init__(self, location):
-        LocationError.__init__(self, location, 'Invalid expression')
-
-
-class EmptyExpression(LocationError):
-
-    def __init__(self, location):
-        LocationError.__init__(self, location, 'Empty expression')
-
-
-class InvalidOperatorArity(LocationError):
-
-    def __init__(self, location, expected_arity):
-        LocationError.__init__(
-            self, location, f'Expected {expected_arity.name.lower()} operator'
+            f'Unable to parse {token.value} as {name}: {message}'
         )
 
 
@@ -173,19 +75,9 @@ class DuplicateDefinition(LocationError):
 
 class RedefinedBuiltIn(LocationError):
 
-    def __init__(self, definition):
-        LocationError.__init__(
-            self,
-            definition.location,
-            f'Cannot redefine builtin "{definition.name}"'
-        )
-
-
-class DefinitionViolation(LocationError):
-
     def __init__(self, location, name):
         LocationError.__init__(
-            self, location, f'Cannot define "{name}" in external module'
+            self, location, f'Cannot redefine builtin "{name}"'
         )
 
 
@@ -225,24 +117,6 @@ class NoSuchModule(LocationError):
 
     def __init__(self, location, module_name):
         LocationError.__init__(self, location, f'No such module {module_name}')
-
-
-class RedundantAlias(LocationError):
-
-    def __init__(self, location, name):
-        LocationError.__init__(
-            self, location, f'Alias for {name} is redundant'
-        )
-
-
-class DuplicateAlias(LocationError):
-
-    def __init__(self, location, existing_location, name):
-        LocationError.__init__(
-            self,
-            location,
-            f'Alias {name} already defined at {existing_location.shorthand}'
-        )
 
 
 class EmptyVariant(LocationError):
@@ -346,10 +220,12 @@ class UnsizedCArray(LocationError):
         LocationError.__init__(self, location, 'Missing size in carray')
 
 
-class EmptyArray(LocationError):
+class InvalidArraySize(LocationError):
 
     def __init__(self, location):
-        LocationError.__init__(self, location, 'Array has no elements')
+        LocationError.__init__(
+            self, location, 'Array element counts must be greater than zero'
+        )
 
 
 class ImpossibleLookup(LocationError):
@@ -406,6 +282,20 @@ class CBitFieldSizeExceeded(LocationError):
             location,
             (
                 'cbitfield size exceeded; '
+                f'{value} requires {bits_required_for_int(value)}, '
+                f'has {field_size}'
+            )
+        )
+
+
+class IntSizeExceeded(LocationError):
+
+    def __init__(self, location, value, field_size):
+        LocationError.__init__(
+            self,
+            location,
+            (
+                'int size exceeded; '
                 f'{value} requires {bits_required_for_int(value)}, '
                 f'has {field_size}'
             )

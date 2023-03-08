@@ -80,7 +80,10 @@ def demangle(s):
 
 
 def bits_required_for_int(n, signed=False):
-    bits = math.ceil(math.log(n, 2))
+    if n == 0:
+        return 1
+
+    bits = math.ceil(math.log(abs(n), 2))
 
     if signed or n < 0:
         bits += 1

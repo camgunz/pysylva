@@ -11,5 +11,5 @@ def Parser(start='module'):
         propagate_positions=True,
         maybe_placeholders=True,
         start=start,
-        debug=debugging('parser')
+        debug=debugging('parser'),
     )

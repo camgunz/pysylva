@@ -3,6 +3,7 @@ import lark
 from sylva import sylva
 from sylva.ast_builder import ASTBuilder
 from sylva.module_loader import ModuleLoader
+from sylva.self_referential_field_gatherer import SelfReferentialFieldGatherer
 from sylva.parser import Parser
 
 
@@ -16,20 +17,27 @@ class Program:
     def parse(self):
         parser = Parser()
 
-        module_trees = [
-            ASTBuilder(
-                program=self,  # yapf: ignore
-                module=module,
-                location=location,
-            ).transform(parser.parse(location.stream.data))
+        module_trees = [ # yapf: ignore
+            (module, location, parser.parse(location.stream.data))
             for module in self.modules.values()
             for location in module.locations
         ]
 
-        return lark.Tree( # yapf: ignore
-            data='Program',
-            children=module_trees
-        )
+        srft = SelfReferentialFieldGatherer()
+
+        for module, location, tree in module_trees:
+            srft.visit_topdown(tree)
+
+        module_trees = [ # yapf: ignore
+            ASTBuilder( # yapf: ignore
+                program=self,
+                module=module,
+                location=location
+            ).transform(tree)
+            for module, location, tree in module_trees
+        ]
+
+        return lark.Tree(data='Program', children=module_trees)
 
     def compile(self, output_folder):
         raise NotImplementedError

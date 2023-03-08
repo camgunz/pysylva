@@ -6,7 +6,7 @@ from pathlib import Path
 
 import lark
 
-from sylva import errors
+from sylva import debug, errors
 from sylva.location import Location
 from sylva.mod import Mod
 from sylva.parser import Parser
@@ -31,7 +31,7 @@ class ModuleGatherer(lark.Visitor):
         self._current_module = None
 
     def module_decl(self, tree):
-        print('module_decl', tree)
+        debug('ast_builder', f'module_decl: {tree}')
         mod_name = '.'.join(t.value for t in tree.children[1:])
         loc = Location.FromTree(tree, stream=self._stream)
 
@@ -51,7 +51,7 @@ class ModuleGatherer(lark.Visitor):
         )
 
     def requirement_decl(self, tree):
-        print('requirement_decl', tree)
+        debug('ast_builder', f'requirement_decl: {tree}')
 
         req = Req(
             location=Location.FromTree(tree, stream=self._stream),

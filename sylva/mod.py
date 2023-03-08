@@ -21,12 +21,17 @@ class Mod:
     defs: dict[str, SylvaDef] = field(init=False, default_factory=dict)
 
     def add_def(self, d: Union[SylvaDef, TypeDef]):
-        if preexisting := self.lookup(d.name):
+        if preexisting := builtins.lookup(d.name):
+            raise errors.RedefinedBuiltIn(d.location, d.name)
+        if preexisting := self.type_defs.get(d.name, self.defs.get(d.name)):
             raise errors.DuplicateDefinition(
-                d.loc, d.name, preexisting.location
+                d.location, d.name, preexisting.location
             )
 
-        (self.defs if isinstance(d, SylvaDef) else self.type_defs)[d.name] = d
+        if isinstance(d, SylvaDef):
+            self.defs[d.name] = d
+        elif isinstance(d, TypeDef):
+            self.type_defs[d.name] = d
 
     def lookup(self, name):
         return self.type_defs.get(
