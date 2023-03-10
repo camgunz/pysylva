@@ -122,9 +122,10 @@ class ParamCPtrType(SylvaType):
 
     def get_monomorphization(
         self,
-        location: Location,
         referenced_type: SylvaType,
+        location: Optional[Location] = None,
     ) -> MonoCPtrType:
+        location = location if location else Location.Generate()
         return MonoCPtrType(location=location, referenced_type=referenced_type)
 
 
@@ -133,10 +134,11 @@ class CPtrType(SylvaType):
 
     @staticmethod
     def build_type(
-        location: Location,
-        mod: TypeModifier = TypeModifier.NoMod,
         referenced_type: Optional[SylvaType] = None,
+        location: Optional[Location] = None,
+        mod: TypeModifier = TypeModifier.NoMod,
     ) -> Union[MonoCPtrType, ParamCPtrType]:
+        location = location if location else Location.Generate()
         return ( # yapf: ignore
             MonoCPtrType(
                 location=location,
@@ -215,10 +217,11 @@ class EnumType(SylvaType):
 
     @staticmethod
     def build_type(
-        location: Location,
         values: dict[str, SylvaValue],
+        location: Optional[Location] = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> MonoEnumType:
+        location = location if location else Location.Generate()
         return MonoEnumType(location=location, values=values)
 
 
@@ -310,10 +313,11 @@ class ParamFnType(SylvaType):
 
     def get_monomorphization(
         self,
-        location: Location,
         parameters: list[SylvaField],
         return_type: Optional[SylvaType],
+        location: Optional[Location] = None,
     ) -> MonoFnType:
+        location = location if location else Location.Generate()
         if self.return_type_must_be_inferred and return_type is None:
             raise errors.InvalidParameterization(
                 location,
@@ -346,11 +350,12 @@ class FnType(SylvaType):
 
     @staticmethod
     def build_type(
-        location: Location,
-        mod: TypeModifier = TypeModifier.NoMod,
         parameters: list[SylvaField] = field(default_factory=list),
         return_type: Optional[SylvaType] = None,
+        location: Optional[Location] = None,
+        mod: TypeModifier = TypeModifier.NoMod,
     ) -> Union[MonoFnType, ParamFnType]:
+        location = location if location else Location.Generate()
         return (
             ParamFnType(
                 location=location,
@@ -369,11 +374,12 @@ class CFnType(SylvaType):
 
     @staticmethod
     def build_type(
-        location: Location,
-        mod: TypeModifier = TypeModifier.NoMod,
         parameters: list[SylvaField] = field(default_factory=list),
         return_type: Optional[SylvaType] = None,
+        location: Optional[Location] = None,
+        mod: TypeModifier = TypeModifier.NoMod,
     ) -> MonoCFnType:
+        location = location if location else Location.Generate()
         return MonoCFnType(
             location=location, parameters=parameters, return_type=return_type
         )
@@ -384,11 +390,12 @@ class CBlockFnType(SylvaType):
 
     @staticmethod
     def build_type(
-        location: Location,
-        mod: TypeModifier = TypeModifier.NoMod,
         parameters: list[SylvaField] = field(default_factory=list),
         return_type: Optional[SylvaType] = None,
+        location: Optional[Location] = None,
+        mod: TypeModifier = TypeModifier.NoMod,
     ) -> MonoCBlockFnType:
+        location = location if location else Location.Generate()
         return MonoCBlockFnType(
             location=location, parameters=parameters, return_type=return_type
         )
@@ -494,11 +501,12 @@ class RangeType(SylvaType):
 
     @staticmethod
     def build_type(
-        location: Location,
         min: Union[IntValue, FloatValue, ComplexValue],
         max: Union[IntValue, FloatValue, ComplexValue],
+        location: Optional[Location] = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> MonoRangeType:
+        location = location if location else Location.Generate()
         return MonoRangeType(location=location, min=min, max=max)
 
 
@@ -550,8 +558,11 @@ class ParamArrayType(SylvaType):
     element_type: SylvaType
 
     def get_monomorphization(
-        self, location: Location, element_count: int
+        self,
+        element_count: int,
+        location: Optional[Location] = None,
     ) -> MonoArrayType:
+        location = location if location else Location.Generate()
         return MonoArrayType(
             location=location,
             element_type=self.element_type,
@@ -567,8 +578,11 @@ class ParamCArrayType(ParamArrayType):
         return True
 
     def get_monomorphization(
-        self, location: Location, element_count: int
+        self,
+        element_count: int,
+        location: Optional[Location] = None,
     ) -> MonoCArrayType:
+        location = location if location else Location.Generate()
         return MonoCArrayType(
             location=location,
             element_type=self.element_type,
@@ -581,11 +595,12 @@ class ArrayType(SylvaType):
 
     @staticmethod
     def build_type(
-        location: Location,
         element_type: SylvaType,
         element_count: Optional[int] = None,
+        location: Optional[Location] = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> Union[MonoArrayType, ParamArrayType]:
+        location = location if location else Location.Generate()
         return (
             MonoArrayType(
                 location=location,
@@ -601,11 +616,12 @@ class CArrayType(ArrayType):
 
     @staticmethod
     def build_type(
-        location: Location,
         element_type: SylvaType,
         element_count: Optional[int] = None,
+        location: Optional[Location] = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> Union[MonoCArrayType, ParamCArrayType]:
+        location = location if location else Location.Generate()
         return (
             MonoCArrayType(
                 location=location,
@@ -644,12 +660,13 @@ class CBitFieldType(SylvaType):
 
     @staticmethod
     def build_type(
-        location: Location,
         bits: int,
         signed: bool,
         field_size: int,
+        location: Optional[Location] = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> MonoCBitFieldType:
+        location = location if location else Location.Generate()
         return MonoCBitFieldType(
             location=location, bits=bits, signed=signed, field_size=field_size
         )
@@ -687,8 +704,11 @@ class ParamDynarrayType(SylvaType):
         return True
 
     def get_monomorphization(
-        self, location: Location, element_type: SylvaType
+        self,
+        element_type: SylvaType,
+        location: Optional[Location] = None
     ) -> MonoDynarrayType:
+        location = location if location else Location.Generate()
         return MonoDynarrayType(location=location, element_type=element_type)
 
 
@@ -697,10 +717,11 @@ class DynarrayType(SylvaType):
 
     @staticmethod
     def build_type(
-        location: Location,
-        mod: TypeModifier = TypeModifier.NoMod,
         element_type: Optional[SylvaType] = None,
+        location: Optional[Location] = None,
+        mod: TypeModifier = TypeModifier.NoMod,
     ) -> Union[MonoDynarrayType, ParamDynarrayType]:
+        location = location if location else Location.Generate()
         return ( # yapf: ignore
             MonoDynarrayType(location=location, element_type=element_type)
             if element_type is not None
@@ -744,8 +765,11 @@ class ParamStructType(SylvaType):
         )
 
     def get_monomorphization(
-        self, location: Location, fields: Optional[list[SylvaField]]
+        self,
+        fields: Optional[list[SylvaField]],
+        location: Optional[Location] = None,
     ) -> MonoStructType:
+        location = location if location else Location.Generate()
         fields = fields if fields else []
         # Check that all param fields are specified
         if len(fields) != len(self.var_fields):
@@ -771,10 +795,11 @@ class StructType(SylvaType):
 
     @staticmethod
     def build_type(
-        location: Location,
         fields: Optional[list[SylvaField]] = None,
+        location: Optional[Location] = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> Union[MonoStructType, ParamStructType]:
+        location = location if location else Location.Generate()
         fields = fields if fields else []
         return (
             ParamStructType(location=location, fields=fields) if any(
@@ -845,9 +870,10 @@ class ParamVariantType(ParamStructType):
 
     def get_monomorphization(
         self,
-        location: Location,
-        fields: Optional[list[SylvaField]] = None
+        fields: Optional[list[SylvaField]] = None,
+        location: Optional[Location] = None,
     ) -> MonoVariantType:
+        location = location if location else Location.Generate()
         fields = fields if fields else []
         if len(fields) != len(self.var_fields):
             raise errors.MismatchedTypeParams(location, self.var_fields)
@@ -872,10 +898,11 @@ class VariantType(StructType):
 
     @staticmethod
     def build_type(
-        location: Location,
         fields: Optional[list[SylvaField]] = None,
+        location: Optional[Location] = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> Union[MonoVariantType, ParamVariantType]:
+        location = location if location else Location.Generate()
         fields = fields if fields else []
         return (
             ParamVariantType(location=location, mod=mod, fields=fields) if any(
@@ -903,10 +930,11 @@ class CStructType(StructType):
 
     @staticmethod
     def build_type(
-        location: Location,
         fields: Optional[list[SylvaField]] = None,
+        location: Optional[Location] = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> MonoCStructType:
+        location = location if location else Location.Generate()
         return MonoCStructType(
             location=location, mod=mod, fields=fields if fields else []
         )
@@ -931,10 +959,11 @@ class CUnionType(SylvaType):
 
     @staticmethod
     def build_type(
-        location: Location,
         fields: list[SylvaField],
+        location: Optional[Location] = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> MonoCUnionType:
+        location = location if location else Location.Generate()
         return MonoCUnionType(location=location, mod=mod, fields=fields)
 
 
@@ -1052,8 +1081,11 @@ class ParamStrType(ParamArrayType):
         return True
 
     def get_monomorphization(
-        self, location: Location, element_count: int
+        self,
+        element_count: int,
+        location: Optional[Location] = None,
     ) -> MonoStrType:
+        location = location if location else Location.Generate()
         return MonoStrType(location=location, element_count=element_count)
 
 
@@ -1062,10 +1094,11 @@ class StrType(ArrayType):
 
     @staticmethod
     def build_type( # type: ignore
-        location: Location,
+        element_count: Optional[int] = None,
+        location: Optional[Location] = None,
         mod: TypeModifier = TypeModifier.NoMod,
-        element_count: Optional[int] = None
     ) -> Union[MonoStrType, ParamStrType]:
+        location = location if location else Location.Generate()
         return (
             MonoStrType(location=location, element_count=element_count)
             if element_count is not None else ParamStrType(location=location)
@@ -1118,6 +1151,35 @@ class SelfReferentialField(SylvaObject):
 
 STR = StrType()
 STRING = StringType()
+
+
+def get_int_type(bits: Optional[int], signed: bool) -> IntType:
+    bits = bits if bits else _SIZE_SIZE
+    if signed and bits == 8:
+        return I8
+    if signed and bits == 16:
+        return I16
+    if signed and bits == 32:
+        return I32
+    if signed and bits == 64:
+        return I64
+    if signed and bits == 128:
+        return I128
+    if bits == 8:
+        return U8
+    if bits == 16:
+        return U16
+    if bits == 32:
+        return U32
+    if bits == 64:
+        return U64
+    if bits == 128:
+        return U128
+
+    raise ValueError(
+        f'Unable to determine int type for bits={bits}, signed={signed}'
+    )
+
 
 # @dataclass(kw_only=True)
 # class ArrayTypeLiteralExpr(SylvaObject):

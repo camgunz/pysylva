@@ -50,3 +50,9 @@ class Operator(enum.Enum):
     BooleanAndAssign = ('&&=', 2)
     BooleanOr = ('||', 2)
     BooleanOrAssign = ('||=', 2)
+
+    @classmethod
+    def lookup(cls, value, arity):
+        for op in cls.__members__.values():
+            if op.value == (value, arity):
+                return op

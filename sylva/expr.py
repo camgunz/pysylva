@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from sylva import errors, utils
 from sylva.location import Location
@@ -10,16 +10,20 @@ from sylva.builtins import (
     FloatType,
     IntType,
     StrType,
+    SylvaDef,
     SylvaObject,
     SylvaType,
+    TypeDef,
 )
+from sylva.const import ConstDef
+from sylva.mod import Mod
 from sylva.operator import Operator
 
 
 @dataclass(kw_only=True)
 class Expr(SylvaObject):
     location: Location = field(default_factory=Location.Generate)
-    type: Optional[SylvaType]
+    type: Optional[SylvaType] = None
 
     def eval(self, module):
         raise NotImplementedError()
@@ -29,7 +33,7 @@ class Expr(SylvaObject):
 class LookupExpr(Expr):
     name: str
 
-    def eval(self, module):
+    def eval(self, module: Mod) -> Union[ConstDef, SylvaDef, TypeDef]:
         val = module.lookup(self.name)
         if val is None:
             raise errors.UndefinedSymbol(self.location, self.name)

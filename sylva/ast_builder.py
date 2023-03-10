@@ -78,6 +78,7 @@ from sylva.builtins import (  # noqa: F403
     U8,
     VARIANT,
     VariantValue,
+    get_int_type,
 )
 from sylva.code_block import CodeBlock
 from sylva.const import ConstDef
@@ -90,8 +91,10 @@ from sylva.expr import (
     LookupExpr,
     ReflectionLookupExpr,
     StrLiteralExpr,
+    UnaryExpr,
 )
 from sylva.location import Location
+from sylva.operator import Operator
 
 
 @dataclass(kw_only=True)
@@ -109,34 +112,6 @@ def get_int_base(int_value: str) -> Literal[2, 8, 10, 16]:
     if int_value.startswith('0x') or int_value.startswith('0X'):
         return 16
     return 10
-
-
-def get_int_type(bits: Optional[int], signed: bool) -> IntType:
-    bits = bits if bits else _SIZE_SIZE
-    if signed and bits == 8:
-        return I8
-    if signed and bits == 16:
-        return I16
-    if signed and bits == 32:
-        return I32
-    if signed and bits == 64:
-        return I64
-    if signed and bits == 128:
-        return I128
-    if bits == 8:
-        return U8
-    if bits == 16:
-        return U16
-    if bits == 32:
-        return U32
-    if bits == 64:
-        return U64
-    if bits == 128:
-        return U128
-
-    raise ValueError(
-        f'Unable to determine int type for bits={bits}, signed={signed}'
-    )
 
 
 def parse_int_value(location: Location, strval: str) -> Tuple[IntType, int]:
@@ -191,31 +166,43 @@ def build_int_literal_expr(location: Location, strval: str) -> IntLiteralExpr:
 
 
 def build_float_value(location, raw_value):
-    val = float(raw_value[:-3])
-
     if raw_value.endswith('f16'):
-        return FloatValue(location=location, type=F16, value=val)
+        return FloatValue(
+            location=location, type=F16, value=float(raw_value[:-3])
+        )
     if raw_value.endswith('f32'):
-        return FloatValue(location=location, type=F32, value=val)
+        return FloatValue(
+            location=location, type=F32, value=float(raw_value[:-3])
+        )
     if raw_value.endswith('f64'):
-        return FloatValue(location=location, type=F64, value=val)
+        return FloatValue(
+            location=location, type=F64, value=float(raw_value[:-3])
+        )
     if raw_value.endswith('f128'):
-        return FloatValue(location=location, type=F128, value=val)
+        return FloatValue(
+            location=location, type=F128, value=float(raw_value[:-4])
+        )
 
     raise ValueError(f'Malformed float value {raw_value}')
 
 
 def build_complex_value(location, raw_value):
-    val = complex(raw_value[:-3])
-
     if raw_value.endswith('f16'):
-        return ComplexValue(location=location, type=C16, value=val)
+        return ComplexValue(
+            location=location, type=C16, value=complex(raw_value[:-3])
+        )
     if raw_value.endswith('f32'):
-        return ComplexValue(location=location, type=C32, value=val)
+        return ComplexValue(
+            location=location, type=C32, value=complex(raw_value[:-3])
+        )
     if raw_value.endswith('f64'):
-        return ComplexValue(location=location, type=C64, value=val)
+        return ComplexValue(
+            location=location, type=C64, value=complex(raw_value[:-3])
+        )
     if raw_value.endswith('f128'):
-        return ComplexValue(location=location, type=C128, value=val)
+        return ComplexValue(
+            location=location, type=C128, value=complex(raw_value[:-4])
+        )
 
     raise Exception(f'Malformed complex value {raw_value}')
 
@@ -702,6 +689,18 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         return TypePlaceholder(
             location=Location.FromToken(name, stream=self._stream),
             name=name.value
+        )
+
+    def unary_expr(self, parts):
+        debug('ast_builder', f'unary_expr: {parts}')
+        op, expr = parts
+        location = Location.FromToken(op, stream=self._stream),
+        operator = Operator.lookup(op.value, 1)
+        if operator is None:
+            raise errors.NoSuchUnaryOperator(location, op.value)
+
+        return UnaryExpr(
+            location=location, operator=operator, expr=expr, type=expr.type
         )
 
     def var_type_expr(self, parts):

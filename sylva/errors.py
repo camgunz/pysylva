@@ -300,3 +300,9 @@ class IntSizeExceeded(LocationError):
                 f'has {field_size}'
             )
         )
+
+
+class NoSuchUnaryOperator(LocationError):
+
+    def __init__(self, location, op):
+        LocationError.__init__(self, location, f'No such unary operator {op}')
