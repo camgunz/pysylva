@@ -20,16 +20,21 @@ dev-install: venv ## Install dependencies
 .PHONY: test
 
 test: dev-install ## Test hello world example
-	sylva --output-folder sbuild/ examples/hello.sy
+	PYTHONPATH=. python -m sylva.cli \
+		--cpp=/usr/bin/clang \
+		--libclang=/Library/Developer/CommandLineTools/usr/lib/libclang.dylib \
+		--output-folder sbuild \
+		hello
 
 .PHONY: parsetest
 
 parsetest: ## Run parser tests
-	@PYTHONPATH=. python -m sylva.cli \
+	PYTHONPATH=. python -m sylva.cli \
+		--cpp=/usr/bin/clang \
+		--libclang=/Library/Developer/CommandLineTools/usr/lib/libclang.dylib \
+		--output-folder sbuild \
 		--only-parse \
-		--search-paths libs \
-		--output-folder sbuild/ \
-		examples/hello.sy
+		hello
 
 .PHONY: utest
 

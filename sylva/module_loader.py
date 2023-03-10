@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from functools import cache
 from graphlib import CycleError, TopologicalSorter
-from os.path import sep as PATH_SEP
 from pathlib import Path
 
 import lark
@@ -15,12 +14,10 @@ from sylva.stream import Stream
 
 
 @cache
-def get_requirement_path(search_paths, req_name):
-    req_file = f'{req_name.replace(".", PATH_SEP)}.sy'
-    for search_path in search_paths:
-        req_path = (search_path / req_file).absolute()
-        if req_path.is_file():
-            return req_path
+def get_def_file_path(deps_folder, req_name):
+    def_file = deps_folder / req_name / 'defs.sy'
+    if def_file.is_file():
+        return def_file
 
 
 class ModuleGatherer(lark.Visitor):
@@ -68,7 +65,7 @@ class ModuleGatherer(lark.Visitor):
 
 @dataclass
 class ModuleLoader:
-    search_paths: frozenset[Path]
+    deps_folder: Path
     missing: set[Req] = field(default_factory=set, init=False)
     modules: dict[str, Mod] = field(default_factory=dict, init=False)
     _parser: lark.lark.Lark = field(default_factory=Parser, init=False)
@@ -97,13 +94,13 @@ class ModuleLoader:
         if self.modules.get(req.name):
             return
 
-        req_path = get_requirement_path(self.search_paths, req.name)
+        def_file_path = get_def_file_path(self.deps_folder, req.name)
 
-        if not req_path:
+        if not def_file_path:
             self.missing.add(req)
             return
 
-        self.process_stream(Stream.FromFile(str(req_path)))
+        self.process_stream(Stream.FromPath(def_file_path))
 
     def load_streams(self, streams):
         for s in streams:

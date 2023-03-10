@@ -39,6 +39,10 @@ class Mod:
         self.defs[d.name] = d
 
     def lookup(self, name):
-        return self.defs.get(
-            name, self.requirements.get(name, builtins.lookup(name))
-        )
+        if res := self.defs.get(name) is not None:
+            if isinstance(res, (ConstDef, SylvaDef)):
+                return res.value
+            if isinstance(res, TypeDef):
+                return res.type
+
+        return self.requirements.get(name, builtins.lookup(name))

@@ -29,7 +29,7 @@ class Location:
 
     @classmethod
     def FromPath(cls, path):
-        return cls(stream=Stream.FromFile(str(path)))
+        return cls(stream=Stream.FromPath(path))
 
     @classmethod
     def FromUnexpectedTokenError(cls, err, stream=None):

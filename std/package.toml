@@ -1,0 +1,12 @@
+[package]
+name = "std"
+type = "lib"
+version = "0.0.1"
+source_files = [
+  "src/base.sy"
+  "src/sys.sy"
+]
+
+[[dependencies]]
+name = "libc"
+uri = "file:///Users/charlie/code/sylva/libc"

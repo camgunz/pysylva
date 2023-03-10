@@ -1,14 +1,16 @@
 import platform
-import tomllib
 
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from cdump import cdefs as CDefs
-from cdump.parser import Parser
+from cdump import cdefs as CDefs  # type: ignore
+from cdump.parser import Parser  # type: ignore
 
 from sylva import errors
+from sylva.package import CLibPackage
+from sylva.utils import read_toml_file
+
 from sylva.builtins import (
     BOOL,
     C16,
@@ -28,7 +30,6 @@ from sylva.builtins import (
     F32,
     F64,
     F128,
-    STR,
     SylvaDef,
     SylvaField,
     SylvaType,
@@ -39,7 +40,6 @@ from sylva.builtins import (
 )
 from sylva.const import ConstDef
 from sylva.expr import LookupExpr
-from sylva.location import Location
 from sylva.mod import Mod
 
 
@@ -58,14 +58,13 @@ class CPackage:
     def FromPath(cls, path: Path):
         os_name = platform.system().lower()
         arch = platform.machine().lower()
-        with path.open('rb', encoding='utf-8') as fobj:
-            d = tomllib.load(fobj)
-            return {
-                'name': d['package'],
-                **d['package'][os_name][arch],
-                **d['defs'][os_name][arch],
-                **d['typedefs'][os_name][arch],
-            }
+        d = read_toml_file(path)
+        return {
+            'name': d['package'],
+            **d['package'][os_name][arch],
+            **d['defs'][os_name][arch],
+            **d['typedefs'][os_name][arch],
+        }
 
 
 class CModuleBuilder:
@@ -77,6 +76,14 @@ class CModuleBuilder:
     @property
     def cdefs(self):
         return self._cdefs
+
+    @property
+    def module(self):
+        return self.module
+
+    def build(self):
+        for cdef in self.cdefs:
+            self._process_cdef(cdef)
 
     def _process_cdef(self, cdef):
         if isinstance(cdef, CDefs.Array):
@@ -256,48 +263,54 @@ class CModuleBuilder:
         raise Exception(f'Unknown C definition: {cdef} ({type(cdef)})')
 
     @classmethod
-    def FromCPackage(
+    def build_module(
         cls,
-        c_package: CPackage,
-        preprocessor: Path,
+        c_lib_package: CLibPackage,
+        c_preprocessor: Path,
         libclang: Optional[Path] = None
     ):
-        module = Mod(name=c_package.name)
+        module = Mod(name=c_lib_package.name)
+        literal_expr_parser = Parser(start='_literal_expr')
+        type_expr_parser = Parser(start='_type_expr')
 
-        for name, value in c_package.defs.items():
+        # [TODO] Find a usable target
+        arch = platform.machine().lower()
+        os = platform.system().lower()
+
+        usable_targets = [
+            t for t in c_lib_package.targets
+            if t.arch.value == arch and t.os.value == os
+        ]
+
+        if not usable_targets:
+            raise errors.NoUsableCLibTargets(c_lib_package.name, arch, os)
+
+        target = usable_targets[0]
+
+        for name, literal_expr_text in target.defs.items():
+            value = literal_expr_parser(literal_expr_text).eval(module)
             module.add_def(
                 ConstDef(
-                    name=name,
-                    value=SylvaValue(
-                        type=STR.build_type(element_count=len(value)),
-                        value=value
-                    )
+                    name=name, value=SylvaValue(type=value.type, value=value)
                 )
             )
 
-        for name, type_name in c_package.typedefs.items():
-            type_def = LookupExpr(name=type_name).eval(module)
-            if type_def is None:
-                raise errors.UndefinedSymbolError(
-                    Location.Generate(), name=type_name
+        for name, type_expr_text in target.type_defs.items():
+            type_def = type_expr_parser(type_expr_text).eval(module)
+
+            if not isinstance(type_def, TypeDef):
+                raise TypeError(
+                    f'Got non-TypeDef {type_def} for {type_expr_text}'
                 )
 
-            if isinstance(type_def, TypeDef):
-                module.add_def(TypeDef(name=name, type=type_def.type))
-            else:
-                raise Exception(f'Got non-typedef {type_def} for {type_name}')
+            module.add_def(TypeDef(name=name, type=type_def.type))
 
-        parser = Parser(preprocessor, libclang)
-
-        return cls(
+        cls(
             module,
-            [
-                cdef for header_file in c_package.header_files
-                for cdef in parser.parse(header_file)
+            [ # yapf: ignore
+                cdef for header_file in target.header_files
+                for cdef in Parser(c_preprocessor, libclang).parse(header_file)
             ]
-        )
+        ).build()
 
-        builder = cls.FromLibcFiles(
-            module, c_package.header_files, preprocessor, libclang
-        )
-        builder.build()
+        return module

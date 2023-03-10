@@ -1,10 +1,10 @@
 from dataclasses import dataclass
-from typing import Literal, Optional, Tuple, Union
+from typing import Literal, Optional, Tuple
 
 import lark
 
-from sylva import _SIZE_SIZE, debug, errors
-from sylva.builtins import (  # noqa: F403
+from sylva import debug, errors
+from sylva.builtins import (  # noqa: F401
     ARRAY,
     ArrayValue,
     BOOL,
@@ -460,19 +460,6 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         return const_def
 
-    def exrefparam(self, parts):
-        debug('ast_builder', f'exrefparam: {parts}')
-        name = parts.pop(0)
-        location = Location.FromToken(name, stream=self._stream)
-        type = LookupExpr(
-            location=location,
-            name=name,
-            type=SylvaType,
-        ).eval(self._module)
-        type.mod = TypeModifier.ExRef
-
-        return SylvaField(location=location, name=name, type=type)
-
     def function_type_def(self, parts):
         debug('ast_builder', f'function_type_def: {parts}')
         location = Location.FromToken(parts.pop(0), stream=self._stream)
@@ -571,13 +558,9 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
                 location=param_loc, name=param_name.value, type=param_type
             )
         else:
-            try:
-                value = LookupExpr(
-                    location=location, name=name.value, type=None
-                ).eval(self._module)
-            except:
-                breakpoint()
-                raise
+            value = LookupExpr(
+                location=location, name=name.value, type=None
+            ).eval(self._module)
 
         while tree.children:
             reflection = tree.children.pop(0).value == '::'
@@ -594,32 +577,6 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
             )
 
         return value
-
-    def ptrparam(self, parts):
-        debug('ast_builder', f'ptrparam: {parts}')
-        name = parts.pop(0)
-        location = Location.FromToken(name, stream=self._stream)
-        type = LookupExpr(
-            location=location,
-            name=name,
-            type=SylvaType,
-        ).eval(self._module)
-        type.mod = TypeModifier.Ptr
-
-        return SylvaField(location=location, name=name, type=type)
-
-    def refparam(self, parts):
-        debug('ast_builder', f'refparam: {parts}')
-        name = parts.pop(0)
-        location = Location.FromToken(name, stream=self._stream)
-        type = LookupExpr(
-            location=location,
-            name=name,
-            type=SylvaType,
-        ).eval(self._module)
-        type.mod = TypeModifier.Ref
-
-        return SylvaField(location=location, name=name, type=type)
 
     def string_expr(self, parts):
         debug('ast_builder', f'string_expr: {parts}')

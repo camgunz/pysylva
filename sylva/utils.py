@@ -1,6 +1,8 @@
 import math
+import tomllib
 
 from collections import defaultdict
+from pathlib import Path
 
 
 def strlist(elements, flat=False, conjunction='or'):
@@ -89,3 +91,7 @@ def bits_required_for_int(n, signed=False):
         bits += 1
 
     return bits
+
+
+def read_toml_file(path: Path):
+    return tomllib.loads(path.read_text(encoding='utf-8'))

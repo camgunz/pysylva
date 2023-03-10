@@ -1,6 +1,6 @@
-mod base.result
+mod std.base.result
 
-req sys
+req std.sys: sys
 
 variant Result {
   OK: $ok,

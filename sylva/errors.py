@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from .utils import bits_required_for_int, strlist
 
 
@@ -94,7 +96,7 @@ class MissingRequirements(SylvaError):
                 (
                     f'{req.location.pformat()}'
                     '\n'
-                    f'[Error: {req.location.shorthand}] Missing requirement'
+                    f'[Error: {req.location.shorthand}] {error_msg}'
                 )
                 for req in missing_requirements
             ]) + '\n'
@@ -306,3 +308,22 @@ class NoSuchUnaryOperator(LocationError):
 
     def __init__(self, location, op):
         LocationError.__init__(self, location, f'No such unary operator {op}')
+
+
+class InvalidPackageType(SylvaError):
+
+    def __init__(self, package_path: Path, package_type: str):
+        SylvaError.__init__(
+            self,
+            f'Package {str(package_path)} has invalid package type '
+            f'{package_type}, expected one of bin, lib, or clib'
+        )
+
+
+class NoUsableCLibTargets(SylvaError):
+
+    def __init__(self, package_name: str, arch: str, os: str):
+        SylvaError.__init__(
+            self,
+            f'No usable targets for {package_name} found for {arch}-{os}'
+        )

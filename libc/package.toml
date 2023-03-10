@@ -1,0 +1,59 @@
+[package]
+name = "libc"
+type = "clib"
+version = "0.0.1"
+
+[[target]]
+arch = "arm64"
+vendor = "apple"
+os = "darwin"
+version = "22.2.0"
+header_files = [
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/assert.h",
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/complex.h",
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/ctype.h",
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/errno.h",
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/fenv.h",
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/locale.h",
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/math.h",
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/setjmp.h",
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/signal.h",
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/stddef.h",
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/stdint.h",
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/stdio.h",
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/stdlib.h",
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/string.h",
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/time.h",
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/unistd.h",
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/wchar.h",
+"/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include/wctype.h",
+"/Library/Developer/CommandLineTools/usr/lib/clang/14.0.0/include/float.h",
+"/Library/Developer/CommandLineTools/usr/lib/clang/14.0.0/include/inttypes.h",
+"/Library/Developer/CommandLineTools/usr/lib/clang/14.0.0/include/iso646.h",
+"/Library/Developer/CommandLineTools/usr/lib/clang/14.0.0/include/limits.h",
+"/Library/Developer/CommandLineTools/usr/lib/clang/14.0.0/include/stdalign.h",
+"/Library/Developer/CommandLineTools/usr/lib/clang/14.0.0/include/stdarg.h",
+"/Library/Developer/CommandLineTools/usr/lib/clang/14.0.0/include/stdatomic.h",
+"/Library/Developer/CommandLineTools/usr/lib/clang/14.0.0/include/stdbool.h",
+"/Library/Developer/CommandLineTools/usr/lib/clang/14.0.0/include/stdnoreturn.h",
+"/Library/Developer/CommandLineTools/usr/lib/clang/14.0.0/include/tgmath.h",
+]
+dynamic_libraries = [
+  "/usr/lib/libSystem.B.dylib"
+]
+defs = {
+  OS_NAME = "darwin",
+  ARCH = "arm64",
+  VERSION = "22.2.0",
+  STDIN_FILENO = "0u32",
+  STDOUT_FILENO = "1u32",
+  STDERR_FILENO = "2u32",
+}
+type_defs = {
+  __builtin_va_list = "cptr(cvoid)",
+  __int128_t = "i128",
+  __uint128_t = "u128",
+  volatile_uint16_t = "u16",
+  volatile_uint32_t = "u32",
+  volatile_uint64_t = "u64",
+}

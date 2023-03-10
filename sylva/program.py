@@ -1,18 +1,40 @@
 import lark
 
-from sylva import sylva
+from sylva import errors, sylva
 from sylva.ast_builder import ASTBuilder
+from sylva.cffi import CModuleBuilder
 from sylva.module_loader import ModuleLoader
-from sylva.scope_gatherer import ScopeGatherer
+from sylva.package import BinPackage, CLibPackage, LibPackage
 from sylva.parser import Parser
+from sylva.scope_gatherer import ScopeGatherer
+from sylva.stream import Stream
+from sylva.utils import read_toml_file
 
 
 class Program:
 
-    def __init__(self, streams, search_paths):
-        self.modules = ModuleLoader(  # yapf: ignore
-            frozenset(search_paths)
-        ).load_streams(streams)
+    def __init__(self, package_file, deps_folder, c_preprocessor, libclang):
+        package_def = read_toml_file(package_file)
+        if package_def['type'] == 'bin':
+            package = BinPackage(**package_def)
+            streams = [Stream.FromPath(sf) for sf in package.source_files]
+            self.modules = ModuleLoader(deps_folder).load_streams(streams)
+        elif package_def['type'] == 'lib':
+            package = LibPackage(**package_def)
+            streams = [Stream.FromPath(sf) for sf in package.source_files]
+            self.modules = ModuleLoader(deps_folder).load_streams(streams)
+        elif package_def['type'] == 'clib':
+            self.modules = [
+                CModuleBuilder.build_module(
+                    c_lib_package=CLibPackage(**package_def),
+                    c_preprocessor=c_preprocessor,
+                    libclang=libclang
+                )
+            ]
+        else:
+            raise errors.InvalidPackageType(package_file, package_def['type'])
+
+        self.modules = ModuleLoader(deps_folder).load_streams(streams)
 
     def parse(self):
         parser = Parser()
