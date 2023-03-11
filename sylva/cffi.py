@@ -38,7 +38,6 @@ from sylva.builtins import (
     TypeModifier,
     get_int_type,
 )
-from sylva.const import ConstDef
 from sylva.expr import LookupExpr
 from sylva.mod import Mod
 
@@ -110,7 +109,7 @@ class CModuleBuilder:
             for name, value in cdef.values.items():
                 # [NOTE] This should always end up some kind of integer
                 type = self._process_cdef(cdef.type)
-                val = ConstDef(
+                val = SylvaDef(
                     name=name,
                     type=type,
                     value=SylvaValue(type=type, value=value)

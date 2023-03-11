@@ -81,7 +81,6 @@ from sylva.builtins import (  # noqa: F401
     get_int_type,
 )
 from sylva.code_block import CodeBlock
-from sylva.const import ConstDef
 from sylva.expr import (
     AttributeLookupExpr,
     CallExpr,
@@ -450,7 +449,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         debug('ast_builder', f'const_def: {parts}')
         const, name_token, value = parts
 
-        const_def = ConstDef(
+        const_def = SylvaDef(
             location=Location.FromToken(const, stream=self._stream),
             name=name_token.value,
             value=value

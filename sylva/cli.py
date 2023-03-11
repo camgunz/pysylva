@@ -67,10 +67,10 @@ def run():
 
     parser = argparse.ArgumentParser(description='Sylva')
     parser.add_argument(
-        '--package',
         type=lambda p: Path(p).absolute().expanduser(),
         help='Package to compile',
-        default=Path('.').absolute()
+        default=Path('.').absolute(),
+        dest='package'
     )
     parser.add_argument(
         '--deps-folder',

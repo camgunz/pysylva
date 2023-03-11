@@ -15,7 +15,6 @@ from sylva.builtins import (
     SylvaType,
     TypeDef,
 )
-from sylva.const import ConstDef
 from sylva.mod import Mod
 from sylva.operator import Operator
 
@@ -33,7 +32,7 @@ class Expr(SylvaObject):
 class LookupExpr(Expr):
     name: str
 
-    def eval(self, module: Mod) -> Union[ConstDef, SylvaDef, TypeDef]:
+    def eval(self, module: Mod) -> Union[SylvaDef, TypeDef]:
         val = module.lookup(self.name)
         if val is None:
             raise errors.UndefinedSymbol(self.location, self.name)
