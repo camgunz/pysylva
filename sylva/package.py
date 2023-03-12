@@ -1,9 +1,16 @@
-from dataclasses import InitVar, dataclass, field
+import platform
+
+from dataclasses import dataclass, field
 from enum import Enum
 from functools import cached_property
-from typing import Optional
+from pathlib import Path
+from typing import Any, Literal, Optional
 
 from semver import VersionInfo  # type: ignore
+
+from sylva import errors
+from sylva.stream import Stream
+from sylva.utils import read_toml_file
 
 
 class Arch(Enum):
@@ -201,9 +208,9 @@ class Target:
     os: OS = OS.ANY
     environment: Environment = Environment.ANY
     object_format: ObjectFormat = ObjectFormat.ANY
-    header_files: list[str] = field(default_factory=list)
-    dynamic_libraries: list[str] = field(default_factory=list)
-    static_libraries: list[str] = field(default_factory=list)
+    header_files: list[Path] = field(default_factory=list)
+    dynamic_libraries: list[Path] = field(default_factory=list)
+    static_libraries: list[Path] = field(default_factory=list)
     defs: dict[str, str] = field(default_factory=dict)
     type_defs: dict[str, str] = field(default_factory=dict)
 
@@ -223,29 +230,95 @@ class BasePackage:
     def semver(self):
         return VersionInfo.parse(self.version)
 
+    def get_streams(self):
+        raise NotImplementedError()
+
 
 @dataclass(kw_only=True, slots=True, frozen=True)
 class SylvaPackage(BasePackage):
+    path: Path
     name: str
-    type: InitVar[str]
+    type: Literal['bin', 'lib']
     version: str
-    source_files: list[str] = field(default_factory=list)
+    source_files: list[Path] = field(default_factory=list)
     dependencies: list[Dependency]
 
+    @classmethod
+    def FromPath(cls, path: Path):
+        kwargs: dict[str, Any] = {
+            'path': path.parent.absolute(),
+            **read_toml_file(path),
+        }
 
-@dataclass(kw_only=True, slots=True, frozen=True)
-class BinPackage(SylvaPackage):
-    pass
+        return cls(**kwargs)
 
+    def __post_init__(self):
+        if self.type not in ['bin', 'lib']:
+            raise ValueError('"type" must be either "bin" or "lib"')
 
-@dataclass(kw_only=True, slots=True, frozen=True)
-class LibPackage(SylvaPackage):
-    pass
+    def get_streams(self):
+        return [
+            Stream.FromPath(sf if sf.is_absolute() else self.path / sf)
+            for sf in map(Path, self.source_files)
+        ]
 
 
 @dataclass(kw_only=True, slots=True, frozen=True)
 class CLibPackage(BasePackage):
+    path: Path
     name: str
-    type: InitVar[str]
+    type: Literal['clib']
     version: str
     targets: list[Target] = field(default_factory=list)
+
+    def __post_init__(self):
+        if self.type != 'clib':
+            raise ValueError('"type" must be "clib"')
+
+    @cached_property
+    def target(self):
+        arch = platform.machine().lower()
+        os = platform.system().lower()
+
+        usable_targets = [
+            t for t in self.targets
+            if t.arch.value == arch and t.os.value == os
+        ]
+
+        if not usable_targets:
+            raise errors.NoUsableCLibTargets(self.name, arch, os)
+
+        return usable_targets[0]
+
+    @cached_property
+    def header_files(self):
+        paths = [Path(hf) for hf in self.target.header_files]
+        return [p if p.is_absolute() else self.path / p for p in paths]
+
+    @cached_property
+    def dynamic_libraries(self):
+        paths = [Path(dl) for dl in self.target.dynamic_libraries]
+        return [p if p.is_absolute() else self.path / p for p in paths]
+
+    @cached_property
+    def static_libraries(self):
+        paths = [Path(sl) for sl in self.target.static_libraries]
+        return [p if p.is_absolute() else self.path / p for p in paths]
+
+    @property
+    def defs(self):
+        return self.target.defs
+
+    @property
+    def type_defs(self):
+        return self.target.type_defs
+
+    def get_streams(self):
+        return [Stream.FromPath(hf) for hf in self.header_files]
+
+
+def get_package_from_path(package_file: Path) -> BasePackage:
+    package_def = read_toml_file(package_file)
+    kwargs = {'path': package_file.parent.absolute(), **package_def}
+    P = SylvaPackage if package_def['type'] in ['bin', 'lib'] else CLibPackage
+    return P(**kwargs)

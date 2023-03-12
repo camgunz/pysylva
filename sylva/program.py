@@ -1,40 +1,34 @@
+from dataclasses import dataclass
+from functools import cache
+from pathlib import Path
+from typing import Optional
+
 import lark
 
 from sylva import errors, sylva
 from sylva.ast_builder import ASTBuilder
-from sylva.cffi import CModuleBuilder
-from sylva.module_loader import ModuleLoader
-from sylva.package import BinPackage, CLibPackage, LibPackage
+from sylva.package_loader import PackageLoader
+from sylva.package import BasePackage, SylvaPackage, get_package_from_path
 from sylva.parser import Parser
 from sylva.scope_gatherer import ScopeGatherer
-from sylva.stream import Stream
-from sylva.utils import read_toml_file
 
 
+@dataclass(kw_only=True, frozen=True)
 class Program:
+    package: SylvaPackage
+    deps_folder: Path
+    stdlib: Path
+    c_preprocessor: Path
+    libclang: Path
 
-    def __init__(self, package_file, deps_folder, c_preprocessor, libclang):
-        package_def = read_toml_file(package_file)
-        if package_def['type'] == 'bin':
-            package = BinPackage(**package_def)
-            streams = [Stream.FromPath(sf) for sf in package.source_files]
-            self.modules = ModuleLoader(deps_folder).load_streams(streams)
-        elif package_def['type'] == 'lib':
-            package = LibPackage(**package_def)
-            streams = [Stream.FromPath(sf) for sf in package.source_files]
-            self.modules = ModuleLoader(deps_folder).load_streams(streams)
-        elif package_def['type'] == 'clib':
-            self.modules = [
-                CModuleBuilder.build_module(
-                    c_lib_package=CLibPackage(**package_def),
-                    c_preprocessor=c_preprocessor,
-                    libclang=libclang
-                )
-            ]
-        else:
-            raise errors.InvalidPackageType(package_file, package_def['type'])
+    def __post_init__(self):
+        if not isinstance(self.package, SylvaPackage):
+            raise errors.InvalidMainPackageType(
+                self.package_file, self.package.type
+            )
 
-        self.modules = ModuleLoader(deps_folder).load_streams(streams)
+    def get_modules(self):
+        return PackageLoader(self).load_package(self.package)
 
     def parse(self):
         parser = Parser()
@@ -42,7 +36,7 @@ class Program:
 
         module_trees = [ # yapf: ignore
             (module, location, parser.parse(location.stream.data))
-            for module in self.modules.values()
+            for module in self.get_modules().values()
             for location in module.locations
         ]
 
@@ -77,3 +71,11 @@ class Program:
     @property
     def default_module(self):
         return self.main_module
+
+    def get_package(self, req_name) -> Optional[BasePackage]:
+        package_name = req_name.split('.')[0]
+        path = ( # yapf: ignore
+            self.stdlib if package_name == 'std'
+            else self.deps_folder / package_name
+        ) / 'package.toml'
+        return get_package_from_path(path) if path.is_file() else None

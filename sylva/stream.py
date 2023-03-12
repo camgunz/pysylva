@@ -8,7 +8,5 @@ class Stream:
     data: str
 
     @classmethod
-    def FromPath(cls, file_path: Path):
-        return cls(
-            name=str(file_path), data=file_path.read_text(encoding='utf-8')
-        )
+    def FromPath(cls, path: Path):
+        return cls(name=str(path), data=path.read_text(encoding='utf-8'))

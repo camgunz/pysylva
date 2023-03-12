@@ -959,12 +959,14 @@ class CUnionType(SylvaType):
 
     @staticmethod
     def build_type(
-        fields: list[SylvaField],
+        fields: Optional[list[SylvaField]] = None,
         location: Optional[Location] = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> MonoCUnionType:
         location = location if location else Location.Generate()
-        return MonoCUnionType(location=location, mod=mod, fields=fields)
+        return MonoCUnionType(
+            location=location, mod=mod, fields=fields if fields else []
+        )
 
 
 @dataclass(kw_only=True)

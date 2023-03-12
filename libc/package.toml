@@ -1,4 +1,3 @@
-[package]
 name = "libc"
 type = "clib"
 version = "0.0.1"

@@ -1,23 +1,20 @@
 from dataclasses import dataclass, field
 from functools import cache
 from graphlib import CycleError, TopologicalSorter
-from pathlib import Path
+from typing import Optional, TYPE_CHECKING
 
 import lark
 
 from sylva import debug, errors
 from sylva.location import Location
 from sylva.mod import Mod
+from sylva.package import BasePackage, SylvaPackage, get_package_from_path
 from sylva.parser import Parser
 from sylva.req import Req
 from sylva.stream import Stream
 
-
-@cache
-def get_def_file_path(deps_folder, req_name):
-    def_file = deps_folder / req_name / 'defs.sy'
-    if def_file.is_file():
-        return def_file
+if TYPE_CHECKING:
+    from sylva.program import Program
 
 
 class ModuleGatherer(lark.Visitor):
@@ -28,7 +25,7 @@ class ModuleGatherer(lark.Visitor):
         self._current_module = None
 
     def module_decl(self, tree):
-        debug('ast_builder', f'module_decl: {tree}')
+        debug('module_gatherer', f'module_decl: {tree}')
         mod_name = '.'.join(t.value for t in tree.children[1:])
         loc = Location.FromTree(tree, stream=self._stream)
 
@@ -48,7 +45,7 @@ class ModuleGatherer(lark.Visitor):
         )
 
     def requirement_decl(self, tree):
-        debug('ast_builder', f'requirement_decl: {tree}')
+        debug('module_gatherer', f'requirement_decl: {tree}')
 
         req = Req(
             location=Location.FromTree(tree, stream=self._stream),
@@ -64,28 +61,30 @@ class ModuleGatherer(lark.Visitor):
 
 
 @dataclass
-class ModuleLoader:
-    deps_folder: Path
+class PackageLoader:
+    program: 'Program'
     missing: set[Req] = field(default_factory=set, init=False)
     modules: dict[str, Mod] = field(default_factory=dict, init=False)
     _parser: lark.lark.Lark = field(default_factory=Parser, init=False)
 
-    def process_stream(self, stream):
-        try:
-            ModuleGatherer(stream, self).visit(self._parser.parse(stream.data))
-        except lark.UnexpectedToken as e:
-            raise errors.UnexpectedToken(
-                Location.FromUnexpectedTokenError(e, stream=stream),
-                e.token.value,
-                e.expected
-            ) from None
+    def process_package(self, package):
+        for stream in package.get_streams():
+            gatherer = ModuleGatherer(stream, self)
+            try:
+                gatherer.visit(self._parser.parse(stream.data))
+            except lark.UnexpectedToken as e:
+                raise errors.UnexpectedToken(
+                    Location.FromUnexpectedTokenError(e, stream=stream),
+                    e.token.value,
+                    e.expected
+                ) from None
 
     def upsert_module_from_location(self, mod_name, loc):
-        if mod_name not in self.modules:
+        mod = self.modules.get(mod_name)
+        if mod is None:
             mod = Mod(name=mod_name, locations=[loc])
             self.modules[mod_name] = mod
         else:
-            mod = self.modules[mod_name]
             mod.locations.append(loc)
 
         return mod
@@ -94,22 +93,23 @@ class ModuleLoader:
         if self.modules.get(req.name):
             return
 
-        def_file_path = get_def_file_path(self.deps_folder, req.name)
+        package = self.program.get_package(req.name)
 
-        if not def_file_path:
+        if not package:
             self.missing.add(req)
             return
 
-        self.process_stream(Stream.FromPath(def_file_path))
+        self.process_package(package)
 
-    def load_streams(self, streams):
-        for s in streams:
-            self.process_stream(s)
+    def load_package(self, package: SylvaPackage):
+        self.process_package(self.program.get_package('std'))
+
+        self.process_package(package)
 
         if self.missing:
             raise errors.MissingRequirements(self.missing)
 
-        ts = TopologicalSorter()
+        ts: TopologicalSorter = TopologicalSorter()
 
         for n, m in self.modules.items():
             ts.add(n, *list(m.requirements.keys()))

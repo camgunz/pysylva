@@ -22,6 +22,7 @@ dev-install: venv ## Install dependencies
 test: dev-install ## Test hello world example
 	@PYTHONPATH=. python -m sylva.cli \
 		hello \
+		--stdlib=./std \
 		--cpp=/usr/bin/clang \
 		--libclang=/Library/Developer/CommandLineTools/usr/lib/libclang.dylib \
 		--output-folder sbuild
@@ -31,6 +32,7 @@ test: dev-install ## Test hello world example
 parsetest: ## Run parser tests
 	@PYTHONPATH=. python -m sylva.cli \
 		hello \
+		--stdlib=./std \
 		--cpp=/usr/bin/clang \
 		--libclang=/Library/Developer/CommandLineTools/usr/lib/libclang.dylib \
 		--output-folder sbuild \

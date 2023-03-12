@@ -7,6 +7,7 @@ from pathlib import Path
 import lark
 
 from sylva import errors, debug, debugging
+from sylva.package import get_package_from_path
 from sylva.program import Program
 
 
@@ -26,17 +27,17 @@ def print_bar(msg):
     print()
 
 
-def _load_program(package_folder):
-    return Program(package_folder / 'package.toml')
-
-
-def parse(package_folder, deps_folder, cpp, libclang):
+def parse(package_folder, deps_folder, stdlib, cpp, libclang):
     """Parses files and prints output."""
     print_bar('Parsing')
 
     try:
         program = Program(
-            package_folder / 'package.toml', deps_folder, cpp, libclang
+            package=get_package_from_path(package_folder / 'package.toml'),
+            deps_folder=deps_folder,
+            stdlib=stdlib,
+            c_preprocessor=cpp,
+            libclang=libclang
         )
         print(program.parse().pretty())
     except errors.SylvaError as error:
@@ -44,13 +45,17 @@ def parse(package_folder, deps_folder, cpp, libclang):
         print(error.pformat())
 
 
-def compile(package_folder, deps_folder, cpp, libclang, output_folder):
+def compile(package_folder, deps_folder, stdlib, cpp, libclang, output_folder):
     """Compiles files."""
     print_bar('Compiling')
 
     try:
         program = Program(
-            package_folder / 'package.toml', deps_folder, cpp, libclang
+            package=get_package_from_path(package_folder / 'package.toml'),
+            deps_folder=deps_folder,
+            stdlib=stdlib,
+            c_preprocessor=cpp,
+            libclang=libclang
         )
         program_errors = program.compile(output_folder=output_folder)
         for error in program_errors:
@@ -76,7 +81,12 @@ def run():
         '--deps-folder',
         type=Path,
         help='Folder containing dependency packages',
-        default=Path('deps').absolute()
+    )
+    parser.add_argument(
+        '--stdlib',
+        type=Path,
+        required=True,
+        help='Folder containing the Sylva standard library package'
     )
     parser.add_argument(
         '--output-folder', type=Path, required=True, help='Output folder'
@@ -96,12 +106,22 @@ def run():
 
     args = parser.parse_args()
 
+    if args.deps_folder is None:
+        args.deps_folder = args.package / 'deps'
+
     if args.only_parse:
-        parse(args.package, args.deps_folder, args.cpp, args.libclang)
+        parse(
+            args.package,
+            args.deps_folder,
+            args.stdlib,
+            args.cpp,
+            args.libclang
+        )
     else:
         compile(
             args.package,
             args.deps_folder,
+            args.stdlib,
             args.cpp,
             args.libclang,
             args.output_folder

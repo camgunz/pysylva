@@ -310,13 +310,13 @@ class NoSuchUnaryOperator(LocationError):
         LocationError.__init__(self, location, f'No such unary operator {op}')
 
 
-class InvalidPackageType(SylvaError):
+class InvalidMainPackageType(SylvaError):
 
     def __init__(self, package_path: Path, package_type: str):
         SylvaError.__init__(
             self,
-            f'Package {str(package_path)} has invalid package type '
-            f'{package_type}, expected one of bin, lib, or clib'
+            f'Package {str(package_path)} has invalid main package type '
+            f'{package_type}, expected one of "bin" or "lib"'
         )
 
 

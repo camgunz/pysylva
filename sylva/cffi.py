@@ -1,15 +1,7 @@
-import platform
-
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from cdump import cdefs as CDefs  # type: ignore
 from cdump.parser import Parser  # type: ignore
-
-from sylva import errors
-from sylva.package import CLibPackage
-from sylva.utils import read_toml_file
 
 from sylva.builtins import (
     BOOL,
@@ -32,7 +24,6 @@ from sylva.builtins import (
     F128,
     SylvaDef,
     SylvaField,
-    SylvaType,
     SylvaValue,
     TypeDef,
     TypeModifier,
@@ -40,57 +31,25 @@ from sylva.builtins import (
 )
 from sylva.expr import LookupExpr
 from sylva.mod import Mod
+from sylva.package import CLibPackage
+
+if TYPE_CHECKING:
+    from sylva.program import Program
 
 
-@dataclass(kw_only=True)
-class CPackage:
-    name: str
-    os: str
-    arch: str
-    version: str
-    header_files: list[Path] = field(default_factory=list)
-    dynamic_libraries: list[Path] = field(default_factory=list)
-    defs: dict[str, str] = field(default_factory=dict)
-    typedefs: dict[str, str] = field(default_factory=dict)
+class CModuleLoader:
 
-    @classmethod
-    def FromPath(cls, path: Path):
-        os_name = platform.system().lower()
-        arch = platform.machine().lower()
-        d = read_toml_file(path)
-        return {
-            'name': d['package'],
-            **d['package'][os_name][arch],
-            **d['defs'][os_name][arch],
-            **d['typedefs'][os_name][arch],
-        }
+    def __init__(self, program: 'Program'):
+        self._program = program
 
-
-class CModuleBuilder:
-
-    def __init__(self, module: Mod, cdefs: list[CDefs.CDef]):
-        self._module = module
-        self._cdefs = cdefs
-
-    @property
-    def cdefs(self):
-        return self._cdefs
-
-    @property
-    def module(self):
-        return self.module
-
-    def build(self):
-        for cdef in self.cdefs:
-            self._process_cdef(cdef)
-
-    def _process_cdef(self, cdef):
+    def _process_cdef(self, module: Mod, cdef: CDefs.CDef):
         if isinstance(cdef, CDefs.Array):
             carray_type = (
                 CPTR.build_type(
-                    referenced_type=self._process_cdef(cdef.element_type)
+                    referenced_type=self
+                    ._process_cdef(module, cdef.element_type)
                 ) if cdef.element_count is None else CARRAY.build_type(
-                    element_type=self._process_cdef(cdef.element_type),
+                    element_type=self._process_cdef(module, cdef.element_type),
                     element_count=cdef.element_count
                 )
             )
@@ -101,20 +60,19 @@ class CModuleBuilder:
                 name=cdef.name.replace(' ', '_'), type=carray_type
             )
 
-            self._module.add_def(typedef)
+            module.add_def(typedef)
 
             return typedef
+
         if isinstance(cdef, CDefs.Enum):
             vals = []
             for name, value in cdef.values.items():
                 # [NOTE] This should always end up some kind of integer
-                type = self._process_cdef(cdef.type)
+                type = self._process_cdef(module, cdef.type)
                 val = SylvaDef(
-                    name=name,
-                    type=type,
-                    value=SylvaValue(type=type, value=value)
+                    name=name, value=SylvaValue(type=type, value=value)
                 )
-                self.defs[val.name] = val
+                module.add_def(val)
                 vals.append(val)
             return vals
         if isinstance(cdef, CDefs.Function):
@@ -122,10 +80,10 @@ class CModuleBuilder:
                 name=cdef.name,
                 value=CFnValue(
                     type=CFN.build_type(
-                        return_type=self._process_cdef(cdef.return_type),
+                        return_type=self._process_cdef(module, cdef.return_type),
                         parameters=[ # yapf: ignore
                             SylvaField(
-                                name=name, type=self._process_cdef(type)
+                                name=name, type=self._process_cdef(module, type)
                             )
                             for name, type in cdef.parameters.items()
                         ],
@@ -134,32 +92,34 @@ class CModuleBuilder:
                 ),
             )
 
-            self._module.add_def(cfn_def)
+            module.add_def(cfn_def)
 
             return cfn_def
+
         if isinstance(cdef, CDefs.FunctionPointer):
             return CFN.build_type(
-                return_type=self._process_cdef(cdef.return_type),
+                return_type=self._process_cdef(module, cdef.return_type),
                 parameters=[ # yapf: ignore
                     SylvaField(
-                        name=name, type=self._process_cdef(type)
+                        name=name, type=self._process_cdef(module, type)
                     )
                     for name, type in cdef.parameters.items()
                 ],
             ),
+
         if isinstance(cdef, CDefs.Pointer):
             return CPTR.build_type(
                 mod=TypeModifier.NoMod if cdef.is_const else TypeModifier.CMut,
-                referenced_type=self._process_cdef(cdef.base_type)
+                referenced_type=self._process_cdef(module, cdef.base_type)
             )
+
         if isinstance(cdef, CDefs.Reference):
-            type = LookupExpr(
-                name=cdef.target.replace(' ', '_'), type=SylvaType
-            ).eval(self._module)
+            type = LookupExpr(name=cdef.target.replace(' ', '_')).eval(module)
             type.mod = (
                 TypeModifier.NoMod if cdef.is_const else TypeModifier.CMut
             )
             return LookupExpr(name=cdef.target, type=type)
+
         if isinstance(cdef, CDefs.ScalarType):
             if isinstance(cdef, CDefs.Void):
                 return CVOID if cdef.is_const else CVOIDEX
@@ -191,6 +151,7 @@ class CModuleBuilder:
                     return C128
 
             raise ValueError(f'Unsupported builtin type {type(cdef)}')
+
         if isinstance(cdef, CDefs.Struct):
             cstruct_type = CSTRUCT.build_type()
 
@@ -202,8 +163,9 @@ class CModuleBuilder:
                     SylvaField(
                         name=name,
                         type=(
-                            cstruct_type if cdef.name is not None and
-                            name == cdef.name else self._process_cdef(type)
+                            cstruct_type
+                            if cdef.name is not None and name == cdef.name else
+                            self._process_cdef(module, type)
                         )
                     )
                 )
@@ -215,18 +177,20 @@ class CModuleBuilder:
                 name=cdef.name.replace(' ', '_'), type=cstruct_type
             )
 
-            self._module.add_def(type_def)
+            module.add_def(type_def)
 
             return type_def
+
         if isinstance(cdef, CDefs.Typedef):
             type_def = TypeDef(
                 name=cdef.name,
-                type=self._process_cdef(cdef.type),
+                type=self._process_cdef(module, cdef.type),
             )
 
-            self._module.add_def(type_def)
+            module.add_def(type_def)
 
             return type_def
+
         if isinstance(cdef, CDefs.Union):
             cunion_type = CUNION.build_type()
 
@@ -235,8 +199,9 @@ class CModuleBuilder:
                     SylvaField(
                         name=name,
                         type=(
-                            cunion_type if cdef.name is not None and
-                            name == cdef.name else self._process_cdef(type)
+                            cunion_type
+                            if cdef.name is not None and name == cdef.name else
+                            self._process_cdef(module, type)
                         )
                     )
                 )
@@ -246,55 +211,37 @@ class CModuleBuilder:
 
             type_def = TypeDef(name=cdef.name, type=cunion_type)
 
-            self._module.add_def(type_def)
+            module.add_def(type_def)
 
             return type_def
+
         if isinstance(cdef, CDefs.BlockFunctionPointer):
             return CBLOCKFN.build_type(
-                return_type=self._process_cdef(cdef.return_type),
+                return_type=self._process_cdef(module, cdef.return_type),
                 parameters=[ # yapf: ignore
                     SylvaField(
-                        name=name, type=self._process_cdef(type)
+                        name=name, type=self._process_cdef(module, type)
                     )
                     for name, type in cdef.parameters.items()
                 ],
-            ),
+            )
+
         raise Exception(f'Unknown C definition: {cdef} ({type(cdef)})')
 
-    @classmethod
-    def build_module(
-        cls,
-        c_lib_package: CLibPackage,
-        c_preprocessor: Path,
-        libclang: Optional[Path] = None
-    ):
-        module = Mod(name=c_lib_package.name)
+    def load_from_package(self, package: CLibPackage):
+        module = Mod(name=package.name)
         literal_expr_parser = Parser(start='_literal_expr')
         type_expr_parser = Parser(start='_type_expr')
 
-        # [TODO] Find a usable target
-        arch = platform.machine().lower()
-        os = platform.system().lower()
-
-        usable_targets = [
-            t for t in c_lib_package.targets
-            if t.arch.value == arch and t.os.value == os
-        ]
-
-        if not usable_targets:
-            raise errors.NoUsableCLibTargets(c_lib_package.name, arch, os)
-
-        target = usable_targets[0]
-
-        for name, literal_expr_text in target.defs.items():
+        for name, literal_expr_text in package.defs.items():
             value = literal_expr_parser(literal_expr_text).eval(module)
             module.add_def(
-                ConstDef(
+                SylvaDef(
                     name=name, value=SylvaValue(type=value.type, value=value)
                 )
             )
 
-        for name, type_expr_text in target.type_defs.items():
+        for name, type_expr_text in package.type_defs.items():
             type_def = type_expr_parser(type_expr_text).eval(module)
 
             if not isinstance(type_def, TypeDef):
@@ -304,12 +251,11 @@ class CModuleBuilder:
 
             module.add_def(TypeDef(name=name, type=type_def.type))
 
-        cls(
-            module,
-            [ # yapf: ignore
-                cdef for header_file in target.header_files
-                for cdef in Parser(c_preprocessor, libclang).parse(header_file)
-            ]
-        ).build()
+        for header_file in package.header_files:
+            parser = Parser(
+                self._program.c_preprocessor, self._program.libclang
+            )
+            for cdef in parser.parse(header_file):
+                self._process_cdef(module, cdef)
 
-        return module
+        return {module.name: module}
