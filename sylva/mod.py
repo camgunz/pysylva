@@ -4,6 +4,7 @@ from typing import Union
 from sylva import builtins, errors
 from sylva.builtins import SylvaDef, SylvaObject, TypeDef
 from sylva.location import Location
+from sylva.package import BasePackage
 from sylva.req import Req
 
 
@@ -14,8 +15,9 @@ class ModDecl(SylvaObject):
 
 @dataclass(kw_only=True, slots=True)
 class Mod:
-    locations: list[Location] = field(default_factory=list)
     name: str
+    package: BasePackage
+    locations: list[Location] = field(default_factory=list)
     requirements: dict[str, Req] = field(default_factory=dict)
     defs: dict[str, Union[SylvaDef, TypeDef]] = field(
         init=False, default_factory=dict

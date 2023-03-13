@@ -1,8 +1,10 @@
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from cdump import cdefs as CDefs  # type: ignore
-from cdump.parser import Parser  # type: ignore
+from cdump.parser import Parser as CParser  # type: ignore
 
+from sylva.ast_builder import ASTBuilder
 from sylva.builtins import (
     BOOL,
     C16,
@@ -32,15 +34,15 @@ from sylva.builtins import (
 from sylva.expr import LookupExpr
 from sylva.mod import Mod
 from sylva.package import CLibPackage
+from sylva.parser import Parser as SylvaParser
 
 if TYPE_CHECKING:
     from sylva.program import Program
 
 
+@dataclass(kw_only=True, slots=True)
 class CModuleLoader:
-
-    def __init__(self, program: 'Program'):
-        self._program = program
+    program: 'Program'
 
     def _process_cdef(self, module: Mod, cdef: CDefs.CDef):
         if isinstance(cdef, CDefs.Array):
@@ -128,7 +130,7 @@ class CModuleLoader:
                 return BOOL
 
             if isinstance(cdef, CDefs.Integer):
-                return get_int_type(bits=cdef.size, signed=cdef.signed)
+                return get_int_type(bits=cdef.size * 8, signed=cdef.is_signed)
 
             if isinstance(cdef, CDefs.FloatingPoint):
                 if cdef.size == 2:
@@ -228,32 +230,34 @@ class CModuleLoader:
 
         raise Exception(f'Unknown C definition: {cdef} ({type(cdef)})')
 
-    def load_from_package(self, package: CLibPackage):
-        module = Mod(name=package.name)
-        literal_expr_parser = Parser(start='_literal_expr')
-        type_expr_parser = Parser(start='_type_expr')
+    def load_package(self, package: CLibPackage):
+        module = Mod(package=package, name=package.name)
+        literal_expr_parser = SylvaParser(start='_literal_expr')
+        type_expr_parser = SylvaParser(start='_type_expr')
 
         for name, literal_expr_text in package.defs.items():
-            value = literal_expr_parser(literal_expr_text).eval(module)
+            tree = ASTBuilder(
+                program=self.program, module=module
+            ).transform(literal_expr_parser.parse(literal_expr_text))
+            expr = tree.children[0]
+            value = expr.eval(module)
             module.add_def(
                 SylvaDef(
-                    name=name, value=SylvaValue(type=value.type, value=value)
+                    name=name, value=SylvaValue(type=expr.type, value=value)
                 )
             )
 
         for name, type_expr_text in package.type_defs.items():
-            type_def = type_expr_parser(type_expr_text).eval(module)
+            tree = ASTBuilder(
+                program=self.program, module=module
+            ).transform(type_expr_parser.parse(type_expr_text))
+            type = tree.children[0]
 
-            if not isinstance(type_def, TypeDef):
-                raise TypeError(
-                    f'Got non-TypeDef {type_def} for {type_expr_text}'
-                )
-
-            module.add_def(TypeDef(name=name, type=type_def.type))
+            module.add_def(TypeDef(name=name, type=type))
 
         for header_file in package.header_files:
-            parser = Parser(
-                self._program.c_preprocessor, self._program.libclang
+            parser = CParser(
+                self.program.c_preprocessor, self.program.libclang
             )
             for cdef in parser.parse(header_file):
                 self._process_cdef(module, cdef)

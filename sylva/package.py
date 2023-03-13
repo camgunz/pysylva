@@ -1,11 +1,12 @@
 import platform
 
-from dataclasses import dataclass, field
+from dataclasses import field
 from enum import Enum
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Literal, Optional
 
+from pydantic.dataclasses import dataclass
 from semver import VersionInfo  # type: ignore
 
 from sylva import errors
@@ -201,7 +202,7 @@ class ObjectFormat(Enum):
     XCOFF = 'xcoff'
 
 
-@dataclass(kw_only=True, slots=True, frozen=True)
+@dataclass(kw_only=True, frozen=True)
 class Target:
     arch: Arch = Arch.ANY
     vendor: Vendor = Vendor.ANY
@@ -215,16 +216,19 @@ class Target:
     type_defs: dict[str, str] = field(default_factory=dict)
 
 
-@dataclass(kw_only=True, slots=True, frozen=True)
+@dataclass(kw_only=True, frozen=True)
 class Dependency:
     name: str
-    uri: str
+    location: str
     min_version: Optional[str] = None
     max_version: Optional[str] = None
 
 
-@dataclass(kw_only=True, slots=True, frozen=True)
+@dataclass(kw_only=True, frozen=True)
 class BasePackage:
+    path: Path
+    name: str
+    version: str
 
     @cached_property
     def semver(self):
@@ -234,14 +238,11 @@ class BasePackage:
         raise NotImplementedError()
 
 
-@dataclass(kw_only=True, slots=True, frozen=True)
+@dataclass(kw_only=True, frozen=True)
 class SylvaPackage(BasePackage):
-    path: Path
-    name: str
     type: Literal['bin', 'lib']
-    version: str
     source_files: list[Path] = field(default_factory=list)
-    dependencies: list[Dependency]
+    dependencies: list[Dependency] = field(default_factory=list)
 
     @classmethod
     def FromPath(cls, path: Path):
@@ -263,12 +264,9 @@ class SylvaPackage(BasePackage):
         ]
 
 
-@dataclass(kw_only=True, slots=True, frozen=True)
+@dataclass(kw_only=True, frozen=True)
 class CLibPackage(BasePackage):
-    path: Path
-    name: str
     type: Literal['clib']
-    version: str
     targets: list[Target] = field(default_factory=list)
 
     def __post_init__(self):

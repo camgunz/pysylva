@@ -123,7 +123,7 @@ c_bit_field_type_literal_expr: \
   (STAR? CBITFIELD "(" _int_type "," int_literal_expr ")")
   | (AMP CBITFIELD "(" _int_type "," int_literal_expr ")" BANG?)
 
-_base_func: "(" _type_param_pair_list? ")" [":" _type_expr]
+_base_func: "(" _type_params? ")" [":" _type_expr]
 
 c_block_function_type_expr: CBLOCKFN _base_func
 
@@ -132,12 +132,12 @@ c_function_type_expr: CFN _base_func
 c_pointer_type_literal_expr: CPTR "(" _type_expr ")" BANG?
 
 c_struct_type_literal_expr: \
-  (STAR? CSTRUCT "{" _type_param_pair_list? "}")
-  | (AMP CSTRUCT "{" _type_param_pair_list? "}" BANG?)
+  (STAR? CSTRUCT "{" _type_params? "}")
+  | (AMP CSTRUCT "{" _type_params? "}" BANG?)
 
 c_union_type_literal_expr: \
-  (STAR? CUNION "{" _type_param_pair_list "}")
-  | (AMP CUNION "{" _type_param_pair_list "}" BANG?)
+  (STAR? CUNION "{" _type_params "}")
+  | (AMP CUNION "{" _type_params "}" BANG?)
 
 !c_void_type_literal_expr: CVOID BANG?
 
@@ -151,14 +151,14 @@ _base_range_type_literal_expr: ((float_literal_expr | lookup_expr) DOT_DOT \
 range_type_literal_expr: (STAR? _base_range_type_literal_expr)
                          | (AMP _base_range_type_literal_expr BANG?)
 
-_base_struct_type_literal_expr: "{" _type_param_pair_list? "}"
+_base_struct_type_literal_expr: "{" _type_params? "}"
 
 struct_type_literal_expr: (STAR? _base_struct_type_literal_expr)
                           | (AMP _base_struct_type_literal_expr BANG?)
 
-_var_type_expr: (STAR? lookup_expr [ "(" _type_param_pair_list ")" ])
-              | (AMP lookup_expr [ "(" _type_param_pair_list ")" ] BANG?)
-              | (    lookup_expr [ "(" _type_param_pair_list ")" ] BANG?)
+_var_type_expr: (STAR? lookup_expr [ "(" _type_params ")" ])
+              | (AMP lookup_expr [ "(" _type_params ")" ] BANG?)
+              | (    lookup_expr [ "(" _type_params ")" ] BANG?)
 
 _literal_type_expr: array_type_literal_expr
                   | c_array_type_literal_expr
@@ -175,9 +175,15 @@ _literal_type_expr: array_type_literal_expr
 
 type_placeholder: "$" VALUE
 
-_type_expr: _literal_type_expr | _var_type_expr | type_placeholder
+_type_expr: type_placeholder | _literal_type_expr | _var_type_expr
 
 ?type_param_pair: VALUE ":" _type_expr
+
+_type_params: _type_param_list | _type_param_pair_list
+
+_type_param_list: _type_expr
+                | _type_expr ("," _type_expr)+ [","]
+                | _type_expr ","
 
 _type_param_pair_list: type_param_pair
                      | type_param_pair ("," type_param_pair)+ [","]
@@ -318,9 +324,9 @@ c_block_function_decl: CBLOCKFN VALUE _base_func
 
 c_function_decl: CFN VALUE _base_func
 
-c_struct_type_def: CSTRUCT VALUE "{" _type_param_pair_list? "}"
+c_struct_type_def: CSTRUCT VALUE "{" _type_params? "}"
 
-c_union_type_def: CUNION VALUE "{" _type_param_pair_list "}"
+c_union_type_def: CUNION VALUE "{" _type_params "}"
 
 const_def: CONST VALUE ":" _literal_expr
 
@@ -343,7 +349,7 @@ requirement_decl: REQ _no_ref_identifier [":" VALUE]
 
 struct_type_def: STRUCT VALUE struct_type_literal_expr
 
-variant_type_def: VARIANT VALUE "{" _type_param_pair_list "}"
+variant_type_def: VARIANT VALUE "{" _type_params "}"
 
 type_def: TYPEDEF VALUE ":" _type_expr
 

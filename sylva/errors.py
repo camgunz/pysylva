@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from .utils import bits_required_for_int, strlist
+from sylva.req import Req
+from sylva.utils import bits_required_for_int, strlist
 
 
 class SylvaError(Exception):
@@ -38,6 +39,18 @@ class UnexpectedToken(LocationError):
             self,
             location,
             f'Unexpected token {token}; expected: {expected_tokens}'
+        )
+
+
+class UnexpectedCharacter(LocationError):
+
+    def __init__(self, location, char, allowed_chars):
+        char = f"'{char}'" if char == '"' else f'"{char}"'
+        allowed_chars = strlist(allowed_chars)
+        LocationError.__init__(
+            self,
+            location,
+            f'Unexpected character {char}; allowed: {allowed_chars}'
         )
 
 
@@ -326,4 +339,15 @@ class NoUsableCLibTargets(SylvaError):
         SylvaError.__init__(
             self,
             f'No usable targets for {package_name} found for {arch}-{os}'
+        )
+
+
+class OutOfOrderPackageModules(LocationError):
+
+    def __init__(self, package_name: str, module_name: str, req: Req):
+        LocationError.__init__(
+            self,
+            req.location,
+            f'Module {module_name} in {package_name} requires in-package '
+            f"module {req.name} but it's not yet been processed"
         )

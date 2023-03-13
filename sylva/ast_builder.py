@@ -208,12 +208,11 @@ def build_complex_value(location, raw_value):
 
 class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
-    def __init__(self, program, module, location):
+    def __init__(self, program, module, location=None):
         super().__init__()
         self._program = program
         self._module = module
-        self._location = location
-        self._stream = location.stream
+        self._stream = location.stream if location else None
 
     def c_array_type_def(self, parts):
         debug('ast_builder', f'c_array_type_def: {parts}')

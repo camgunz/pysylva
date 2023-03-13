@@ -2,7 +2,7 @@ name = "libc"
 type = "clib"
 version = "0.0.1"
 
-[[target]]
+[[targets]]
 arch = "arm64"
 vendor = "apple"
 os = "darwin"
@@ -40,19 +40,19 @@ header_files = [
 dynamic_libraries = [
   "/usr/lib/libSystem.B.dylib"
 ]
-defs = {
-  OS_NAME = "darwin",
-  ARCH = "arm64",
-  VERSION = "22.2.0",
-  STDIN_FILENO = "0u32",
-  STDOUT_FILENO = "1u32",
-  STDERR_FILENO = "2u32",
-}
-type_defs = {
-  __builtin_va_list = "cptr(cvoid)",
-  __int128_t = "i128",
-  __uint128_t = "u128",
-  volatile_uint16_t = "u16",
-  volatile_uint32_t = "u32",
-  volatile_uint64_t = "u64",
-}
+
+[targets.defs]
+OS_NAME = '"darwin"'
+ARCH = '"arm64"'
+VERSION = '"22.2.0"'
+STDIN_FILENO = "0u32"
+STDOUT_FILENO = "1u32"
+STDERR_FILENO = "2u32"
+
+[targets.type_defs]
+__builtin_va_list = "cptr(cvoid)"
+__int128_t = "i128"
+__uint128_t = "u128"
+volatile_uint16_t = "u16"
+volatile_uint32_t = "u32"
+volatile_uint64_t = "u64"

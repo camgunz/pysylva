@@ -32,7 +32,7 @@ class Location:
         return cls(stream=Stream.FromPath(path))
 
     @classmethod
-    def FromUnexpectedTokenError(cls, err, stream=None):
+    def FromLarkError(cls, err, stream=None):
         return cls(
             stream=stream,
             index=err.pos_in_stream,
