@@ -30,8 +30,8 @@ class Program:
             )
         self.c_parser = CParser(self.c_preprocessor, self.libclang)
 
-    def get_modules(self):
-        return PackageLoader(self).load_package(self.package)
+        self.modules = PackageLoader(self).load_package(self.package)
+        print(f'Loaded modules {[m for m in self.modules]}')
 
     def parse(self):
         parser = Parser()
@@ -39,7 +39,7 @@ class Program:
 
         module_trees = [ # yapf: ignore
             (module, location, parser.parse(location.stream.data))
-            for module in self.get_modules().values()
+            for module in self.modules.values()
             for location in module.locations
         ]
 

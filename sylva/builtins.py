@@ -204,12 +204,16 @@ class MonoEnumType(SylvaType):
         return self.values.get(name)
 
     @cached_property
+    def first_value(self):
+        return next(iter(self.values.values()))
+
+    @cached_property
     def mname(self):
-        return ''.join(['1e', self.values[0].type.mname])
+        return ''.join(['1e', self.first_value.type.mname])
 
     @cached_property
     def type(self):
-        return next(self.values.items()).type
+        return self.first_value.type
 
 
 @dataclass(kw_only=True)
@@ -525,7 +529,7 @@ class RangeValue(SylvaValue):
 @dataclass(kw_only=True)
 class MonoArrayType(SylvaType):
     element_type: SylvaType
-    element_count: int
+    element_count: IntValue
 
     def __post_init__(self):
 
@@ -559,7 +563,7 @@ class ParamArrayType(SylvaType):
 
     def get_monomorphization(
         self,
-        element_count: int,
+        element_count: IntValue,
         location: Optional[Location] = None,
     ) -> MonoArrayType:
         location = location if location else Location.Generate()
@@ -579,7 +583,7 @@ class ParamCArrayType(ParamArrayType):
 
     def get_monomorphization(
         self,
-        element_count: int,
+        element_count: IntValue,
         location: Optional[Location] = None,
     ) -> MonoCArrayType:
         location = location if location else Location.Generate()
@@ -596,7 +600,7 @@ class ArrayType(SylvaType):
     @staticmethod
     def build_type(
         element_type: SylvaType,
-        element_count: Optional[int] = None,
+        element_count: Optional[IntValue] = None,
         location: Optional[Location] = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> Union[MonoArrayType, ParamArrayType]:
@@ -617,7 +621,7 @@ class CArrayType(ArrayType):
     @staticmethod
     def build_type(
         element_type: SylvaType,
-        element_count: Optional[int] = None,
+        element_count: Optional[IntValue] = None,
         location: Optional[Location] = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> Union[MonoCArrayType, ParamCArrayType]:
@@ -1084,7 +1088,7 @@ class ParamStrType(ParamArrayType):
 
     def get_monomorphization(
         self,
-        element_count: int,
+        element_count: IntValue,
         location: Optional[Location] = None,
     ) -> MonoStrType:
         location = location if location else Location.Generate()
@@ -1096,7 +1100,7 @@ class StrType(ArrayType):
 
     @staticmethod
     def build_type( # type: ignore
-        element_count: Optional[int] = None,
+        element_count: Optional[IntValue] = None,
         location: Optional[Location] = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> Union[MonoStrType, ParamStrType]:

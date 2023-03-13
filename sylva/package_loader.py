@@ -72,7 +72,9 @@ class PackageLoader:
 
     def process_c_lib_package(self, package: CLibPackage):
         loader = CModuleLoader(program=self.program)
-        self.modules.update(**loader.load_package(package))
+        c_lib_modules = loader.load_package(package)
+        print(f'Adding CLib modules: {[m for m in c_lib_modules]}')
+        self.modules.update(**c_lib_modules)
 
     def process_sylva_package(self, package: SylvaPackage):
         for dep in package.dependencies:
@@ -104,6 +106,7 @@ class PackageLoader:
         mod = self.modules.get(mod_name)
         if mod is None:
             mod = Mod(name=mod_name, package=package, locations=[loc])
+            print(f'Upserting module {mod_name}')
             self.modules[mod_name] = mod
         else:
             mod.locations.append(loc)
@@ -117,7 +120,6 @@ class PackageLoader:
         package = self.program.get_package(req.name)
 
         if not package:
-            print(f'Missing package {req.name}')
             self.missing.add(req)
             return
 
@@ -136,6 +138,9 @@ class PackageLoader:
             self.process_sylva_package(package)
 
     def load_package(self, package: SylvaPackage):
+        if package.name in self.modules:
+            return {}
+
         self.process_sylva_package(
             self.program.get_package('std')  # type: ignore
         )

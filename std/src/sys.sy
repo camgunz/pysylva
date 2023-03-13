@@ -1,38 +1,38 @@
-mod sys
+mod std.sys
 
 req libc
 
 fn exit(code: i32) {
-  libc.exit(code)
+    libc.exit(code)
 }
 
 fn abort() {
-  libc.abort()
+    libc.abort()
 }
 
-fn print(msg: $str_type) {
-  libc.write(libc.STDOUT_FILENO, cptr(cvoid(msg::bytes)), msg.get_length())
+fn print(msg: String) {
+    libc.write(libc.STDOUT_FILENO, cptr(cvoid(msg::bytes)), msg.get_length())
 }
 
-fn printerr(msg: $str_type) {
-  libc.write(libc.STDERR_FILENO, cptr(cvoid(msg::bytes)), msg.get_length())
+fn printerr(msg: String) {
+    libc.write(libc.STDERR_FILENO, cptr(cvoid(msg::bytes)), msg.get_length())
 }
 
-fn echo(msg: $str_type) {
-  print(msg)
-  print("\n")
+fn echo(msg: String) {
+    print(msg)
+    print("\n")
 }
 
-fn echoerr(msg: $str_type) {
-  printerr(msg)
-  printerr("\n")
+fn echoerr(msg: String) {
+    printerr(msg)
+    printerr("\n")
 }
 
-fn echoexit(code: i32, msg: $str_type) {
-  echoerr(msg)
-  exit(code)
+fn echoexit(code: i32, msg: String) {
+    echoerr(msg)
+    exit(code)
 }
 
-fn die(msg: $str_type) {
-  echoexit(-1i32, msg)
+fn die(msg: String) {
+    echoexit(-1i32, msg)
 }

@@ -351,3 +351,13 @@ class OutOfOrderPackageModules(LocationError):
             f'Module {module_name} in {package_name} requires in-package '
             f"module {req.name} but it's not yet been processed"
         )
+
+
+class IncompatibleTypeDefRedefinition(SylvaError):
+
+    def __init__(self, name, new_type, existing_type):
+        SylvaError.__init__(
+            self,
+            f'Redefinition of {name} is incompatible with initial definition '
+            f'at {existing_type.location}: {new_type} != {existing_type}'
+        )

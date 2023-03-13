@@ -585,7 +585,13 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
             location=Location.FromToken(str_token, stream=self._stream),
             value=str_token.value[1:-1],
             type=STR.build_type(
-                location=location, element_count=len(str_token.value) - 2
+                location=location,
+                element_count=IntValue(
+                    type=get_int_type(
+                        bits=None, signed=False
+                    ),
+                    value=len(str_token.value) - 2
+                )
             )
         )
 
@@ -598,7 +604,13 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
             location=location,
             value=str_token.value[1:-1],
             type=STR.build_type(
-                location=location, element_count=len(str_token.value) - 2
+                location=location,
+                element_count=IntValue(
+                    type=get_int_type(
+                        bits=None, signed=False
+                    ),
+                    value=len(str_token.value) - 2
+                )
             )
         )
 
