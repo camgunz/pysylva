@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from cdump import cdefs as CDefs  # type: ignore
-from cdump.parser import Parser as CParser  # type: ignore
 
 from sylva.ast_builder import ASTBuilder
 from sylva.builtins import (
@@ -256,10 +255,7 @@ class CModuleLoader:
             module.add_def(TypeDef(name=name, type=type))
 
         for header_file in package.header_files:
-            parser = CParser(
-                self.program.c_preprocessor, self.program.libclang
-            )
-            for cdef in parser.parse(header_file):
+            for cdef in self.program.c_parser.parse(header_file):
                 self._process_cdef(module, cdef)
 
         return {module.name: module}

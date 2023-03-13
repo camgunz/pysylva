@@ -1,9 +1,10 @@
-from dataclasses import dataclass
-from functools import cache
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
 import lark
+
+from cdump.parser import Parser as CParser  # type: ignore
 
 from sylva import errors, sylva
 from sylva.ast_builder import ASTBuilder
@@ -13,19 +14,21 @@ from sylva.parser import Parser
 from sylva.scope_gatherer import ScopeGatherer
 
 
-@dataclass(kw_only=True, frozen=True)
+@dataclass(kw_only=True)
 class Program:
     package: SylvaPackage
     deps_folder: Path
     stdlib: Path
     c_preprocessor: Path
     libclang: Path
+    c_parser: CParser = field(init=False)
 
     def __post_init__(self):
         if not isinstance(self.package, SylvaPackage):
             raise errors.InvalidMainPackageType(
                 self.package_file, self.package.type
             )
+        self.c_parser = CParser(self.c_preprocessor, self.libclang)
 
     def get_modules(self):
         return PackageLoader(self).load_package(self.package)
