@@ -2,24 +2,16 @@ mod std.base.result
 
 req std.sys
 
-variant GenResult {
+variant Result {
     OK: $ok,
     Fail: $fail,
 }
 
-impl GenResult {
-    fn on_fail(self: &GenResult($ok, $fail), handler: fn(fail: $fail)): $ok {
+impl Result {
+    fn on_fail(self: &Result($ok, $fail), handler: fn(fail: $fail)): $ok {
         match (self) {
             case (ok: OK) { return ok }
             case (fail: Fail) { handler(fail) }
         }
-    }
-}
-
-typedef Result: GenResult($fail: String)
-
-impl Result {
-    fn ok_or_die(self: &Result($ok)): $ok {
-        return self.on_fail(sys.die)
     }
 }

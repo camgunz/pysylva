@@ -105,6 +105,8 @@ identifier: _base_identifier
 
 lookup_expr: _base_identifier
 
+runtime_lookup_expr: _base_identifier
+
 _sized_array_type_literal_expr: \
   "[" _type_expr "*" (lookup_expr | int_literal_expr) "]"
 
@@ -159,6 +161,10 @@ struct_type_literal_expr: (STAR? _base_struct_type_literal_expr)
 _var_type_expr: (STAR? lookup_expr [ "(" _type_params ")" ])
               | (AMP lookup_expr [ "(" _type_params ")" ] BANG?)
               | (    lookup_expr [ "(" _type_params ")" ] BANG?)
+
+_block_var: (STAR? VALUE [ "(" _type_params ")" ])
+          | (AMP VALUE [ "(" _type_params ")" ] BANG?)
+          | (    VALUE [ "(" _type_params ")" ] BANG?)
 
 _literal_type_expr: array_type_literal_expr
                   | c_array_type_literal_expr
@@ -236,9 +242,9 @@ _arg_list: _expr_list | _expr_pair_list
   | CPTR "(" atom_expr ")" BANG?                        -> c_pointer_expr
   | CVOID "(" atom_expr ")" BANG?                       -> c_void_expr
   | "[" _expr_list "]"                                  -> array_expr
-  | ( lookup_expr
+  | ( runtime_lookup_expr
     | _base_struct_type_literal_expr) "{" _arg_list "}" -> struct_expr
-  | lookup_expr
+  | runtime_lookup_expr
   | bool_literal_expr
   | complex_literal_expr
   | function_literal_expr
@@ -282,12 +288,12 @@ match_block: MATCH "(" expr ")" "{" ( \
   default_block | (match_case_block+ default_block?) \
 ) "}"
 
-match_case_block: CASE "(" _var_type_expr ":" identifier ")" code_block
+match_case_block: CASE "(" _block_var ":" identifier ")" code_block
 
 default_block: DEFAULT code_block
 
 for_block: \
-  FOR "(" _var_type_expr ":" (expr | range_type_literal_expr) ")" code_block
+  FOR "(" _block_var ":" (expr | range_type_literal_expr) ")" code_block
 
 while_block: WHILE "(" expr ")" code_block
 

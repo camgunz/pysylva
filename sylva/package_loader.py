@@ -49,10 +49,15 @@ class ModuleGatherer(lark.Visitor):
 
     def requirement_decl(self, tree):
         debug('module_gatherer', f'requirement_decl: {tree}')
+        location = Location.FromTree(tree, stream=self._stream)
+        name = '.'.join(t.value for t in tree.children[1:-1])
+        bound_name = tree.children[-1].value if tree.children[-1] else None
+        module = self._package_loader.resolve_requirement(
+            self._current_module, location, name
+        )
 
         req = Req(
-            location=Location.FromTree(tree, stream=self._stream),
-            name='.'.join(t.value for t in tree.children[1:-1])
+            location=location, name=name, bound_name=bound_name, module=module
         )
 
         # [NOTE] Should we disallow duplicate requirements here?
@@ -60,20 +65,17 @@ class ModuleGatherer(lark.Visitor):
             req.bound_name if req.bound_name else req.name  # yapf: ignore
         ] = req
 
-        self._package_loader.resolve_requirement(self._current_module, req)
-
 
 @dataclass
 class PackageLoader:
     program: 'Program'
-    missing: set[Req] = field(default_factory=set, init=False)
+    missing: set[Location] = field(default_factory=set, init=False)
     modules: dict[str, Mod] = field(default_factory=dict, init=False)
     _parser: lark.lark.Lark = field(default_factory=Parser, init=False)
 
     def process_c_lib_package(self, package: CLibPackage):
         loader = CModuleLoader(program=self.program)
         c_lib_modules = loader.load_package(package)
-        print(f'Adding CLib modules: {[m for m in c_lib_modules]}')
         self.modules.update(**c_lib_modules)
 
     def process_sylva_package(self, package: SylvaPackage):
@@ -106,36 +108,43 @@ class PackageLoader:
         mod = self.modules.get(mod_name)
         if mod is None:
             mod = Mod(name=mod_name, package=package, locations=[loc])
-            print(f'Upserting module {mod_name}')
             self.modules[mod_name] = mod
         else:
             mod.locations.append(loc)
 
         return mod
 
-    def resolve_requirement(self, module: Mod, req: Req):
-        if self.modules.get(req.name):
-            return
+    def resolve_requirement(self, module: Mod, location: Location, name: str):
+        resolved_module = self.modules.get(name)
+        if resolved_module:
+            return resolved_module
 
-        package = self.program.get_package(req.name)
+        package = self.program.get_package(name)
 
         if not package:
-            self.missing.add(req)
+            self.missing.add(location)
             return
 
         # If the req is in the same package as this, that means files are
         # specified out of order
         if package == module.package:
             raise errors.OutOfOrderPackageModules(
+                location=location,
                 package_name=package.name,
                 module_name=module.name,
-                req=req,
+                name=name,
             )
 
         if isinstance(package, CLibPackage):
             self.process_c_lib_package(package)
         elif isinstance(package, SylvaPackage):
             self.process_sylva_package(package)
+
+        resolved_module = self.modules.get(name)
+        if not resolved_module:
+            self.missing.add(location)
+
+        return resolved_module
 
     def load_package(self, package: SylvaPackage):
         if package.name in self.modules:
@@ -153,7 +162,7 @@ class PackageLoader:
         ts: TopologicalSorter = TopologicalSorter()
 
         for n, m in self.modules.items():
-            ts.add(n, *list(m.requirements.keys()))
+            ts.add(n, *[r.name for r in m.requirements.values()])
 
         try:
             ordered_module_names = ts.static_order()

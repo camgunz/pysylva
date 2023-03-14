@@ -95,3 +95,23 @@ def bits_required_for_int(n, signed=False):
 
 def read_toml_file(path: Path):
     return tomllib.loads(path.read_text(encoding='utf-8'))
+
+
+def chunk(it, size: int):
+    if not hasattr(it, "__next__"):
+        it = iter(it)
+
+    while True:
+        out = []
+
+        for _ in range(size):
+            try:
+                out.append(next(it))
+            except StopIteration:
+                pass
+
+        if out:
+            yield out
+
+        if len(out) != size:
+            break

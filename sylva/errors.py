@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from sylva.req import Req
+from sylva.location import Location
 from sylva.utils import bits_required_for_int, strlist
 
 
@@ -98,7 +98,7 @@ class RedefinedBuiltIn(LocationError):
 
 class MissingRequirements(SylvaError):
 
-    def __init__(self, missing_requirements):
+    def __init__(self, missing_requirements: set[Location]):
         error_msg = (
             'Missing requirement'
             if len(missing_requirements) == 1 else 'Missing requirements'
@@ -107,11 +107,11 @@ class MissingRequirements(SylvaError):
             self,
             '\n\n'.join([ # yapf: disable
                 (
-                    f'{req.location.pformat()}'
+                    f'{location.pformat()}'
                     '\n'
-                    f'[Error: {req.location.shorthand}] {error_msg}'
+                    f'[Error: {location.shorthand}] {error_msg}'
                 )
-                for req in missing_requirements
+                for location in missing_requirements
             ]) + '\n'
         )
 
@@ -344,12 +344,18 @@ class NoUsableCLibTargets(SylvaError):
 
 class OutOfOrderPackageModules(LocationError):
 
-    def __init__(self, package_name: str, module_name: str, req: Req):
+    def __init__(
+        self,
+        location: Location,
+        package_name: str,
+        module_name: str,
+        name: str
+    ):
         LocationError.__init__(
             self,
-            req.location,
+            location,
             f'Module {module_name} in {package_name} requires in-package '
-            f"module {req.name} but it's not yet been processed"
+            f"module {name} but it's not yet been processed"
         )
 
 

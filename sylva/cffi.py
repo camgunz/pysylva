@@ -38,7 +38,6 @@ from sylva.expr import LookupExpr
 from sylva.mod import Mod
 from sylva.package import CLibPackage
 from sylva.parser import Parser
-from sylva.req import Req
 
 if TYPE_CHECKING:
     from sylva.program import Program
@@ -54,14 +53,15 @@ class CModuleLoader:
         name: str,
         value: Union[SylvaType, SylvaValue],
         use_existing: Optional[bool] = False
-    ) -> Tuple[Union[SylvaDef, TypeDef], bool]:
+    ) -> Tuple[Union[SylvaType, SylvaValue], bool]:
         name = name.replace(' ', '_')
 
         if existing := module.lookup(name):
-            if isinstance(value, Req):
+            if isinstance(value, Mod):
                 raise TypeError(
                     'We only expect either a SylvaDef or TypeDef here'
                 )
+
             if use_existing:
                 return (existing, False)  # type: ignore
 
@@ -69,7 +69,8 @@ class CModuleLoader:
                 raise errors.IncompatibleTypeDefRedefinition(
                     name, type, existing
                 )
-            elif isinstance(value, SylvaValue) and value.type != existing.type:
+
+            if isinstance(value, SylvaValue) and value.type != existing.type:
                 raise errors.IncompatibleTypeDefRedefinition(
                     name, type, existing
                 )
@@ -83,7 +84,7 @@ class CModuleLoader:
 
         module.add_def(new_def)
 
-        return (new_def, True)
+        return (value, True)
 
     def _process_cdef(self, module: Mod, cdef: CDefs.CDef):
         if isinstance(cdef, CDefs.Array):

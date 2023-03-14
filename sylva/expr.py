@@ -10,10 +10,9 @@ from sylva.builtins import (
     FloatType,
     IntType,
     StrType,
-    SylvaDef,
     SylvaObject,
     SylvaType,
-    TypeDef,
+    SylvaValue,
 )
 from sylva.mod import Mod
 from sylva.operator import Operator
@@ -32,7 +31,7 @@ class Expr(SylvaObject):
 class LookupExpr(Expr):
     name: str
 
-    def eval(self, module: Mod) -> Union[SylvaDef, TypeDef]:
+    def eval(self, module: Mod) -> Union[Mod, SylvaType, SylvaValue]:
         val = module.lookup(self.name)
         if val is None:
             raise errors.UndefinedSymbol(self.location, self.name)
@@ -63,14 +62,16 @@ class BinaryExpr(Expr):
 @dataclass(kw_only=True)
 class AttributeLookupExpr(Expr):
     name: str
-    obj: Expr
+    obj: Any
     reflection: bool = False
 
-
-@dataclass(kw_only=True)
-class ReflectionLookupExpr(Expr):
-    name: str
-    obj: Expr
+    def eval(self, module: Mod):
+        obj = self.obj.eval(module) if isinstance(self.obj, Expr) else self.obj
+        return ( # yapf: ignore
+            obj.reflection_lookup(self.name)
+            if self.reflection
+            else obj.lookup(self.name)
+        )
 
 
 @dataclass(kw_only=True)

@@ -45,7 +45,7 @@ class Mod:
 
         self.defs[d.name] = d
 
-    def lookup(self, name) -> Union[Req, SylvaValue, SylvaType]:
+    def lookup(self, name) -> Union['Mod', SylvaValue, SylvaType]:
         res = self.defs.get(name)
         if res is not None:
             if isinstance(res, SylvaDef):
@@ -53,5 +53,7 @@ class Mod:
             if isinstance(res, TypeDef):
                 return res.type
 
-        # [FIXME] This probably should end up returning a Mod, not a Req
-        return self.requirements.get(name, builtins.lookup(name))
+        if req := self.requirements.get(name):
+            return req.module
+
+        return builtins.lookup(name)

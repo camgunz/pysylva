@@ -31,7 +31,6 @@ class Program:
         self.c_parser = CParser(self.c_preprocessor, self.libclang)
 
         self.modules = PackageLoader(self).load_package(self.package)
-        print(f'Loaded modules {[m for m in self.modules]}')
 
     def parse(self):
         parser = Parser()
