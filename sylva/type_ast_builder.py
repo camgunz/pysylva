@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Literal, Optional, Tuple
+from typing import Optional
 
 import lark
 
@@ -80,21 +80,13 @@ from sylva.builtins import (  # noqa: F401
     VariantValue,
     get_int_type,
 )
-from sylva.code_block import CodeBlock
 from sylva.expr import (
     AttributeLookupExpr,
-    CallExpr,
-    CPtrExpr,
-    CVoidExpr,
     IntLiteralExpr,
     LookupExpr,
     StrLiteralExpr,
-    UnaryExpr,
-    VariantFieldTypeLookupExpr,
 )
 from sylva.location import Location
-from sylva.operator import Operator
-from sylva.stmt import DefaultBlock, MatchBlock, MatchCaseBlock, ReturnStmt
 
 
 @dataclass(kw_only=True)
@@ -104,110 +96,7 @@ class UndefinedSymbol:
     type: Optional[SylvaType] = None
 
 
-def get_int_base(int_value: str) -> Literal[2, 8, 10, 16]:
-    if int_value.startswith('0b') or int_value.startswith('0B'):
-        return 2
-    if int_value.startswith('0o') or int_value.startswith('0O'):
-        return 8
-    if int_value.startswith('0x') or int_value.startswith('0X'):
-        return 16
-    return 10
-
-
-def parse_int_value(location: Location, strval: str) -> Tuple[IntType, int]:
-    base = get_int_base(strval)
-    signed = (
-        strval.endswith('i') or strval.endswith('i8') or
-        strval.endswith('i16') or strval.endswith('i32') or
-        strval.endswith('i64') or strval.endswith('i128')
-    )
-    try:
-        int_type = get_int_type(
-            bits=( # yapf: ignore
-                8 if strval.endswith('8') else
-                16 if strval.endswith('16') else
-                32 if strval.endswith('32') else
-                64 if strval.endswith('64') else
-                128 if strval.endswith('128') else
-                None
-            ),
-            signed=signed
-        )
-    except ValueError as e:
-        raise errors.LiteralParseFailure(location, 'int', str(e)) from None
-
-    value = ( # yapf: ignore
-        int(strval[:-1], base=base) if strval.endswith('i') else
-        int(strval[:-1], base=base) if strval.endswith('u') else
-        int(strval[:-2], base=base) if strval.endswith('i8') else
-        int(strval[:-3], base=base) if strval.endswith('i16') else
-        int(strval[:-3], base=base) if strval.endswith('i32') else
-        int(strval[:-3], base=base) if strval.endswith('i64') else
-        int(strval[:-4], base=base) if strval.endswith('i128') else
-        int(strval[:-2], base=base) if strval.endswith('u8') else
-        int(strval[:-3], base=base) if strval.endswith('u16') else
-        int(strval[:-3], base=base) if strval.endswith('u32') else
-        int(strval[:-3], base=base) if strval.endswith('u64') else
-        int(strval[:-4], base=base) if strval.endswith('u128') else
-        int(strval, base=base)
-    )
-
-    return (int_type, value)
-
-
-def build_int_value(location: Location, strval: str) -> IntValue:
-    int_type, value = parse_int_value(location, strval)
-    return IntValue(location=location, type=int_type, value=value)
-
-
-def build_int_literal_expr(location: Location, strval: str) -> IntLiteralExpr:
-    int_type, value = parse_int_value(location, strval)
-    return IntLiteralExpr(location=location, type=int_type, value=value)
-
-
-def build_float_value(location, raw_value):
-    if raw_value.endswith('f16'):
-        return FloatValue(
-            location=location, type=F16, value=float(raw_value[:-3])
-        )
-    if raw_value.endswith('f32'):
-        return FloatValue(
-            location=location, type=F32, value=float(raw_value[:-3])
-        )
-    if raw_value.endswith('f64'):
-        return FloatValue(
-            location=location, type=F64, value=float(raw_value[:-3])
-        )
-    if raw_value.endswith('f128'):
-        return FloatValue(
-            location=location, type=F128, value=float(raw_value[:-4])
-        )
-
-    raise ValueError(f'Malformed float value {raw_value}')
-
-
-def build_complex_value(location, raw_value):
-    if raw_value.endswith('f16'):
-        return ComplexValue(
-            location=location, type=C16, value=complex(raw_value[:-3])
-        )
-    if raw_value.endswith('f32'):
-        return ComplexValue(
-            location=location, type=C32, value=complex(raw_value[:-3])
-        )
-    if raw_value.endswith('f64'):
-        return ComplexValue(
-            location=location, type=C64, value=complex(raw_value[:-3])
-        )
-    if raw_value.endswith('f128'):
-        return ComplexValue(
-            location=location, type=C128, value=complex(raw_value[:-4])
-        )
-
-    raise ValueError(f'Malformed complex value {raw_value}')
-
-
-class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
+class TypeASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
     def __init__(self, program, module, location=None):
         super().__init__()
@@ -325,30 +214,6 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
             parameters=parts,
         )
 
-    def expr(self, parts):
-        debug('ast_builder', f'expr: {parts}')
-        mod, expr = TypeModifier.separate_type_mod(parts)
-        expr.type.mod = mod
-
-        return expr
-
-    def c_pointer_expr(self, parts):
-        debug('ast_builder', f'c_pointer_expr: {parts}')
-        cptr = parts.pop(0)
-        expr = parts.pop(0)
-        is_exclusive = bool(parts)
-        location = Location.FromToken(cptr, stream=self._stream)
-
-        return CPtrExpr(
-            location=location,
-            type=CPTR.build_type(
-                location=location,
-                mod=TypeModifier.CMut if is_exclusive else TypeModifier.NoMod,
-                referenced_type=expr.type,
-            ),
-            expr=expr,
-        )
-
     def c_pointer_type_literal_expr(self, parts):
         debug('ast_builder', f'c_pointer_type_expr: {parts}')
         cptr = parts.pop(0)
@@ -412,38 +277,9 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         return type_def
 
-    def c_void_expr(self, parts):
-        debug('ast_builder', f'c_void_expr: {parts}')
-        cvoid = parts.pop(0)
-        expr = parts.pop(0)
-        is_exclusive = bool(parts)
-        location = Location.FromToken(cvoid, stream=self._stream)
-
-        return CVoidExpr(
-            location=location,
-            type=CVOIDEX if is_exclusive else CVOID,
-            expr=expr,
-        )
-
     def c_void_type_literal_expr(self, parts):
         debug('ast_builder', f'c_void_type_literal_expr: {parts}')
         return CVOIDEX if len(parts) == 2 else CVOID
-
-    def call_expr(self, parts):
-        debug('ast_builder', f'call_expr: {parts}')
-        # [TODO] After looking up the function, we need to get the right
-        #        monomorphization.
-        func_lookup, args = parts[0], parts[1:]
-        return CallExpr(
-            location=func_lookup.location.copy(),
-            function=func_lookup,
-            arguments=args,
-            type=None
-        )
-
-    def code_block(self, parts):
-        debug('ast_builder', f'code_block: {parts}')
-        return CodeBlock(code=parts)
 
     def const_def(self, parts):
         debug('ast_builder', f'const_def: {parts}')
@@ -458,13 +294,6 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         self._module.add_def(const_def)
 
         return const_def
-
-    def default_block(self, parts):
-        debug('ast_builder', f'match_case_block: {parts}')
-        return DefaultBlock(
-            location=Location.FromToken(parts[0], stream=self._stream),
-            code=parts[1]
-        )
 
     def function_type_def(self, parts):
         debug('ast_builder', f'function_type_def: {parts}')
@@ -524,20 +353,11 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
             parameters=parts
         )
 
-    def int_expr(self, parts):
-        debug('ast_builder', f'int_expr: {parts}')
-        int_token = parts[0].children[0]
-
-        return build_int_value(
-            location=Location.FromToken(int_token, stream=self._stream),
-            strval=int_token.value
-        )
-
     def int_literal_expr(self, parts):
         debug('ast_builder', f'int_literal_expr: {parts}')
         int_token = parts[0]
 
-        return build_int_literal_expr(
+        return IntLiteralExpr.FromString(
             location=Location.FromToken(int_token, stream=self._stream),
             strval=int_token.value
         )
@@ -595,7 +415,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
             )
         else:
             value = LookupExpr(
-                location=location, name=name.value, type=None
+                location=location, name=name.value, type=SylvaType
             ).eval(self._module)
 
         while tree.children:
@@ -615,80 +435,6 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
             ).eval(self._module)
 
         return value
-
-    def match_block(self, parts):
-        debug('ast_builder', f'match_block: {parts}')
-        return MatchBlock(
-            location=Location.FromToken(parts.pop(0), stream=self._stream),
-            variant_expr=parts.pop(0),
-            default_case=( # yapf: ignore
-                parts.pop(-1)
-                if parts and isinstance(parts[-1], DefaultBlock)
-                else None
-            ),
-            match_cases=parts,
-        )
-
-    def match_case_block(self, parts):
-        debug('ast_builder', f'match_case_block: {parts}')
-        case, var_name, var_type, code_block = parts
-        return MatchCaseBlock(
-            location=Location.FromToken(case, stream=self._stream),
-            variant_name=var_name.value,
-            variant_field_type_lookup_expr=VariantFieldTypeLookupExpr(
-                location=Location.FromToken(var_type, stream=self._stream),
-                name=var_type.value
-            ),
-            code=code_block,
-        )
-
-    def return_stmt(self, parts):
-        debug('ast_builder', f'match_case_block: {parts}')
-        return ReturnStmt(
-            location=Location.FromToken(parts[0], stream=self._stream),
-            expr=parts[1]
-        )
-
-    def runtime_lookup_expr(self, parts):
-        debug('ast_builder', f'runtime_lookup_expr: {parts}')
-        name = parts.pop(0)
-
-        expr = LookupExpr(
-            location=Location.FromToken(name, stream=self._stream),
-            name=name.value,
-            type=None
-        )
-
-        while parts:
-            reflection = parts.pop(0).value == '::'
-            attr_name = parts.pop(0)
-
-            expr = AttributeLookupExpr(
-                location=Location.FromToken(attr_name, stream=self._stream),
-                name=attr_name.value,
-                obj=expr,
-                reflection=reflection,
-                type=None
-            )
-
-        return expr
-
-    def string_expr(self, parts):
-        debug('ast_builder', f'string_expr: {parts}')
-        str_token = parts[0].children[0]
-        location = Location.FromToken(str_token, stream=self._stream)
-
-        return StrValue(
-            location=Location.FromToken(str_token, stream=self._stream),
-            value=str_token.value[1:-1],
-            type=STR.build_type(
-                location=location,
-                element_count=IntValue(
-                    type=get_int_type(bits=None, signed=False),
-                    value=len(str_token.value) - 2
-                )
-            )
-        )
 
     def string_literal_expr(self, parts):
         debug('ast_builder', f'string_literal_expr: {parts}')
@@ -745,18 +491,6 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         return TypePlaceholder(
             location=Location.FromToken(name, stream=self._stream),
             name=name.value
-        )
-
-    def unary_expr(self, parts):
-        debug('ast_builder', f'unary_expr: {parts}')
-        op, expr = parts
-        location = Location.FromToken(op, stream=self._stream),
-        operator = Operator.lookup(op.value, 1)
-        if operator is None:
-            raise errors.NoSuchUnaryOperator(location, op.value)
-
-        return UnaryExpr(
-            location=location, operator=operator, expr=expr, type=expr.type
         )
 
     def var_type_expr(self, parts):

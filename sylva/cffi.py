@@ -4,7 +4,6 @@ from typing import Optional, TYPE_CHECKING, Tuple, Union
 from cdump import cdefs as CDefs  # type: ignore
 
 from sylva import errors
-from sylva.ast_builder import ASTBuilder
 from sylva.builtins import (
     BOOL,
     C16,
@@ -38,6 +37,7 @@ from sylva.expr import LookupExpr
 from sylva.mod import Mod
 from sylva.package import CLibPackage
 from sylva.parser import Parser
+from sylva.type_ast_builder import TypeASTBuilder
 
 if TYPE_CHECKING:
     from sylva.program import Program
@@ -287,7 +287,7 @@ class CModuleLoader:
         type_expr_parser = Parser(start='_type_expr')
 
         for name, literal_expr_text in package.defs.items():
-            tree = ASTBuilder(
+            tree = TypeASTBuilder(
                 program=self.program, module=module
             ).transform(literal_expr_parser.parse(literal_expr_text))
             expr = tree.children[0]
@@ -299,7 +299,7 @@ class CModuleLoader:
             )
 
         for name, type_expr_text in package.type_defs.items():
-            tree = ASTBuilder(
+            tree = TypeASTBuilder(
                 program=self.program, module=module
             ).transform(type_expr_parser.parse(type_expr_text))
             type = tree.children[0]

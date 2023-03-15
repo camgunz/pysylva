@@ -7,11 +7,12 @@ import lark
 from cdump.parser import Parser as CParser  # type: ignore
 
 from sylva import errors, sylva
-from sylva.ast_builder import ASTBuilder
 from sylva.package_loader import PackageLoader
 from sylva.package import BasePackage, SylvaPackage, get_package_from_path
 from sylva.parser import Parser
+from sylva.runtime_ast_builder import RuntimeASTBuilder
 from sylva.scope_gatherer import ScopeGatherer
+from sylva.type_ast_builder import TypeASTBuilder
 
 
 @dataclass(kw_only=True)
@@ -46,11 +47,28 @@ class Program:
             scope_gatherer.visit_topdown(tree)
 
         module_trees = [ # yapf: ignore
-            ASTBuilder( # yapf: ignore
-                program=self,
-                module=module,
-                location=location
-            ).transform(tree)
+            (
+                module,
+                location,
+                TypeASTBuilder( # yapf: ignore
+                    program=self,
+                    module=module,
+                    location=location
+                ).transform(tree)
+            )
+            for module, location, tree in module_trees
+        ]
+
+        module_trees = [ # yapf: ignore
+            (
+                module,
+                location,
+                RuntimeASTBuilder(
+                    program=self,
+                    module=module,
+                    location=location
+                ).transform(tree)
+            )
             for module, location, tree in module_trees
         ]
 

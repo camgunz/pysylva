@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Optional, Union
 
-from sylva import errors, utils
+from sylva import debug, errors, utils
 from sylva.location import Location
 from sylva.builtins import (
     CPtrType,
@@ -13,6 +13,7 @@ from sylva.builtins import (
     SylvaObject,
     SylvaType,
     SylvaValue,
+    parse_int_value,
 )
 from sylva.mod import Mod
 from sylva.operator import Operator
@@ -23,6 +24,13 @@ class Expr(SylvaObject):
     location: Location = field(default_factory=Location.Generate)
     type: Optional[SylvaType] = None
 
+    def __post_init__(self):
+        if self.type is None:
+            debug(
+                'nonetype',
+                f'{type(self)} ({self.location.shorthand}): type is None'
+            )
+
     def eval(self, module):
         raise NotImplementedError()
 
@@ -30,6 +38,15 @@ class Expr(SylvaObject):
 @dataclass(kw_only=True)
 class LookupExpr(Expr):
     name: str
+
+    def __post_init__(self):
+        if self.type is None:
+            debug(
+                'nonetype',
+                f'{type(self)} {self.name} ({self.location.shorthand}): type is None'
+            )
+            if '.sy' in self.location.shorthand:
+                breakpoint()
 
     def eval(self, module: Mod) -> Union[Mod, SylvaType, SylvaValue]:
         val = module.lookup(self.name)
@@ -114,8 +131,14 @@ class IntLiteralExpr(LiteralExpr):
     value: int
 
     def __post_init__(self):
+        LiteralExpr.__post_init__(self)
         if utils.bits_required_for_int(self.value) > self.type.bits:
             raise errors.IntSizeExceeded(self.value)
+
+    @classmethod
+    def FromString(cls, location: Location, strval: str):
+        int_type, value = parse_int_value(location=location, strval=strval)
+        return cls(location=location, type=int_type, value=value)
 
 
 @dataclass(kw_only=True)
@@ -124,6 +147,7 @@ class StrLiteralExpr(LiteralExpr):
     value: bytes
 
     def __post_init__(self):
+        LiteralExpr.__post_init__(self)
         self.value = self.value.encode('utf-8')
 
 

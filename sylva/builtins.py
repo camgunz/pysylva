@@ -3,11 +3,11 @@ import itertools
 
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Any, Optional, Union
+from typing import Any, Literal, Optional, Tuple, Union
 
 import lark
 
-from sylva import _SIZE_SIZE, errors, utils
+from sylva import _SIZE_SIZE, debug, errors, utils
 from sylva.location import Location
 
 
@@ -42,7 +42,10 @@ class TypeModifier(enum.Enum):
 
 @dataclass(kw_only=True)
 class SylvaObject:
-    location: Location = field(default_factory=Location.Generate)
+    location: Optional[Location] = None
+
+    def __post_init__(self):
+        self.location = self.location or Location.Generate()
 
 
 @dataclass(kw_only=True)
@@ -64,6 +67,13 @@ class SylvaValue(SylvaObject):
 class SylvaField(SylvaObject):
     name: str
     type: Optional[SylvaType]
+
+    def __post_init__(self):
+        if self.type is None:
+            debug(
+                'nonetype',
+                f'{self.name} (self.location.shorthand): type is None'
+            )
 
     @property
     def is_var(self):
@@ -455,6 +465,25 @@ class ComplexType(SizedNumericType):
 class ComplexValue(SylvaValue):
     type: ComplexType
 
+    @classmethod
+    def FromString(
+        cls,
+        strval: str,
+        location: Optional[Location] = None,
+    ):
+        if strval.endswith('f16'):
+            return cls(location=location, type=C16, value=complex(strval[:-3]))
+        if strval.endswith('f32'):
+            return cls(location=location, type=C32, value=complex(strval[:-3]))
+        if strval.endswith('f64'):
+            return cls(location=location, type=C64, value=complex(strval[:-3]))
+        if strval.endswith('f128'):
+            return cls(
+                location=location, type=C128, value=complex(strval[:-4])
+            )
+
+        raise ValueError(f'Malformed complex value {strval}')
+
 
 @dataclass(kw_only=True)
 class FloatType(SizedNumericType):
@@ -467,6 +496,23 @@ class FloatType(SizedNumericType):
 @dataclass(kw_only=True)
 class FloatValue(SylvaValue):
     type: FloatType
+
+    @classmethod
+    def FromString(
+        cls,
+        strval: str,
+        location: Optional[Location] = None,
+    ):
+        if strval.endswith('f16'):
+            return cls(location=location, type=F16, value=float(strval[:-3]))
+        if strval.endswith('f32'):
+            return cls(location=location, type=F32, value=float(strval[:-3]))
+        if strval.endswith('f64'):
+            return cls(location=location, type=F64, value=float(strval[:-3]))
+        if strval.endswith('f128'):
+            return cls(location=location, type=F128, value=float(strval[:-4]))
+
+        raise ValueError(f'Malformed float value {strval}')
 
 
 @dataclass(kw_only=True)
@@ -481,6 +527,11 @@ class IntType(SizedNumericType):
 @dataclass(kw_only=True)
 class IntValue(SylvaValue):
     type: IntType
+
+    @classmethod
+    def FromString(cls, location: Location, strval: str):
+        int_type, value = parse_int_value(location=location, strval=strval)
+        return IntValue(location=location, type=int_type, value=value)
 
 
 @dataclass(kw_only=True)
@@ -1159,6 +1210,16 @@ STR = StrType()
 STRING = StringType()
 
 
+def get_int_base(int_value: str) -> Literal[2, 8, 10, 16]:
+    if int_value.startswith('0b') or int_value.startswith('0B'):
+        return 2
+    if int_value.startswith('0o') or int_value.startswith('0O'):
+        return 8
+    if int_value.startswith('0x') or int_value.startswith('0X'):
+        return 16
+    return 10
+
+
 def get_int_type(bits: Optional[int], signed: bool) -> IntType:
     bits = bits if bits else _SIZE_SIZE
     if signed and bits == 8:
@@ -1185,6 +1246,50 @@ def get_int_type(bits: Optional[int], signed: bool) -> IntType:
     raise ValueError(
         f'Unable to determine int type for bits={bits}, signed={signed}'
     )
+
+
+def parse_int_value( # yapf: ignore
+    strval: str,
+    location: Optional[Location] = None,
+) -> Tuple[IntType, int]:
+    base = get_int_base(strval)
+    signed = (
+        strval.endswith('i') or strval.endswith('i8') or
+        strval.endswith('i16') or strval.endswith('i32') or
+        strval.endswith('i64') or strval.endswith('i128')
+    )
+    try:
+        int_type = get_int_type(
+            bits=( # yapf: ignore
+                8 if strval.endswith('8') else
+                16 if strval.endswith('16') else
+                32 if strval.endswith('32') else
+                64 if strval.endswith('64') else
+                128 if strval.endswith('128') else
+                None
+            ),
+            signed=signed
+        )
+    except ValueError as e:
+        raise errors.LiteralParseFailure(location, 'int', str(e)) from None
+
+    value = ( # yapf: ignore
+        int(strval[:-1], base=base) if strval.endswith('i') else
+        int(strval[:-1], base=base) if strval.endswith('u') else
+        int(strval[:-2], base=base) if strval.endswith('i8') else
+        int(strval[:-3], base=base) if strval.endswith('i16') else
+        int(strval[:-3], base=base) if strval.endswith('i32') else
+        int(strval[:-3], base=base) if strval.endswith('i64') else
+        int(strval[:-4], base=base) if strval.endswith('i128') else
+        int(strval[:-2], base=base) if strval.endswith('u8') else
+        int(strval[:-3], base=base) if strval.endswith('u16') else
+        int(strval[:-3], base=base) if strval.endswith('u32') else
+        int(strval[:-3], base=base) if strval.endswith('u64') else
+        int(strval[:-4], base=base) if strval.endswith('u128') else
+        int(strval, base=base)
+    )
+
+    return (int_type, value)
 
 
 # @dataclass(kw_only=True)

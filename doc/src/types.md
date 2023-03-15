@@ -1,6 +1,6 @@
 # Types
 
-Sylva has 11 built-in types:
+Sylva has 12 built-in types:
 
 - `array`/`dynarray`
 - `bool`
@@ -12,6 +12,7 @@ Sylva has 11 built-in types:
 - `rune`
 - `str`/`string`
 - `struct`
+- `type`
 - `variant`
 
 Types are first-class in Sylva; they can be assigned to variables and passed to
