@@ -1,20 +1,19 @@
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Optional
 
-from sylva.expr import Expr
+from sylva.code_block import CodeBlock
+from sylva.expr import Expr, VariantFieldTypeLookupExpr
 from sylva.builtins import SylvaObject
 
 
 @dataclass(kw_only=True)
 class Stmt(SylvaObject):
-
-    def emit(self, obj, module, builder, scope, name):
-        raise NotImplementedError()
+    pass
 
 
 @dataclass(kw_only=True)
 class StmtBlock(Stmt):
-    code: list[Union[Expr | Stmt]] = field(default_factory=list)
+    code: CodeBlock
 
 
 @dataclass(kw_only=True)
@@ -45,16 +44,34 @@ class ReturnStmt(Stmt):
 
 
 @dataclass(kw_only=True)
-class IfStmt(StmtBlock):
+class IfBlock(StmtBlock):
     conditional_expr: Expr
-    else_code: list[Union[Expr | Stmt]] = field(default_factory=list)
+    else_code: CodeBlock
 
 
 @dataclass(kw_only=True)
-class LoopStmt(StmtBlock):
+class LoopBlock(StmtBlock):
     pass
 
 
 @dataclass(kw_only=True)
-class WhileStmt(StmtBlock):
+class WhileBlock(StmtBlock):
     conditional_expr: Expr
+
+
+@dataclass(kw_only=True)
+class MatchCaseBlock(StmtBlock):
+    variant_name: str
+    variant_field_type_lookup_expr: VariantFieldTypeLookupExpr
+
+
+@dataclass(kw_only=True)
+class DefaultBlock(StmtBlock):
+    pass
+
+
+@dataclass(kw_only=True)
+class MatchBlock(Stmt):
+    variant_expr: Expr
+    match_cases: list[MatchCaseBlock] = field(default_factory=list)
+    default_case: Optional[DefaultBlock] = None

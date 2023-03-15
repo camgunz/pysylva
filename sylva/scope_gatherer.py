@@ -51,7 +51,7 @@ class ScopeGatherer(lark.Visitor):
             if not hasattr(subtree.meta, 'function_parameters'):
                 subtree.meta.function_parameters = params
             else:
-                # [FIXME] Disallow name collisions
+                # [TODO] Disallow name collisions
                 subtree.meta.function_parameters.update(params)
 
     def struct_type_def(self, tree):

@@ -159,12 +159,12 @@ struct_type_literal_expr: (STAR? _base_struct_type_literal_expr)
                           | (AMP _base_struct_type_literal_expr BANG?)
 
 _var_type_expr: (STAR? lookup_expr [ "(" _type_params ")" ])
-              | (AMP lookup_expr [ "(" _type_params ")" ] BANG?)
-              | (    lookup_expr [ "(" _type_params ")" ] BANG?)
+              | (AMP   lookup_expr [ "(" _type_params ")" ] BANG?)
+              | (      lookup_expr [ "(" _type_params ")" ] BANG?)
 
 _block_var: (STAR? VALUE [ "(" _type_params ")" ])
-          | (AMP VALUE [ "(" _type_params ")" ] BANG?)
-          | (    VALUE [ "(" _type_params ")" ] BANG?)
+          | (AMP   VALUE [ "(" _type_params ")" ] BANG?)
+          | (      VALUE [ "(" _type_params ")" ] BANG?)
 
 _literal_type_expr: array_type_literal_expr
                   | c_array_type_literal_expr
@@ -288,7 +288,7 @@ match_block: MATCH "(" expr ")" "{" ( \
   default_block | (match_case_block+ default_block?) \
 ) "}"
 
-match_case_block: CASE "(" _block_var ":" identifier ")" code_block
+match_case_block: CASE "(" VALUE ":" VALUE ")" code_block
 
 default_block: DEFAULT code_block
 

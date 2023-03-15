@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
-from sylva.expr import Expr
-from sylva.stmt import Stmt
+if TYPE_CHECKING:
+    from sylva.expr import Expr
+    from sylva.stmt import Stmt
 
 
 @dataclass
 class CodeBlock:
-    code: list[Union[Expr, Stmt]] = field(default_factory=list)
+    code: list[Union['Expr', 'Stmt']] = field(default_factory=list)

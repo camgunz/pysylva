@@ -125,3 +125,8 @@ class StrLiteralExpr(LiteralExpr):
 
     def __post_init__(self):
         self.value = self.value.encode('utf-8')
+
+
+@dataclass(kw_only=True)
+class VariantFieldTypeLookupExpr(Expr):
+    name: str

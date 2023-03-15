@@ -90,9 +90,11 @@ from sylva.expr import (
     LookupExpr,
     StrLiteralExpr,
     UnaryExpr,
+    VariantFieldTypeLookupExpr,
 )
 from sylva.location import Location
 from sylva.operator import Operator
+from sylva.stmt import DefaultBlock, MatchBlock, MatchCaseBlock, ReturnStmt
 
 
 @dataclass(kw_only=True)
@@ -607,13 +609,46 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         return value
 
-    # def match_block(self, parts):
-    #     debug('ast_builder', f'match_block: {parts}')
-    #     raise Exception('match_block')
+    def match_block(self, parts):
+        debug('ast_builder', f'match_block: {parts}')
+        return MatchBlock(
+            location=Location.FromToken(parts.pop(0), stream=self._stream),
+            variant_expr=parts.pop(0),
+            default_case=( # yapf: ignore
+                parts.pop(-1)
+                if parts and isinstance(parts[-1], DefaultBlock)
+                else None
+            ),
+            match_cases=parts,
+        )
 
-    # def match_case_block(self, parts):
-    #     debug('ast_builder', f'match_case_block: {parts}')
-    #     raise Exception('match_case_block')
+    def default_block(self, parts):
+        debug('ast_builder', f'match_case_block: {parts}')
+        return DefaultBlock(
+            location=Location.FromToken(parts[0], stream=self._stream),
+            code=parts[1]
+        )
+
+    def match_case_block(self, parts):
+        debug('ast_builder', f'match_case_block: {parts}')
+        case, var_name, var_type, code_block = parts
+        return MatchCaseBlock(
+            location=Location.FromToken(case, stream=self._stream),
+            variant_name=var_name.value,
+            variant_field_type_lookup_expr=VariantFieldTypeLookupExpr(
+                location=Location.FromToken(var_type, stream=self._stream),
+                name=var_type.value
+            ),
+            code=code_block,
+        )
+
+    def return_stmt(self, parts):
+        debug('ast_builder', f'match_case_block: {parts}')
+        return ReturnStmt(
+            location=Location.FromToken(parts[0], stream=self._stream),
+            expr=parts[1]
+        )
+        raise Exception('return_stmt')
 
     def runtime_lookup_expr(self, parts):
         debug('ast_builder', f'runtime_lookup_expr: {parts}')
