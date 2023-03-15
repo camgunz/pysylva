@@ -204,7 +204,7 @@ def build_complex_value(location, raw_value):
             location=location, type=C128, value=complex(raw_value[:-4])
         )
 
-    raise Exception(f'Malformed complex value {raw_value}')
+    raise ValueError(f'Malformed complex value {raw_value}')
 
 
 class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
@@ -648,7 +648,6 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
             location=Location.FromToken(parts[0], stream=self._stream),
             expr=parts[1]
         )
-        raise Exception('return_stmt')
 
     def runtime_lookup_expr(self, parts):
         debug('ast_builder', f'runtime_lookup_expr: {parts}')
@@ -721,10 +720,6 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         self._module.add_def(type_def)
 
         return type_def
-
-    def type_param(self, parts):
-        debug('ast_builder', f'type_param: {parts}')
-        raise Exception('type_param')
 
     def type_param_pair(self, parts):
         debug('ast_builder', f'type_param_pair: {parts}')
