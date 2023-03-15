@@ -459,6 +459,13 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         return const_def
 
+    def default_block(self, parts):
+        debug('ast_builder', f'match_case_block: {parts}')
+        return DefaultBlock(
+            location=Location.FromToken(parts[0], stream=self._stream),
+            code=parts[1]
+        )
+
     def function_type_def(self, parts):
         debug('ast_builder', f'function_type_def: {parts}')
         location = Location.FromToken(parts.pop(0), stream=self._stream)
@@ -620,13 +627,6 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
                 else None
             ),
             match_cases=parts,
-        )
-
-    def default_block(self, parts):
-        debug('ast_builder', f'match_case_block: {parts}')
-        return DefaultBlock(
-            location=Location.FromToken(parts[0], stream=self._stream),
-            code=parts[1]
         )
 
     def match_case_block(self, parts):
