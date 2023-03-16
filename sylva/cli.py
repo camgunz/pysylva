@@ -39,7 +39,8 @@ def parse(package_folder, deps_folder, stdlib, cpp, libclang):
             c_preprocessor=cpp,
             libclang=libclang
         )
-        print(program.parse().pretty() and '')
+        program.parse()
+        print(program.modules['main'])
     except errors.SylvaError as error:
         debug('main', traceback.format_exc())
         print(error.pformat())

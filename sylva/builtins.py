@@ -94,6 +94,14 @@ class SylvaDef(SylvaObject):
 
 
 @dataclass(kw_only=True)
+class Type(SylvaType):
+
+    @cached_property
+    def mname(self):
+        return '4type'
+
+
+@dataclass(kw_only=True)
 class BoolType(SylvaType):
 
     @cached_property
@@ -1068,6 +1076,7 @@ FN = FnType()
 RANGE = RangeType()
 RUNE = RuneType()
 STRUCT = StructType()
+TYPE = Type()
 VARIANT = VariantType()
 
 

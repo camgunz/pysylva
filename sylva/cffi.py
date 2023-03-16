@@ -4,6 +4,7 @@ from typing import Optional, TYPE_CHECKING, Tuple, Union
 from cdump import cdefs as CDefs  # type: ignore
 
 from sylva import errors
+from sylva.ast_builder import ASTBuilder
 from sylva.builtins import (
     BOOL,
     C16,
@@ -29,6 +30,7 @@ from sylva.builtins import (
     SylvaField,
     SylvaType,
     SylvaValue,
+    TYPE,
     TypeDef,
     TypeModifier,
     get_int_type,
@@ -37,7 +39,6 @@ from sylva.expr import LookupExpr
 from sylva.mod import Mod
 from sylva.package import CLibPackage
 from sylva.parser import Parser
-from sylva.type_ast_builder import TypeASTBuilder
 
 if TYPE_CHECKING:
     from sylva.program import Program
@@ -57,12 +58,7 @@ class CModuleLoader:
         name = name.replace(' ', '_')
 
         if existing := module.lookup(name):
-            if isinstance(value, Mod):
-                raise TypeError(
-                    'We only expect either a SylvaDef or TypeDef here'
-                )
-
-            if use_existing:
+            if not isinstance(value, Mod) and use_existing:
                 return (existing, False)  # type: ignore
 
             if isinstance(value, SylvaType) and value != existing:
@@ -70,12 +66,19 @@ class CModuleLoader:
                     name, type, existing
                 )
 
-            if isinstance(value, SylvaValue) and value.type != existing.type:
+            if (isinstance(value, SylvaValue) and
+                    isinstance(existing, SylvaValue) and
+                    value.type != existing.type):
                 raise errors.IncompatibleTypeDefRedefinition(
                     name, type, existing
                 )
 
-            return (existing, False)
+            if isinstance(value, Mod):
+                raise TypeError(
+                    'We only expect either a SylvaDef or TypeDef here'
+                )
+            else:
+                return (value, False)
 
         new_def: Union[SylvaDef, TypeDef] = (
             TypeDef(name=name, type=value) if isinstance(value, SylvaType) else
@@ -162,7 +165,9 @@ class CModuleLoader:
 
         if isinstance(cdef, CDefs.Reference):
             mod = TypeModifier.NoMod if cdef.is_const else TypeModifier.CMut
-            value = LookupExpr(name=cdef.target.replace(' ', '_')).eval(module)
+            value = LookupExpr(
+                name=cdef.target.replace(' ', '_'), type=TYPE
+            ).eval(module)
 
             if not isinstance(value, SylvaType):
                 raise Exception('We only expect a SylvaType here')
@@ -287,7 +292,7 @@ class CModuleLoader:
         type_expr_parser = Parser(start='_type_expr')
 
         for name, literal_expr_text in package.defs.items():
-            tree = TypeASTBuilder(
+            tree = ASTBuilder(
                 program=self.program, module=module
             ).transform(literal_expr_parser.parse(literal_expr_text))
             expr = tree.children[0]
@@ -299,7 +304,7 @@ class CModuleLoader:
             )
 
         for name, type_expr_text in package.type_defs.items():
-            tree = TypeASTBuilder(
+            tree = ASTBuilder(
                 program=self.program, module=module
             ).transform(type_expr_parser.parse(type_expr_text))
             type = tree.children[0]

@@ -24,13 +24,6 @@ class Expr(SylvaObject):
     location: Location = field(default_factory=Location.Generate)
     type: Optional[SylvaType] = None
 
-    def __post_init__(self):
-        if self.type is None:
-            debug(
-                'nonetype',
-                f'{type(self)} ({self.location.shorthand}): type is None'
-            )
-
     def eval(self, module):
         raise NotImplementedError()
 
@@ -38,15 +31,6 @@ class Expr(SylvaObject):
 @dataclass(kw_only=True)
 class LookupExpr(Expr):
     name: str
-
-    def __post_init__(self):
-        if self.type is None:
-            debug(
-                'nonetype',
-                f'{type(self)} {self.name} ({self.location.shorthand}): type is None'
-            )
-            if '.sy' in self.location.shorthand:
-                breakpoint()
 
     def eval(self, module: Mod) -> Union[Mod, SylvaType, SylvaValue]:
         val = module.lookup(self.name)

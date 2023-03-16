@@ -7,15 +7,15 @@ import lark
 from cdump.parser import Parser as CParser  # type: ignore
 
 from sylva import errors, sylva
+from sylva.ast_builder import ASTBuilder
+from sylva.mod import Mod
 from sylva.package_loader import PackageLoader
 from sylva.package import BasePackage, SylvaPackage, get_package_from_path
 from sylva.parser import Parser
-from sylva.runtime_ast_builder import RuntimeASTBuilder
 from sylva.scope_gatherer import ScopeGatherer
-from sylva.type_ast_builder import TypeASTBuilder
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, slots=True)
 class Program:
     package: SylvaPackage
     deps_folder: Path
@@ -23,6 +23,7 @@ class Program:
     c_preprocessor: Path
     libclang: Path
     c_parser: CParser = field(init=False)
+    modules: list[Mod] = field(default_factory=list)
 
     def __post_init__(self):
         if not isinstance(self.package, SylvaPackage):
@@ -50,20 +51,7 @@ class Program:
             (
                 module,
                 location,
-                TypeASTBuilder( # yapf: ignore
-                    program=self,
-                    module=module,
-                    location=location
-                ).transform(tree)
-            )
-            for module, location, tree in module_trees
-        ]
-
-        module_trees = [ # yapf: ignore
-            (
-                module,
-                location,
-                RuntimeASTBuilder(
+                ASTBuilder( # yapf: ignore
                     program=self,
                     module=module,
                     location=location
