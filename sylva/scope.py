@@ -6,8 +6,8 @@ from typing import Any
 class Scope:
     _scopes: list[dict] = field(default_factory=list)
 
-    def push(self, scope: dict):
-        self._scopes.append(scope)
+    def push(self):
+        self._scopes.append({})
 
     def pop(self):
         if not self._scopes:

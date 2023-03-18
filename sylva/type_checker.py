@@ -4,9 +4,20 @@ from typing import Optional
 
 from sylva import errors
 from sylva.builtins import (
-    CodeBlock, FnValue, MonoEnumType, SylvaDef, SylvaType, SylvaValue,
+    CodeBlock,
+    FnValue,
+    MonoCArrayType,
+    MonoCStructType,
+    MonoCUnionType,
+    MonoEnumType,
+    MonoStructType,
+    MonoVariantType,
+    SylvaDef,
+    SylvaType,
+    SylvaValue,
+    TypePlaceholder,
 )
-from sylva.expr import Expr
+from sylva.expr import Expr, LookupExpr
 from sylva.mod import Mod
 from sylva.scope import Scope
 from sylva.stmt import (
@@ -45,26 +56,10 @@ class TypeChecker:
         self.funcs.pop()
 
     @property
-    def func(self):
+    def current_func(self):
         if not self.funcs:
             raise Exception('Not within a function')
         return self.funcs[0]
-
-    def mod(self, module: Mod):
-        self.module = module
-        self.funcs = []
-        self.scopes = Scope()
-
-        for d in module.defs.values():
-            match d:
-                case SylvaDef():
-                    match d.value:
-                        case _:
-                            pass
-                case SylvaType():
-                    match d.type:
-                        case _:
-                            pass
 
     def define(self, name: str, type: SylvaType):
         self.scopes.define(name, type)
@@ -89,13 +84,11 @@ class TypeChecker:
             case SylvaType():
                 return val
 
-    def reset(self, module: Mod):
-        self.module = module
-
     def array_expr(self, array_expr):
         pass
 
     def assign_stmt(self, assign_stmt: AssignStmt):
+        # [TODO] Handle things like struct field assignment
         var_type = self.lookup(assign_stmt.name)
 
         if var_type is None:
@@ -111,6 +104,15 @@ class TypeChecker:
         # [TODO] Ensure expr's type isn't an aggregate value, requiring an
         #        aggregate deep copy
         # [TODO] Ensure var's type isn't an aggregate
+        pass
+
+    def c_array(self, c_array: MonoCArrayType):
+        pass
+
+    def c_struct(self, c_struct: MonoCStructType):
+        pass
+
+    def c_union(self, c_union: MonoCUnionType):
         pass
 
     def code_block(self, code_block: CodeBlock):
@@ -145,7 +147,13 @@ class TypeChecker:
         pass
 
     def expr(self, expr: Expr):
-        pass
+        match expr:
+            case LookupExpr():
+                val = self.lookup(expr.name)
+                if val is None:
+                    raise errors.UndefinedSymbol(expr.location, expr.name)
+                return val
+
 
     def fn(self, fn: FnValue):
         # [TODO] Keep track of references to values with type params so we can
@@ -180,13 +188,15 @@ class TypeChecker:
         match_block: MatchBlock,
         match_case_block: MatchCaseBlock
     ):
+        variant_type = self.expr(match_block.variant_expr)
+
         matching_variant_fields = [
-            f for f in match_block.variant_expr.type.fields # type: ignore
+            f for f in variant_type.fields # type: ignore
             if f.name == match_case_block.variant_field_type_lookup_expr.name
         ]
         if not matching_variant_fields:
             raise errors.NoSuchVariantField(
-                match_case_block.location,
+                match_case_block.variant_field_type_lookup_expr.location,
                 match_case_block.variant_name,
                 match_case_block.variant_field_type_lookup_expr.name,
             )
@@ -195,18 +205,64 @@ class TypeChecker:
 
         self.scopes.define(match_case_block.variant_name, variant_field.type)
 
+        self.code_block(match_case_block.code)
+
+    def mod(self, module: Mod):
+        self.module = module
+        self.funcs = []
+        self.scopes = Scope()
+
+        for d in module.defs.values():
+            match d:
+                case SylvaDef():
+                    match d.value:
+                        case FnValue():
+                            self.fn(d.value)
+                case SylvaType():
+                    match d.type:
+                        case MonoCArrayType():
+                            self.c_array(d.type)
+                        case MonoCStructType():
+                            self.c_struct(d.type)
+                        case MonoCUnionType():
+                            self.c_union(d.type)
+                        case MonoEnumType():
+                            self.enum(d.type)
+                        case MonoStructType():
+                            self.struct(d.type)
+                        case MonoVariantType():
+                            self.variant(d.type)
+
     def range_expr(self, range_expr):
         # [TODO] Check that the literal value is the right type and falls
         #        within the range
         pass
 
     def return_stmt(self, return_stmt: ReturnStmt):
-        if return_stmt.expr.type != self.func.type.return_type:
+        func = self.current_func
+        val = self.expr(return_stmt.expr)
+
+        if (isinstance(val, TypePlaceholder) and
+                isinstance(func.type.return_type, TypePlaceholder)):
+            if val.name != func.type.return_type.name:
+                raise errors.MismatchedReturnType(
+                    return_stmt.expr.location,
+                    val.name,
+                    func.type.return_type.name
+                )
+        elif val.type != func.type.return_type:
             raise errors.MismatchedReturnType(
                 return_stmt.expr.location,
                 return_stmt.expr.type,
-                self.func.type.return_type
+                func.type.return_type
             )
+
+    def struct(self, struct: MonoStructType):
+        pass
+
+    def variant(self, variant: MonoVariantType):
+        pass
+
     def struct_expr(self, struct_expr):
         pass
 

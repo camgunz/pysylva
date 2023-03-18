@@ -624,14 +624,13 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
     def type_param_pair(self, parts):
         debug('ast_builder', f'type_param_pair: {parts}')
         name = parts.pop(0)
-        type_param = parts.pop(0)
 
-        if isinstance(type_param, lark.Tree):
-            mod, rest = TypeModifier.separate_type_mod(type_param.children)
-            type = rest[0].eval(self._module)
-            type.mod = mod
-        else:
-            type = type_param
+        mod, rest = TypeModifier.separate_type_mod(parts)
+        type = rest[0]
+        type.mod = mod
+
+        # if name.value == 'self':
+        #     breakpoint()
 
         return SylvaField(
             location=Location.FromToken(name, stream=self._stream),
