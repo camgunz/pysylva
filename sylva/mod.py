@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Union
 
 from sylva import builtins, errors
@@ -21,8 +22,13 @@ class ModDecl(SylvaObject):
 
 @dataclass(kw_only=True, slots=True)
 class Mod:
+    class Type(Enum):
+        Sylva = 'sylva'
+        C = 'c'
+
     name: str
     package: BasePackage
+    type: Type = Type.Sylva
     locations: list[Location] = field(default_factory=list)
     requirements: dict[str, Req] = field(default_factory=dict)
     defs: dict[str, Union[SylvaDef, TypeDef]] = field(

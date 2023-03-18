@@ -287,7 +287,7 @@ class CModuleLoader:
         raise Exception(f'Unknown C definition: {cdef}')
 
     def load_package(self, package: CLibPackage):
-        module = Mod(package=package, name=package.name)
+        module = Mod(package=package, name=package.name, type=Mod.Type.C)
         literal_expr_parser = Parser(start='_literal_expr')
         type_expr_parser = Parser(start='_type_expr')
 

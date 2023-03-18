@@ -1,2 +1,1 @@
 MAIN_MODULE_NAME = 'main'
-BUILTIN_MODULE_NAME = 'builtin'

@@ -8,6 +8,7 @@ from cdump.parser import Parser as CParser  # type: ignore
 
 from sylva import errors, sylva
 from sylva.ast_builder import ASTBuilder
+from sylva.builtins import FnValue
 from sylva.mod import Mod
 from sylva.package_loader import PackageLoader
 from sylva.package import BasePackage, SylvaPackage, get_package_from_path
@@ -77,11 +78,19 @@ class Program:
 
     @property
     def is_executable(self):
-        return sylva.MAIN_MODULE_NAME in self.modules
+        return bool(self.main_func)
 
     @property
     def main_module(self):
         return self.get_module(sylva.MAIN_MODULE_NAME)
+
+    @property
+    def main_func(self):
+        if (main_module := self.main_module) is None:
+            return False
+        if (main := main_module.lookup('main')) is None:
+            return False
+        return main if isinstance(main, FnValue) else None
 
     @property
     def default_module(self):
