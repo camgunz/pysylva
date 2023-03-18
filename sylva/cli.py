@@ -40,7 +40,7 @@ def parse(package_folder, deps_folder, stdlib, cpp, libclang):
             libclang=libclang
         )
         program.parse()
-        print(program.modules['main'])
+        print(program.modules['main'].lookup('main'))
     except errors.SylvaError as error:
         debug('main', traceback.format_exc())
         print(error.pformat())
@@ -58,9 +58,7 @@ def compile(package_folder, deps_folder, stdlib, cpp, libclang, output_folder):
             c_preprocessor=cpp,
             libclang=libclang
         )
-        program_errors = program.compile(output_folder=output_folder)
-        for error in program_errors:
-            print(error.pformat(), end='\n\n')
+        program.compile(output_folder=output_folder)
     except errors.SylvaError as error:
         debug('main', traceback.format_exc())
         print(error.pformat())

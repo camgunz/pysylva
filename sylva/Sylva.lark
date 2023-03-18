@@ -12,6 +12,8 @@ COMPLEX: _FLOAT /("c16"|"c32"|"c64"|"c128")/
 RUNE: /'((~[\r\n])|(\\(([abfnrtv\\"'{])|(x[a-fA-F0-9][a-fA-F0-9])|(u[a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9])|(U[a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9]))))?'/
 STRING: /"(([^\r\n])|(\\(([abfnrtv\\"'{])|(x[a-fA-F0-9][a-fA-F0-9])|(u[a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9])|(U[a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9]))))*"/
 
+LBRACE:                   "{"
+RBRACE:                   "}"
 DOLLAR:                   "$"
 EQUAL:                    "="
 COLON:                    ":"
@@ -309,7 +311,7 @@ return_stmt: RETURN expr
 
 assign_stmt: expr _assign_op expr
 
-code_block: "{" (if_block
+code_block: LBRACE (if_block
                | switch_block
                | match_block
                | for_block
@@ -320,7 +322,7 @@ code_block: "{" (if_block
                | return_stmt
                | break_stmt
                | continue_stmt
-               | expr)* "}"
+               | expr)* RBRACE
 
 array_type_def: ARRAY VALUE array_type_literal_expr
 

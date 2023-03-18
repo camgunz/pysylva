@@ -1,14 +1,14 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-from sylva.code_block import CodeBlock
-from sylva.expr import Expr, VariantFieldTypeLookupExpr
-from sylva.builtins import SylvaObject
+from sylva.builtins import CodeBlock, SylvaObject
+from sylva.expr import BoolExpr, Expr, VariantFieldTypeLookupExpr
+from sylva.location import Location
 
 
 @dataclass(kw_only=True)
 class Stmt(SylvaObject):
-    pass
+    location: Location
 
 
 @dataclass(kw_only=True)
@@ -45,33 +45,35 @@ class ReturnStmt(Stmt):
 
 @dataclass(kw_only=True)
 class IfBlock(StmtBlock):
-    conditional_expr: Expr
+    conditional_expr: BoolExpr
     else_code: CodeBlock
 
 
 @dataclass(kw_only=True)
 class LoopBlock(StmtBlock):
-    pass
+    code: CodeBlock
 
 
 @dataclass(kw_only=True)
 class WhileBlock(StmtBlock):
-    conditional_expr: Expr
+    conditional_expr: BoolExpr
+    code: CodeBlock
 
 
 @dataclass(kw_only=True)
 class MatchCaseBlock(StmtBlock):
     variant_name: str
     variant_field_type_lookup_expr: VariantFieldTypeLookupExpr
+    code: CodeBlock
 
 
 @dataclass(kw_only=True)
 class DefaultBlock(StmtBlock):
-    pass
+    code: CodeBlock
 
 
 @dataclass(kw_only=True)
 class MatchBlock(Stmt):
-    variant_expr: Expr
+    variant_expr: Expr  # [TODO] Make VariantExpr once it exists
     match_cases: list[MatchCaseBlock] = field(default_factory=list)
     default_case: Optional[DefaultBlock] = None

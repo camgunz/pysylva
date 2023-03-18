@@ -13,6 +13,7 @@ from sylva.package_loader import PackageLoader
 from sylva.package import BasePackage, SylvaPackage, get_package_from_path
 from sylva.parser import Parser
 from sylva.scope_gatherer import ScopeGatherer
+from sylva.type_checker import TypeChecker
 
 
 @dataclass(kw_only=True, slots=True)
@@ -44,7 +45,7 @@ class Program:
             for location in module.locations
         ]
 
-        for module, location, tree in module_trees:
+        for _, __, tree in module_trees:
             scope_gatherer.visit_topdown(tree)
 
         module_trees = [ # yapf: ignore
@@ -62,8 +63,14 @@ class Program:
 
         return lark.Tree(data='Program', children=module_trees)
 
+    def type_check(self):
+        self.parse()
+        type_checker = TypeChecker()
+        for m in self.modules.values():
+            type_checker.mod(m)
+
     def compile(self, output_folder):
-        raise NotImplementedError
+        self.type_check()
 
     def get_module(self, name):
         return self.modules.get(name)

@@ -19,7 +19,7 @@ dev-install: venv ## Install dependencies
 
 .PHONY: test
 
-test: dev-install ## Test hello world example
+test: ## Test hello world example
 	@PYTHONPATH=. python -m sylva.cli \
 		hello \
 		--stdlib=./std \

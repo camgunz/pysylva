@@ -31,7 +31,7 @@ class Mod:
 
     def add_def(self, d: Union[SylvaDef, TypeDef]):
         if preexisting := builtins.lookup(d.name):
-            raise errors.RedefinedBuiltIn(d.location, d.name)
+            raise errors.RedefinedBuiltIn(d.location, d.name) # type: ignore
 
         if preexisting := self.defs.get(d.name):
             raise errors.DuplicateDefinition(
@@ -48,10 +48,13 @@ class Mod:
     def lookup(self, name) -> Union['Mod', SylvaValue, SylvaType]:
         res = self.defs.get(name)
         if res is not None:
-            if isinstance(res, SylvaDef):
-                return res.value
-            if isinstance(res, TypeDef):
-                return res.type
+            match res:
+                case SylvaDef():
+                    return res.value
+                case TypeDef():
+                    return res.type
+                case _:
+                    breakpoint()
 
         if req := self.requirements.get(name):
             return req.module

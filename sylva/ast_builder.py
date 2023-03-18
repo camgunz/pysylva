@@ -20,6 +20,7 @@ from sylva.builtins import (  # noqa: F401
     CBitFieldValue,
     CFN,
     CFnValue,
+    CodeBlock,
     CPTR,
     CPtrValue,
     CSTR,
@@ -80,7 +81,6 @@ from sylva.builtins import (  # noqa: F401
     VariantValue,
     get_int_type,
 )
-from sylva.code_block import CodeBlock
 from sylva.expr import (
     AttributeLookupExpr,
     CallExpr,
@@ -333,7 +333,10 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
     def code_block(self, parts):
         debug('ast_builder', f'code_block: {parts}')
-        return CodeBlock(code=parts)
+        return CodeBlock(
+            location=Location.FromToken(parts[0], stream=self._stream),
+            code=parts[1:-1]
+        )
 
     def const_def(self, parts):
         debug('ast_builder', f'const_def: {parts}')

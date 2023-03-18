@@ -16,7 +16,7 @@ class EOF(SylvaError):
 
 class LocationError(SylvaError):
 
-    def __init__(self, location, message):
+    def __init__(self, location: Location, message):
         self.location = location
         SylvaError.__init__(self, message)
 
@@ -32,7 +32,7 @@ class LocationError(SylvaError):
 
 class UnexpectedToken(LocationError):
 
-    def __init__(self, location, token, expected_tokens):
+    def __init__(self, location: Location, token, expected_tokens):
         token = f"'{token}'" if token == '"' else f'"{token}"'
         expected_tokens = strlist(expected_tokens)
         LocationError.__init__(
@@ -44,7 +44,7 @@ class UnexpectedToken(LocationError):
 
 class UnexpectedCharacter(LocationError):
 
-    def __init__(self, location, char, allowed_chars):
+    def __init__(self, location: Location, char, allowed_chars):
         char = f"'{char}'" if char == '"' else f'"{char}"'
         allowed_chars = strlist(allowed_chars)
         LocationError.__init__(
@@ -68,13 +68,13 @@ class LiteralParseFailure(LocationError):
 
 class UndefinedSymbol(LocationError):
 
-    def __init__(self, location, name):
+    def __init__(self, location: Location, name):
         LocationError.__init__(self, location, f'Undefined symbol {name}')
 
 
 class NoSuchAttribute(LocationError):
 
-    def __init__(self, location, name):
+    def __init__(self, location: Location, name):
         LocationError.__init__(self, location, f'No such field {name}')
 
 
@@ -90,7 +90,7 @@ class DuplicateDefinition(LocationError):
 
 class RedefinedBuiltIn(LocationError):
 
-    def __init__(self, location, name):
+    def __init__(self, location: Location, name):
         LocationError.__init__(
             self, location, f'Cannot redefine builtin "{name}"'
         )
@@ -130,7 +130,7 @@ class CyclicRequirements(SylvaError):
 
 class NoSuchModule(LocationError):
 
-    def __init__(self, location, module_name):
+    def __init__(self, location: Location, module_name):
         LocationError.__init__(self, location, f'No such module {module_name}')
 
 
@@ -162,7 +162,7 @@ class DuplicateEnumFields(LocationError):
 
 class EmptyEnum(LocationError):
 
-    def __init__(self, location):
+    def __init__(self, location: Location):
         LocationError.__init__(self, location, 'Enum has no fields')
 
 
@@ -176,7 +176,7 @@ class InconsistentEnumMemberTypes(LocationError):
 
 class MismatchedRangeTypes(LocationError):
 
-    def __init__(self, location, min_type, max_type):
+    def __init__(self, location: Location, min_type, max_type):
         LocationError.__init__(
             self, location, f'Mismatched range types: {min_type} {max_type}'
         )
@@ -184,7 +184,7 @@ class MismatchedRangeTypes(LocationError):
 
 class InvalidRangeValue(LocationError):
 
-    def __init__(self, location, value, min, max):
+    def __init__(self, location: Location, value, min, max):
         LocationError.__init__(
             self,
             location,
@@ -194,7 +194,7 @@ class InvalidRangeValue(LocationError):
 
 class InconsistentElementType(LocationError):
 
-    def __init__(self, location, type):
+    def __init__(self, location: Location, type):
         LocationError.__init__(
             self, location, f'Unexpected element type: expected {type}'
         )
@@ -202,7 +202,7 @@ class InconsistentElementType(LocationError):
 
 class MismatchedTypeParams(LocationError):
 
-    def __init__(self, location, type_params):
+    def __init__(self, location: Location, type_params):
         LocationError.__init__(
             self,
             location,
@@ -231,13 +231,13 @@ class DuplicateParameters(LocationError):
 
 class UnsizedCArray(LocationError):
 
-    def __init__(self, location):
+    def __init__(self, location: Location):
         LocationError.__init__(self, location, 'Missing size in carray')
 
 
 class InvalidArraySize(LocationError):
 
-    def __init__(self, location):
+    def __init__(self, location: Location):
         LocationError.__init__(
             self, location, 'Array element counts must be greater than zero'
         )
@@ -245,7 +245,7 @@ class InvalidArraySize(LocationError):
 
 class ImpossibleLookup(LocationError):
 
-    def __init__(self, location):
+    def __init__(self, location: Location):
         LocationError.__init__(
             self, location, 'Cannot lookup attributes in this object'
         )
@@ -253,13 +253,13 @@ class ImpossibleLookup(LocationError):
 
 class ImpossibleReflection(LocationError):
 
-    def __init__(self, location):
+    def __init__(self, location: Location):
         LocationError.__init__(self, location, 'Cannot reflect on this object')
 
 
 class ImpossibleCompileTimeEvaluation(LocationError):
 
-    def __init__(self, location):
+    def __init__(self, location: Location):
         LocationError.__init__(
             self, location, 'Cannot evaluate expression at compile time'
         )
@@ -267,31 +267,31 @@ class ImpossibleCompileTimeEvaluation(LocationError):
 
 class IndexOutOfBounds(LocationError):
 
-    def __init__(self, location):
+    def __init__(self, location: Location):
         LocationError.__init__(self, location, 'Index out of bounds')
 
 
 class NoSuchField(LocationError):
 
-    def __init__(self, location, field_name):
+    def __init__(self, location: Location, field_name):
         LocationError.__init__(self, location, f'No such field {field_name}')
 
 
 class InvalidParameterization(LocationError):
 
-    def __init__(self, location, msg):
+    def __init__(self, location: Location, msg):
         LocationError.__init__(self, location, msg)
 
 
 class InvalidRuneValue(LocationError):
 
-    def __init__(self, location, msg):
+    def __init__(self, location: Location, msg):
         LocationError.__init__(self, location, msg)
 
 
 class CBitFieldSizeExceeded(LocationError):
 
-    def __init__(self, location, value, field_size):
+    def __init__(self, location: Location, value, field_size):
         LocationError.__init__(
             self,
             location,
@@ -305,7 +305,7 @@ class CBitFieldSizeExceeded(LocationError):
 
 class IntSizeExceeded(LocationError):
 
-    def __init__(self, location, value, field_size):
+    def __init__(self, location: Location, value, field_size):
         LocationError.__init__(
             self,
             location,
@@ -319,7 +319,7 @@ class IntSizeExceeded(LocationError):
 
 class NoSuchUnaryOperator(LocationError):
 
-    def __init__(self, location, op):
+    def __init__(self, location: Location, op):
         LocationError.__init__(self, location, f'No such unary operator {op}')
 
 
@@ -366,4 +366,33 @@ class IncompatibleTypeDefRedefinition(SylvaError):
             self,
             f'Redefinition of {name} is incompatible with initial definition '
             f'at {existing_type.location}: {new_type} != {existing_type}'
+        )
+
+
+class MismatchedReturnType(LocationError):
+
+    def __init__(self, location: Location, type, expected_type):
+        LocationError.__init__(
+            self,
+            location,
+            f"Return type {type} does not match function's return type "
+            f'{expected_type}'
+        )
+
+
+class MismatchedVariableType(LocationError):
+
+    def __init__(self, location: Location, type, expected_type):
+        LocationError.__init__(
+            self,
+            location,
+            f"Value type {type} does not match variable's type {expected_type}"
+        )
+
+
+class NoSuchVariantField(LocationError):
+
+    def __init__(self, location: Location, variant_name: str, name: str):
+        LocationError.__init__(
+            self, location, f'Variant {variant_name} has no such field {name}'
         )

@@ -3,12 +3,16 @@ import itertools
 
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Any, Literal, Optional, Tuple, Union
+from typing import Any, Literal, Optional, TYPE_CHECKING, Tuple, Union
 
 import lark
 
 from sylva import _SIZE_SIZE, debug, errors, utils
 from sylva.location import Location
+
+if TYPE_CHECKING:
+    from sylva.expr import Expr
+    from sylva.stmt import Stmt
 
 
 class TypeModifier(enum.Enum):
@@ -424,8 +428,15 @@ class CBlockFnType(SylvaType):
 
 
 @dataclass(kw_only=True)
+class CodeBlock(SylvaObject):
+    location: Location
+    code: list[Union['Expr', 'Stmt']] = field(default_factory=list)
+
+
+@dataclass(kw_only=True)
 class FnValue(SylvaValue):
     type: MonoFnType
+    value: CodeBlock
 
 
 @dataclass(kw_only=True)

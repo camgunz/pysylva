@@ -4,6 +4,7 @@ from typing import Any, Optional, Union
 from sylva import debug, errors, utils
 from sylva.location import Location
 from sylva.builtins import (
+    BoolType,
     CPtrType,
     CVoidType,
     ComplexType,
@@ -23,6 +24,10 @@ from sylva.operator import Operator
 class Expr(SylvaObject):
     location: Location = field(default_factory=Location.Generate)
     type: Optional[SylvaType] = None
+
+    def __post_init__(self):
+        if type is None:
+            debug('nonetype', f'[{self.location.shorthand}] {type(self)}')
 
     def eval(self, module):
         raise NotImplementedError()
@@ -76,6 +81,11 @@ class AttributeLookupExpr(Expr):
 
 
 @dataclass(kw_only=True)
+class BoolExpr(Expr):
+    type: BoolType
+
+
+@dataclass(kw_only=True)
 class CallExpr(Expr):
     function: Expr
     arguments: list[Expr]
@@ -98,14 +108,14 @@ class ComplexExpr(Expr):
 
 
 @dataclass(kw_only=True)
-class CVoidExpr(Expr):
-    type: CVoidType
+class CPtrExpr(Expr):
+    type: CPtrType
     expr: Expr
 
 
 @dataclass(kw_only=True)
-class CPtrExpr(Expr):
-    type: CPtrType
+class CVoidExpr(Expr):
+    type: CVoidType
     expr: Expr
 
 
