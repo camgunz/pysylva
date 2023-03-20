@@ -257,6 +257,12 @@ class EnumValue(SylvaValue):
 
 
 @dataclass(kw_only=True)
+class CodeBlock(SylvaObject):
+    location: Location
+    code: list[Union['Expr', 'Stmt']] = field(default_factory=list)
+
+
+@dataclass(kw_only=True)
 class MonoFnType(SylvaType):
     parameters: list[SylvaField] = field(default_factory=list)
     return_type: Optional[SylvaType]
@@ -428,12 +434,6 @@ class CBlockFnType(SylvaType):
 
 
 @dataclass(kw_only=True)
-class CodeBlock(SylvaObject):
-    location: Location
-    code: list[Union['Expr', 'Stmt']] = field(default_factory=list)
-
-
-@dataclass(kw_only=True)
 class FnValue(SylvaValue):
     type: MonoFnType
     value: CodeBlock
@@ -459,7 +459,7 @@ class RuneValue(SylvaType):
 
     def __post_init__(self):
         if len(self.value) > 1:
-            raise errors.InvalidRuneValue('Runes must have len <= 1')
+            raise errors.invalidRuneValue('Runes must have len <= 1')
 
 
 @dataclass(kw_only=True)
@@ -546,6 +546,10 @@ class IntType(SizedNumericType):
 @dataclass(kw_only=True)
 class IntValue(SylvaValue):
     type: IntType
+
+    def __post_init__(self):
+        if utils.bits_required_for_int(self.value) > self.type.bits:
+            raise errors.IntSizeExceeded(self.location, self.value)
 
     @classmethod
     def FromString(cls, location: Location, strval: str):
@@ -1268,10 +1272,39 @@ def get_int_type(bits: Optional[int], signed: bool) -> IntType:
     )
 
 
+def get_int_type_for_value(value: int, signed=True):
+    return get_int_type(bits=utils.smallest_uint(value), signed=signed)
+
+
+def parse_float_value( # yapf: ignore
+    strval: str,
+    location: Optional[Location] = None,
+) -> Optional[Tuple[FloatType, float]]:
+    location = location if location else Location.Generate()
+    try:
+        ret = ( # yapf: ignore
+            (F16,  float(strval[:-3])) if strval.endswith('16')  else
+            (F32,  float(strval[:-3])) if strval.endswith('32')  else
+            (F64,  float(strval[:-3])) if strval.endswith('64')  else
+            (F128, float(strval[:-4])) if strval.endswith('128') else
+            None
+        )
+    except ValueError as e:
+        raise errors.LiteralParseFailure(
+            location, 'float', strval, str(e)
+        ) from None
+
+    if ret is None:
+        raise errors.LiteralParseFailure(location, 'float', strval)
+
+    return ret
+
+
 def parse_int_value( # yapf: ignore
     strval: str,
     location: Optional[Location] = None,
 ) -> Tuple[IntType, int]:
+    location = location if location else Location.Generate()
     base = get_int_base(strval)
     signed = (
         strval.endswith('i') or strval.endswith('i8') or
@@ -1281,17 +1314,19 @@ def parse_int_value( # yapf: ignore
     try:
         int_type = get_int_type(
             bits=( # yapf: ignore
+                128 if strval.endswith('128') else
                 8 if strval.endswith('8') else
                 16 if strval.endswith('16') else
                 32 if strval.endswith('32') else
                 64 if strval.endswith('64') else
-                128 if strval.endswith('128') else
                 None
             ),
             signed=signed
         )
     except ValueError as e:
-        raise errors.LiteralParseFailure(location, 'int', str(e)) from None
+        raise errors.LiteralParseFailure(
+            location, 'int', strval, str(e)
+        ) from None
 
     value = ( # yapf: ignore
         int(strval[:-1], base=base) if strval.endswith('i') else

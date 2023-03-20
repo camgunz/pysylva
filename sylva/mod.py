@@ -59,8 +59,6 @@ class Mod:
                     return res.value
                 case TypeDef():
                     return res.type
-                case _:
-                    breakpoint()
 
         if req := self.requirements.get(name):
             return req.module

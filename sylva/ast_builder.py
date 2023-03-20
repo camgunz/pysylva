@@ -575,19 +575,10 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
     def string_literal_expr(self, parts):
         debug('ast_builder', f'string_literal_expr: {parts}')
-        str_token = parts[0]
-        location = Location.FromToken(str_token, stream=self._stream)
 
-        return StrLiteralExpr(
-            location=location,
-            value=str_token.value[1:-1],
-            type=STR.build_type(
-                location=location,
-                element_count=IntValue(
-                    type=get_int_type(bits=None, signed=False),
-                    value=len(str_token.value) - 2
-                )
-            )
+        return StrLiteralExpr.FromString(
+            location=Location.FromToken(parts[0], stream=self._stream),
+            strval=parts[0].value[1:-1]
         )
 
     def string_expr(self, parts):

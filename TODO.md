@@ -8,6 +8,10 @@
 
 ## Generics, Functions, Interfaces, Structs, Variants, etc.
 
+- Analyze all `CallExpr`s to build monomorphized functions
+
+## Misc
+
 - We will not monomorphize functions based on interfaces as an optimization
   - Weird property access and reflection (e.g. unclear what `::bytes` returns,
     etc.)
@@ -65,7 +69,6 @@ fn print(s: $str_type) {
 
 What are interfaces good for?
 
-
 Interfaces are nice as contracts. Here we definitely know what a `String` is,
 and the compiler can use that as the constraints on anything calling `print`:
 gotta implement `String`. Otherwise we have to read `print` and know that
@@ -117,15 +120,18 @@ OK. My feelings are:
 Wins:
 - (if) heterogeneous collections
   - What's the difference here between an interface and a variant?
-    - a variant can't be extended
-- (if) (potentially) facilitating dynamic dispatch
-  - This feels like a compile-time option, not a program logic option
+    - An interface requires a deref 
+    - A variant requires a tag
+    - Anything can implement an interface
+      - scalar (int, rune)
+      - struct
+      - variant
+- (if) facilitating dynamic dispatch
 - (fp) not naming everything
 - (fp) facilitating property access
-  - This is barely a win, most of the time it won't work
 
 So, it looks like this is mostly all in favor of parameteric polymorphization
-in functions, and trying to make `<>` work.
+in functions.
 
 Combined with inference though, I think the only place you'd need `<>` in code
 is when you're assigning things statically.
@@ -136,6 +142,25 @@ you're binding within them.
 
 There _is_ a reason to support parameterized function literals: you're
 assigning function pointers. You can bind new function types.
+
+## Explicitly monomorphize w/ `typedef`
+
+```sylva
+variant Result {
+    OK: $ok,
+    Fail: $fail
+}
+
+typedef StrErrResult: Result($ok, String)
+```
+
+```sylva
+fn gen_add(x: $num_type, y: $num_type): $num_type {
+    return x + y
+}
+
+typedef int_add: gen_add($num_type: int)
+```
 
 ## Sized types
 

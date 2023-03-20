@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 
 from sylva.location import Location
 from sylva.utils import bits_required_for_int, strlist
@@ -56,13 +57,18 @@ class UnexpectedCharacter(LocationError):
 
 class LiteralParseFailure(LocationError):
 
-    def __init__(self, literal_type, token, message=None):
-        name = literal_type.__name__
+    def __init__(
+        self,
+        location: Location,
+        literal_type: str,
+        strval: str,
+        message: Optional[str] = None
+    ):
         message = f': {message}' if message else ''
         LocationError.__init__(
             self,
-            token.location,
-            f'Unable to parse {token.value} as {name}: {message}'
+            location,
+            f'Unable to parse {strval} as {literal_type}{message}'
         )
 
 

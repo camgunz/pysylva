@@ -4,16 +4,23 @@ from typing import Any, Optional, Union
 from sylva import debug, errors, utils
 from sylva.location import Location
 from sylva.builtins import (
+    BOOL,
     BoolType,
     CPtrType,
     CVoidType,
     ComplexType,
     FloatType,
     IntType,
-    StrType,
+    IntValue,
+    MonoStrType,
+    RUNE,
+    RuneType,
+    STR,
+    StringType,
     SylvaObject,
     SylvaType,
     SylvaValue,
+    get_int_type_for_value,
     parse_int_value,
 )
 from sylva.mod import Mod
@@ -81,11 +88,6 @@ class AttributeLookupExpr(Expr):
 
 
 @dataclass(kw_only=True)
-class BoolExpr(Expr):
-    type: BoolType
-
-
-@dataclass(kw_only=True)
 class CallExpr(Expr):
     function: Expr
     arguments: list[Expr]
@@ -93,8 +95,18 @@ class CallExpr(Expr):
 
 
 @dataclass(kw_only=True)
-class IntExpr(Expr):
-    type: IntType
+class BoolExpr(Expr):
+    type: BoolType
+
+
+@dataclass(kw_only=True)
+class RuneExpr(Expr):
+    type: RuneType
+
+
+@dataclass(kw_only=True)
+class ComplexExpr(Expr):
+    type: ComplexType
 
 
 @dataclass(kw_only=True)
@@ -103,8 +115,18 @@ class FloatExpr(Expr):
 
 
 @dataclass(kw_only=True)
-class ComplexExpr(Expr):
-    type: ComplexType
+class IntExpr(Expr):
+    type: IntType
+
+
+@dataclass(kw_only=True)
+class StrExpr(Expr):
+    type: MonoStrType
+
+
+@dataclass(kw_only=True)
+class StringExpr(Expr):
+    type: StringType
 
 
 @dataclass(kw_only=True)
@@ -120,6 +142,55 @@ class CVoidExpr(Expr):
 
 
 @dataclass(kw_only=True)
+class BoolLiteralExpr(LiteralExpr):
+    type: BoolType
+    value: bool
+
+    @classmethod
+    def FromString(cls, location: Location, strval: str):
+        return cls(location=location, type=BOOL, value=strval == 'true')
+
+
+@dataclass(kw_only=True)
+class RuneLiteralExpr(LiteralExpr):
+    type: RuneType
+    value: str
+
+    def __post_init__(self):
+        LiteralExpr.__post_init__(self)
+        if len(self.value) > 1:
+            raise errors.invalidRuneValue('Runes must have len <= 1')
+
+    @classmethod
+    def FromString(cls, location: Location, strval: str):
+        return cls(location=location, type=RUNE, value=strval)
+
+
+# @dataclass(kw_only=True)
+# class ComplexLiteralExpr(LiteralExpr):
+#     type: ComplexType
+#     value: complex
+#
+#     @classmethod
+#     def FromString(cls, location: Location, strval: str):
+#         # [TODO] Parse complex type literal
+#         int_type, value = parse_int_value(location=location, strval=strval)
+#         return cls(location=location, type=COMPLEX, value=value)
+
+
+@dataclass(kw_only=True)
+class FloatLiteralExpr(LiteralExpr):
+    type: FloatType
+    value: float
+
+    @classmethod
+    def FromString(cls, location: Location, strval: str):
+        # [TODO] Parse float type literal
+        int_type, value = parse_float_value(location=location, strval=strval)
+        return cls(location=location, type=int_type, value=value)
+
+
+@dataclass(kw_only=True)
 class IntLiteralExpr(LiteralExpr):
     type: IntType
     value: int
@@ -127,7 +198,7 @@ class IntLiteralExpr(LiteralExpr):
     def __post_init__(self):
         LiteralExpr.__post_init__(self)
         if utils.bits_required_for_int(self.value) > self.type.bits:
-            raise errors.IntSizeExceeded(self.value)
+            raise errors.IntSizeExceeded(self.location, self.value)
 
     @classmethod
     def FromString(cls, location: Location, strval: str):
@@ -137,12 +208,22 @@ class IntLiteralExpr(LiteralExpr):
 
 @dataclass(kw_only=True)
 class StrLiteralExpr(LiteralExpr):
-    type: StrType
+    type: MonoStrType
     value: bytes
 
-    def __post_init__(self):
-        LiteralExpr.__post_init__(self)
-        self.value = self.value.encode('utf-8')
+    @classmethod
+    def FromString(cls, location: Location, strval: str):
+        return cls(
+            location=location,
+            type=STR.build_type( # type: ignore
+                location=location,
+                element_count=IntValue(
+                    type=get_int_type_for_value(len(strval), signed=False),
+                    value=len(strval)
+                )
+            ),
+            value=strval.encode('utf-8')
+        )
 
 
 @dataclass(kw_only=True)
