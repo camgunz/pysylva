@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from functools import cache, cached_property
-from typing import Optional, Union
 
 from sylva import errors, utils
 from sylva.expr import LiteralExpr

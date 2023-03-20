@@ -1,15 +1,14 @@
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 from sylva.stream import Stream
 
 
 @dataclass(slots=True, frozen=True)
 class Location:
-    stream: Optional[Stream] = field(default=None)
-    index: int = field(default=0)
-    line: int = field(default=1)
-    column: int = field(default=1)
+    stream: Stream | None = None
+    index: int = 0
+    line: int = 1
+    column: int = 1
 
     @classmethod
     def FromToken(cls, token, stream=None):

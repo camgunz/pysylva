@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 from sylva.location import Location
 from sylva.utils import bits_required_for_int, strlist
@@ -62,7 +61,7 @@ class LiteralParseFailure(LocationError):
         location: Location,
         literal_type: str,
         strval: str,
-        message: Optional[str] = None
+        message: str | None = None
     ):
         message = f': {message}' if message else ''
         LocationError.__init__(

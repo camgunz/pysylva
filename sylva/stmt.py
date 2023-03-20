@@ -1,8 +1,14 @@
 from dataclasses import dataclass, field
-from typing import Optional
 
 from sylva.builtins import CodeBlock, SylvaObject
-from sylva.expr import BoolExpr, Expr, VariantFieldTypeLookupExpr
+from sylva.expr import (
+    BoolExpr,
+    CallExpr,
+    Expr,
+    IndexExpr,
+    LookupExpr,
+    VariantFieldTypeLookupExpr,
+)
 from sylva.location import Location
 
 
@@ -74,6 +80,7 @@ class DefaultBlock(StmtBlock):
 
 @dataclass(kw_only=True)
 class MatchBlock(Stmt):
-    variant_expr: Expr  # [TODO] Make VariantExpr once it exists
+    # [TODO] Make VariantExpr once it exists
+    variant_expr: CallExpr | IndexExpr | LookupExpr
     match_cases: list[MatchCaseBlock] = field(default_factory=list)
-    default_case: Optional[DefaultBlock] = None
+    default_case: DefaultBlock | None = None

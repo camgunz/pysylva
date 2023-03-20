@@ -4,7 +4,7 @@ from dataclasses import field
 from enum import Enum
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic.dataclasses import dataclass
 from semver import VersionInfo  # type: ignore
@@ -220,8 +220,8 @@ class Target:
 class Dependency:
     name: str
     location: str
-    min_version: Optional[str] = None
-    max_version: Optional[str] = None
+    min_version: str | None = None
+    max_version: str | None = None
 
 
 @dataclass(kw_only=True, frozen=True)

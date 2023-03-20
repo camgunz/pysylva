@@ -1,7 +1,6 @@
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from io import StringIO
-from typing import Optional
 
 from sylva import errors
 from sylva.builtins import (

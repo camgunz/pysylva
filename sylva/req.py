@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sylva.mod import Mod
@@ -12,4 +12,4 @@ class Req:
     location: Location
     name: str
     module: 'Mod'
-    bound_name: Optional[str] = None
+    bound_name: str | None = None

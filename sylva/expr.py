@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Optional, Union
+from typing import Any
 
 from sylva import debug, errors, utils
 from sylva.location import Location
@@ -13,6 +13,7 @@ from sylva.builtins import (
     IntType,
     IntValue,
     MonoStrType,
+    MonoVariantType,
     RUNE,
     RuneType,
     STR,
@@ -22,6 +23,7 @@ from sylva.builtins import (
     SylvaValue,
     get_int_type_for_value,
     parse_int_value,
+    parse_float_value,
 )
 from sylva.mod import Mod
 from sylva.operator import Operator
@@ -30,7 +32,7 @@ from sylva.operator import Operator
 @dataclass(kw_only=True)
 class Expr(SylvaObject):
     location: Location = field(default_factory=Location.Generate)
-    type: Optional[SylvaType] = None
+    type: SylvaType | None = None
 
     def __post_init__(self):
         if type is None:
@@ -44,7 +46,7 @@ class Expr(SylvaObject):
 class LookupExpr(Expr):
     name: str
 
-    def eval(self, module: Mod) -> Union[Mod, SylvaType, SylvaValue]:
+    def eval(self, module: Mod) -> Mod | SylvaType | SylvaValue:
         val = module.lookup(self.name)
         if val is None:
             raise errors.UndefinedSymbol(self.location, self.name)
@@ -95,6 +97,12 @@ class CallExpr(Expr):
 
 
 @dataclass(kw_only=True)
+class IndexExpr(Expr):
+    obj: Expr
+    index_expr: Expr
+
+
+@dataclass(kw_only=True)
 class BoolExpr(Expr):
     type: BoolType
 
@@ -142,6 +150,12 @@ class CVoidExpr(Expr):
 
 
 @dataclass(kw_only=True)
+class VariantExpr(Expr):
+    type: MonoVariantType
+    expr: CallExpr | IndexExpr | LookupExpr
+
+
+@dataclass(kw_only=True)
 class BoolLiteralExpr(LiteralExpr):
     type: BoolType
     value: bool
@@ -166,16 +180,16 @@ class RuneLiteralExpr(LiteralExpr):
         return cls(location=location, type=RUNE, value=strval)
 
 
-# @dataclass(kw_only=True)
-# class ComplexLiteralExpr(LiteralExpr):
-#     type: ComplexType
-#     value: complex
-#
-#     @classmethod
-#     def FromString(cls, location: Location, strval: str):
-#         # [TODO] Parse complex type literal
-#         int_type, value = parse_int_value(location=location, strval=strval)
-#         return cls(location=location, type=COMPLEX, value=value)
+@dataclass(kw_only=True)
+class ComplexLiteralExpr(LiteralExpr):
+    type: ComplexType
+    value: complex
+
+    # @classmethod
+    # def FromString(cls, location: Location, strval: str):
+    #     # [TODO] Parse complex type literal
+    #     int_type, value = parse_int_value(location=location, strval=strval)
+    #     return cls(location=location, type=COMPLEX, value=value)
 
 
 @dataclass(kw_only=True)
@@ -218,6 +232,7 @@ class StrLiteralExpr(LiteralExpr):
             type=STR.build_type( # type: ignore
                 location=location,
                 element_count=IntValue(
+                    location=location,
                     type=get_int_type_for_value(len(strval), signed=False),
                     value=len(strval)
                 )

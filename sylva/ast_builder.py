@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 import lark
 
@@ -101,7 +100,7 @@ from sylva.stmt import DefaultBlock, MatchBlock, MatchCaseBlock, ReturnStmt
 class UndefinedSymbol:
     location: Location
     name: str
-    type: Optional[SylvaType] = None
+    type: SylvaType | None
 
 
 class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):

@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import lark
 
@@ -15,6 +14,7 @@ from sylva.package import BasePackage, SylvaPackage, get_package_from_path
 from sylva.parser import Parser
 from sylva.scope_gatherer import ScopeGatherer
 from sylva.type_checker import TypeChecker
+from sylva.walker import Walker
 
 
 @dataclass(kw_only=True, slots=True)
@@ -66,9 +66,9 @@ class Program:
 
     def type_check(self):
         self.parse()
-        type_checker = TypeChecker()
+        type_checker = Walker(actions=TypeChecker())
         for m in self.modules.values():
-            type_checker.mod(m)
+            type_checker.call_action('mod', m, [])
 
     def compile(self, output_folder):
         self.type_check()
@@ -96,7 +96,7 @@ class Program:
     def default_module(self):
         return self.main_module
 
-    def get_package(self, req_name) -> Optional[BasePackage]:
+    def get_package(self, req_name) -> BasePackage | None:
         package_name = req_name.split('.')[0]
         path = ( # yapf: ignore
             self.stdlib if package_name == 'std'

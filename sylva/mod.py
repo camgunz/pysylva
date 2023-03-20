@@ -31,11 +31,11 @@ class Mod:
     type: Type = Type.Sylva
     locations: list[Location] = field(default_factory=list)
     requirements: dict[str, Req] = field(default_factory=dict)
-    defs: dict[str, Union[SylvaDef, TypeDef]] = field(
+    defs: dict[str, SylvaDef | TypeDef] = field(
         init=False, default_factory=dict
     )
 
-    def add_def(self, d: Union[SylvaDef, TypeDef]):
+    def add_def(self, d: SylvaDef |  TypeDef):
         if preexisting := builtins.lookup(d.name):
             raise errors.RedefinedBuiltIn(d.location, d.name) # type: ignore
 

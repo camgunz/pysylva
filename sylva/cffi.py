@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, TYPE_CHECKING, Tuple, Union
+from typing import TYPE_CHECKING, Tuple
 
 from cdump import cdefs as CDefs  # type: ignore
 
@@ -52,9 +52,9 @@ class CModuleLoader:
     def add_def(
         module: Mod,
         name: str,
-        value: Union[SylvaType, SylvaValue],
-        use_existing: Optional[bool] = False
-    ) -> Tuple[Union[SylvaType, SylvaValue], bool]:
+        value: SylvaType | SylvaValue,
+        use_existing: bool = False
+    ) -> Tuple[SylvaType | SylvaValue, bool]:
         name = name.replace(' ', '_')
 
         if existing := module.lookup(name):
@@ -80,7 +80,7 @@ class CModuleLoader:
             else:
                 return (value, False)
 
-        new_def: Union[SylvaDef, TypeDef] = (
+        new_def: SylvaDef | TypeDef = (
             TypeDef(name=name, type=value) if isinstance(value, SylvaType) else
             SylvaDef(name=name, value=value)
         )
@@ -93,9 +93,13 @@ class CModuleLoader:
         if isinstance(cdef, CDefs.Array):
             carray_type = (
                 CPTR.build_type(
+                    location=None,
                     referenced_type=self
-                    ._process_cdef(module, cdef.element_type)
+                    ._process_cdef(  # yapf: ignore
+                        module, cdef.element_type
+                    )
                 ) if cdef.element_count is None else CARRAY.build_type(
+                    location=None,
                     element_type=self._process_cdef(module, cdef.element_type),
                     element_count=IntValue(
                         type=get_int_type(bits=None, signed=False),
@@ -110,6 +114,7 @@ class CModuleLoader:
 
         if isinstance(cdef, CDefs.Enum):
             enum_type = ENUM.build_type(
+                location=None,
                 values={ # yapf: ignore
                     name: SylvaValue(
                         # [NOTE] This should always be some kind of integer
@@ -159,6 +164,7 @@ class CModuleLoader:
 
         if isinstance(cdef, CDefs.Pointer):
             return CPTR.build_type(
+                location=None,
                 mod=TypeModifier.NoMod if cdef.is_const else TypeModifier.CMut,
                 referenced_type=self._process_cdef(module, cdef.base_type)
             )
@@ -208,7 +214,7 @@ class CModuleLoader:
             raise ValueError(f'Unsupported builtin type {cdef}')
 
         if isinstance(cdef, CDefs.Struct):
-            cstruct_type = CSTRUCT.build_type()
+            cstruct_type = CSTRUCT.build_type(location=None, fields=[])
 
             if cdef.name:
                 cstruct_type_def, added = self.add_def(
@@ -246,7 +252,7 @@ class CModuleLoader:
             return self.add_def(module, cdef.name, type)[0]
 
         if isinstance(cdef, CDefs.Union):
-            cunion_type = CUNION.build_type()
+            cunion_type = CUNION.build_type(location=None, fields=[])
 
             if cdef.name:
                 cunion_type_def, added = self.add_def(

@@ -3,7 +3,7 @@ import itertools
 
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Any, Literal, Optional, TYPE_CHECKING, Tuple, Union
+from typing import Any, Literal, TYPE_CHECKING, Tuple, Union
 
 import lark
 
@@ -46,10 +46,7 @@ class TypeModifier(enum.Enum):
 
 @dataclass(kw_only=True)
 class SylvaObject:
-    location: Optional[Location] = None
-
-    def __post_init__(self):
-        self.location = self.location or Location.Generate()
+    location: Location = field(default_factory=Location.Generate)
 
 
 @dataclass(kw_only=True)
@@ -70,7 +67,7 @@ class SylvaValue(SylvaObject):
 @dataclass(kw_only=True)
 class SylvaField(SylvaObject):
     name: str
-    type: Optional[SylvaType]
+    type: SylvaType | None
 
     def __post_init__(self):
         if self.type is None:
@@ -145,7 +142,7 @@ class ParamCPtrType(SylvaType):
     def get_monomorphization(
         self,
         referenced_type: SylvaType,
-        location: Optional[Location] = None,
+        location: Location | None,
     ) -> MonoCPtrType:
         location = location if location else Location.Generate()
         return MonoCPtrType(location=location, referenced_type=referenced_type)
@@ -156,10 +153,10 @@ class CPtrType(SylvaType):
 
     @staticmethod
     def build_type(
-        referenced_type: Optional[SylvaType] = None,
-        location: Optional[Location] = None,
+        referenced_type: SylvaType | None,
+        location: Location | None,
         mod: TypeModifier = TypeModifier.NoMod,
-    ) -> Union[MonoCPtrType, ParamCPtrType]:
+    ) -> MonoCPtrType | ParamCPtrType:
         location = location if location else Location.Generate()
         return ( # yapf: ignore
             MonoCPtrType(
@@ -244,7 +241,7 @@ class EnumType(SylvaType):
     @staticmethod
     def build_type(
         values: dict[str, SylvaValue],
-        location: Optional[Location] = None,
+        location: Location | None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> MonoEnumType:
         location = location if location else Location.Generate()
@@ -265,7 +262,7 @@ class CodeBlock(SylvaObject):
 @dataclass(kw_only=True)
 class MonoFnType(SylvaType):
     parameters: list[SylvaField] = field(default_factory=list)
-    return_type: Optional[SylvaType]
+    return_type: SylvaType | None
 
     def __post_init__(self):
         if dupes := utils.get_dupes(p.name for p in self.parameters):
@@ -283,7 +280,7 @@ class MonoFnType(SylvaType):
 @dataclass(kw_only=True)
 class MonoCFnType(SylvaType):
     parameters: list[SylvaField] = field(default_factory=list)
-    return_type: Optional[SylvaType]
+    return_type: SylvaType | None
 
     def __post_init__(self):
         if dupes := utils.get_dupes(p.name for p in self.parameters):
@@ -301,7 +298,7 @@ class MonoCFnType(SylvaType):
 @dataclass(kw_only=True)
 class MonoCBlockFnType(SylvaType):
     parameters: list[SylvaField] = field(default_factory=list)
-    return_type: Optional[SylvaType]
+    return_type: SylvaType | None
 
     def __post_init__(self):
         if dupes := utils.get_dupes(p.name for p in self.parameters):
@@ -319,8 +316,8 @@ class MonoCBlockFnType(SylvaType):
 @dataclass(kw_only=True)
 class ParamFnType(SylvaType):
     parameters: list[SylvaField] = field(default_factory=list)
-    return_type: Optional[SylvaType] = None
-    return_type_param: Optional[SylvaField] = None
+    return_type: SylvaType | None = None
+    return_type_param: SylvaField | None = None
 
     def __post_init__(self):
         if self.return_type and self.return_type_param:
@@ -346,8 +343,8 @@ class ParamFnType(SylvaType):
     def get_monomorphization(
         self,
         parameters: list[SylvaField],
-        return_type: Optional[SylvaType],
-        location: Optional[Location] = None,
+        return_type: SylvaType | None,
+        location: Location | None,
     ) -> MonoFnType:
         location = location if location else Location.Generate()
         if self.return_type_must_be_inferred and return_type is None:
@@ -383,10 +380,10 @@ class FnType(SylvaType):
     @staticmethod
     def build_type(
         parameters: list[SylvaField] = field(default_factory=list),
-        return_type: Optional[SylvaType] = None,
-        location: Optional[Location] = None,
+        return_type: SylvaType | None = None,
+        location: Location | None = None,
         mod: TypeModifier = TypeModifier.NoMod,
-    ) -> Union[MonoFnType, ParamFnType]:
+    ) -> MonoFnType | ParamFnType:
         location = location if location else Location.Generate()
         return (
             ParamFnType(
@@ -407,8 +404,8 @@ class CFnType(SylvaType):
     @staticmethod
     def build_type(
         parameters: list[SylvaField] = field(default_factory=list),
-        return_type: Optional[SylvaType] = None,
-        location: Optional[Location] = None,
+        return_type: SylvaType | None = None,
+        location: Location | None = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> MonoCFnType:
         location = location if location else Location.Generate()
@@ -423,8 +420,8 @@ class CBlockFnType(SylvaType):
     @staticmethod
     def build_type(
         parameters: list[SylvaField] = field(default_factory=list),
-        return_type: Optional[SylvaType] = None,
-        location: Optional[Location] = None,
+        return_type: SylvaType | None = None,
+        location: Location | None = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> MonoCBlockFnType:
         location = location if location else Location.Generate()
@@ -488,8 +485,9 @@ class ComplexValue(SylvaValue):
     def FromString(
         cls,
         strval: str,
-        location: Optional[Location] = None,
+        location: Location | None,
     ):
+        location = location if location else Location.Generate()
         if strval.endswith('f16'):
             return cls(location=location, type=C16, value=complex(strval[:-3]))
         if strval.endswith('f32'):
@@ -520,8 +518,9 @@ class FloatValue(SylvaValue):
     def FromString(
         cls,
         strval: str,
-        location: Optional[Location] = None,
+        location: Location | None = None,
     ):
+        location = location if location else Location.Generate()
         if strval.endswith('f16'):
             return cls(location=location, type=F16, value=float(strval[:-3]))
         if strval.endswith('f32'):
@@ -559,8 +558,8 @@ class IntValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class MonoRangeType(SylvaType):
-    min: Union[IntValue, FloatValue, ComplexValue]
-    max: Union[IntValue, FloatValue, ComplexValue]
+    min: IntValue | FloatValue | ComplexValue
+    max: IntValue | FloatValue | ComplexValue
 
     def __post_init__(self):
         if self.min.type != self.max.type:
@@ -579,9 +578,9 @@ class RangeType(SylvaType):
 
     @staticmethod
     def build_type(
-        min: Union[IntValue, FloatValue, ComplexValue],
-        max: Union[IntValue, FloatValue, ComplexValue],
-        location: Optional[Location] = None,
+        min: IntValue | FloatValue | ComplexValue,
+        max: IntValue | FloatValue | ComplexValue,
+        location: Location | None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> MonoRangeType:
         location = location if location else Location.Generate()
@@ -591,7 +590,7 @@ class RangeType(SylvaType):
 @dataclass(kw_only=True)
 class RangeValue(SylvaValue):
     type: MonoRangeType
-    value: Union[complex, float, int]
+    value: complex | float | int
 
     def __post_init__(self):
         if self.value < self.type.min or self.value > self.type.max:
@@ -638,7 +637,7 @@ class ParamArrayType(SylvaType):
     def get_monomorphization(
         self,
         element_count: IntValue,
-        location: Optional[Location] = None,
+        location: Location | None,
     ) -> MonoArrayType:
         location = location if location else Location.Generate()
         return MonoArrayType(
@@ -658,7 +657,7 @@ class ParamCArrayType(ParamArrayType):
     def get_monomorphization(
         self,
         element_count: IntValue,
-        location: Optional[Location] = None,
+        location: Location | None,
     ) -> MonoCArrayType:
         location = location if location else Location.Generate()
         return MonoCArrayType(
@@ -674,10 +673,10 @@ class ArrayType(SylvaType):
     @staticmethod
     def build_type(
         element_type: SylvaType,
-        element_count: Optional[IntValue] = None,
-        location: Optional[Location] = None,
+        element_count: IntValue | None,
+        location: Location | None,
         mod: TypeModifier = TypeModifier.NoMod,
-    ) -> Union[MonoArrayType, ParamArrayType]:
+    ) -> MonoArrayType | ParamArrayType:
         location = location if location else Location.Generate()
         return (
             MonoArrayType(
@@ -695,10 +694,10 @@ class CArrayType(ArrayType):
     @staticmethod
     def build_type(
         element_type: SylvaType,
-        element_count: Optional[IntValue] = None,
-        location: Optional[Location] = None,
+        element_count: IntValue | None,
+        location: Location | None,
         mod: TypeModifier = TypeModifier.NoMod,
-    ) -> Union[MonoCArrayType, ParamCArrayType]:
+    ) -> MonoCArrayType | ParamCArrayType:
         location = location if location else Location.Generate()
         return (
             MonoCArrayType(
@@ -741,7 +740,7 @@ class CBitFieldType(SylvaType):
         bits: int,
         signed: bool,
         field_size: int,
-        location: Optional[Location] = None,
+        location: Location | None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> MonoCBitFieldType:
         location = location if location else Location.Generate()
@@ -784,7 +783,7 @@ class ParamDynarrayType(SylvaType):
     def get_monomorphization(
         self,
         element_type: SylvaType,
-        location: Optional[Location] = None
+        location: Location | None,
     ) -> MonoDynarrayType:
         location = location if location else Location.Generate()
         return MonoDynarrayType(location=location, element_type=element_type)
@@ -795,10 +794,10 @@ class DynarrayType(SylvaType):
 
     @staticmethod
     def build_type(
-        element_type: Optional[SylvaType] = None,
-        location: Optional[Location] = None,
+        element_type: SylvaType | None,
+        location: Location | None,
         mod: TypeModifier = TypeModifier.NoMod,
-    ) -> Union[MonoDynarrayType, ParamDynarrayType]:
+    ) -> MonoDynarrayType | ParamDynarrayType:
         location = location if location else Location.Generate()
         return ( # yapf: ignore
             MonoDynarrayType(location=location, element_type=element_type)
@@ -844,8 +843,8 @@ class ParamStructType(SylvaType):
 
     def get_monomorphization(
         self,
-        fields: Optional[list[SylvaField]],
-        location: Optional[Location] = None,
+        fields: list[SylvaField] | None = None,
+        location: Location | None = None,
     ) -> MonoStructType:
         location = location if location else Location.Generate()
         fields = fields if fields else []
@@ -873,10 +872,10 @@ class StructType(SylvaType):
 
     @staticmethod
     def build_type(
-        fields: Optional[list[SylvaField]] = None,
-        location: Optional[Location] = None,
+        fields: list[SylvaField] | None,
+        location: Location | None,
         mod: TypeModifier = TypeModifier.NoMod,
-    ) -> Union[MonoStructType, ParamStructType]:
+    ) -> MonoStructType | ParamStructType:
         location = location if location else Location.Generate()
         fields = fields if fields else []
         return (
@@ -948,8 +947,8 @@ class ParamVariantType(ParamStructType):
 
     def get_monomorphization(
         self,
-        fields: Optional[list[SylvaField]] = None,
-        location: Optional[Location] = None,
+        fields: list[SylvaField] | None = None,
+        location: Location | None = None,
     ) -> MonoVariantType:
         location = location if location else Location.Generate()
         fields = fields if fields else []
@@ -976,10 +975,10 @@ class VariantType(StructType):
 
     @staticmethod
     def build_type(
-        fields: Optional[list[SylvaField]] = None,
-        location: Optional[Location] = None,
+        fields: list[SylvaField] | None,
+        location: Location | None,
         mod: TypeModifier = TypeModifier.NoMod,
-    ) -> Union[MonoVariantType, ParamVariantType]:
+    ) -> MonoVariantType | ParamVariantType:
         location = location if location else Location.Generate()
         fields = fields if fields else []
         return (
@@ -1008,8 +1007,8 @@ class CStructType(StructType):
 
     @staticmethod
     def build_type(
-        fields: Optional[list[SylvaField]] = None,
-        location: Optional[Location] = None,
+        fields: list[SylvaField] | None,
+        location: Location | None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> MonoCStructType:
         location = location if location else Location.Generate()
@@ -1037,8 +1036,8 @@ class CUnionType(SylvaType):
 
     @staticmethod
     def build_type(
-        fields: Optional[list[SylvaField]] = None,
-        location: Optional[Location] = None,
+        fields: list[SylvaField] | None,
+        location: Location | None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> MonoCUnionType:
         location = location if location else Location.Generate()
@@ -1164,7 +1163,7 @@ class ParamStrType(ParamArrayType):
     def get_monomorphization(
         self,
         element_count: IntValue,
-        location: Optional[Location] = None,
+        location: Location | None,
     ) -> MonoStrType:
         location = location if location else Location.Generate()
         return MonoStrType(location=location, element_count=element_count)
@@ -1175,10 +1174,10 @@ class StrType(ArrayType):
 
     @staticmethod
     def build_type( # type: ignore
-        element_count: Optional[IntValue] = None,
-        location: Optional[Location] = None,
+        element_count: IntValue | None,
+        location: Location | None,
         mod: TypeModifier = TypeModifier.NoMod,
-    ) -> Union[MonoStrType, ParamStrType]:
+    ) -> MonoStrType | ParamStrType:
         location = location if location else Location.Generate()
         return (
             MonoStrType(location=location, element_count=element_count)
@@ -1244,7 +1243,7 @@ def get_int_base(int_value: str) -> Literal[2, 8, 10, 16]:
     return 10
 
 
-def get_int_type(bits: Optional[int], signed: bool) -> IntType:
+def get_int_type(bits: int | None, signed: bool) -> IntType:
     bits = bits if bits else _SIZE_SIZE
     if signed and bits == 8:
         return I8
@@ -1278,8 +1277,8 @@ def get_int_type_for_value(value: int, signed=True):
 
 def parse_float_value( # yapf: ignore
     strval: str,
-    location: Optional[Location] = None,
-) -> Optional[Tuple[FloatType, float]]:
+    location: Location | None,
+) -> Tuple[FloatType, float]:
     location = location if location else Location.Generate()
     try:
         ret = ( # yapf: ignore
@@ -1302,7 +1301,7 @@ def parse_float_value( # yapf: ignore
 
 def parse_int_value( # yapf: ignore
     strval: str,
-    location: Optional[Location] = None,
+    location: Location | None,
 ) -> Tuple[IntType, int]:
     location = location if location else Location.Generate()
     base = get_int_base(strval)
@@ -1331,16 +1330,11 @@ def parse_int_value( # yapf: ignore
     value = ( # yapf: ignore
         int(strval[:-1], base=base) if strval.endswith('i') else
         int(strval[:-1], base=base) if strval.endswith('u') else
-        int(strval[:-2], base=base) if strval.endswith('i8') else
-        int(strval[:-3], base=base) if strval.endswith('i16') else
-        int(strval[:-3], base=base) if strval.endswith('i32') else
-        int(strval[:-3], base=base) if strval.endswith('i64') else
-        int(strval[:-4], base=base) if strval.endswith('i128') else
-        int(strval[:-2], base=base) if strval.endswith('u8') else
-        int(strval[:-3], base=base) if strval.endswith('u16') else
-        int(strval[:-3], base=base) if strval.endswith('u32') else
-        int(strval[:-3], base=base) if strval.endswith('u64') else
-        int(strval[:-4], base=base) if strval.endswith('u128') else
+        int(strval[:-4], base=base) if strval.endswith('128') else
+        int(strval[:-2], base=base) if strval.endswith('8') else
+        int(strval[:-3], base=base) if strval.endswith('16') else
+        int(strval[:-3], base=base) if strval.endswith('32') else
+        int(strval[:-3], base=base) if strval.endswith('64') else
         int(strval, base=base)
     )
 
@@ -1365,7 +1359,7 @@ def parse_int_value( # yapf: ignore
 #         StructTypeLiteralExpr,
 #         TypePlaceholder,
 #         VarTypeExpr]
-#     element_count_expr: Optional[Union[ConstLookupExpr, IntLiteralExpr]]
+#     element_count_expr: ConstLookupExpr | IntLiteralExpr | None
 #
 #     @property
 #     def is_parameterizable(self):
@@ -1389,4 +1383,4 @@ def parse_int_value( # yapf: ignore
 #         StructTypeLiteralExpr,
 #         TypePlaceholder,
 #         VarTypeExpr]
-#     element_count_expr: Union[ConstLookupExpr, IntLiteralExpr]
+#     element_count_expr: ConstLookupExpr | IntLiteralExpr
