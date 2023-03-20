@@ -13,8 +13,8 @@ from sylva.builtins import (
     MonoStructType,
     MonoVariantType,
     SylvaDef,
+    SylvaObject,
     SylvaType,
-    SylvaValue,
     TypePlaceholder,
 )
 from sylva.expr import Expr, LookupExpr
@@ -31,11 +31,11 @@ from sylva.stmt import (
     ReturnStmt,
     WhileBlock,
 )
+from sylva.visitor import Visitor
 
 
 @dataclass(kw_only=True)
-class CCodeGen:
-    module: Mod
+class CCodeGen(Visitor):
     _sio: StringIO = field(init=False, default_factory=StringIO)
     _indent: int = 0
 
@@ -108,13 +108,7 @@ class CCodeGen:
             case LookupExpr():
                 pass
 
-    def fn(self, sdef: SylvaDef):
-        name = sdef.name
-        fn = sdef.value
-
-        if not isinstance(fn, FnValue):
-            raise Exception('Somehow got here without a function')
-
+    def enter_fn(self, fn: FnValue, name: str, parents: list[SylvaObject]):
         if not fn.type.return_type:
             self._sio.write('void ')
         else:

@@ -389,7 +389,11 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         fn = parts.pop(0)
         name = parts.pop(0).value
         code_block = parts.pop(-1)
-        return_type = parts.pop(-1) if parts else None
+        return_type = ( # yapf: ignore
+            parts.pop(-1)
+            if parts and not isinstance(parts[-1], SylvaField)
+            else None
+        )
 
         location = Location.FromToken(fn, stream=self._stream)
 
@@ -501,10 +505,6 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
             reflection = tree.children.pop(0).value == '::'
             attr_name = tree.children.pop(0)
 
-            print(
-                attr_name.value,
-                Location.FromToken(attr_name, stream=self._stream)
-            )
             value = AttributeLookupExpr(
                 location=Location.FromToken(attr_name, stream=self._stream),
                 name=attr_name.value,
@@ -618,9 +618,6 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         mod, rest = TypeModifier.separate_type_mod(parts)
         type = rest[0]
         type.mod = mod
-
-        # if name.value == 'self':
-        #     breakpoint()
 
         return SylvaField(
             location=Location.FromToken(name, stream=self._stream),

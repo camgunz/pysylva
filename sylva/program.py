@@ -8,13 +8,13 @@ from cdump.parser import Parser as CParser  # type: ignore
 from sylva import errors, sylva
 from sylva.ast_builder import ASTBuilder
 from sylva.builtins import FnValue
+from sylva.lookup_expr_type_assigner import LookupExprTypeAssigner
 from sylva.mod import Mod
 from sylva.package_loader import PackageLoader
 from sylva.package import BasePackage, SylvaPackage, get_package_from_path
 from sylva.parser import Parser
 from sylva.scope_gatherer import ScopeGatherer
 from sylva.type_checker import TypeChecker
-from sylva.walker import Walker
 
 
 @dataclass(kw_only=True, slots=True)
@@ -66,9 +66,11 @@ class Program:
 
     def type_check(self):
         self.parse()
-        type_checker = Walker(actions=TypeChecker())
+        type_assigner = LookupExprTypeAssigner()
+        type_checker = TypeChecker()
         for m in self.modules.values():
-            type_checker.call_action('mod', m, [])
+            type_assigner.visit(m)
+            type_checker.visit(m)
 
     def compile(self, output_folder):
         self.type_check()
