@@ -139,7 +139,9 @@ class BaseVisitor:
                 self.__call_action('exit_bool', obj, name, parents)
             case MonoCPtrType():
                 self.__call_action('enter_c_ptr_type', obj, name, parents)
-                self.__walk(obj.referenced_type, name=None, parents=parents + [obj])
+                self.__walk(
+                    obj.referenced_type, name=None, parents=parents + [obj]
+                )
                 self.__call_action('exit_c_ptr_type', obj, name, parents)
             case CPtrValue():
                 self.__call_action('enter_c_ptr', obj, name, parents)
@@ -178,21 +180,27 @@ class BaseVisitor:
                 for param in obj.parameters:
                     self.__walk(param.type, name=None, parents=parents + [obj])
                 if obj.return_type:
-                    self.__walk(obj.return_type, name=None, parents=parents + [obj])
+                    self.__walk(
+                        obj.return_type, name=None, parents=parents + [obj]
+                    )
                 self.__call_action('exit_fn_type', obj, name, parents)
             case MonoCFnType():
                 self.__call_action('enter_c_fn_type', obj, name, parents)
                 for param in obj.parameters:
                     self.__walk(param.type, name=None, parents=parents + [obj])
                 if obj.return_type:
-                    self.__walk(obj.return_type, name=None, parents=parents + [obj])
+                    self.__walk(
+                        obj.return_type, name=None, parents=parents + [obj]
+                    )
                 self.__call_action('exit_c_fn_type', obj, name, parents)
             case MonoCBlockFnType():
                 self.__call_action('enter_c_block_fn_type', obj, name, parents)
                 for param in obj.parameters:
                     self.__walk(param.type, name=None, parents=parents + [obj])
                 if obj.return_type:
-                    self.__walk(obj.return_type, name=None, parents=parents + [obj])
+                    self.__walk(
+                        obj.return_type, name=None, parents=parents + [obj]
+                    )
                 self.__call_action('exit_c_block_fn_type', obj, name, parents)
             case FnValue():
                 self.__call_action('enter_fn', obj, name, parents)
@@ -240,7 +248,9 @@ class BaseVisitor:
             case MonoArrayType():
                 self.__call_action('enter_array_type', obj, name, parents)
                 self.__walk(obj.element_type, name=None, parents=parents + [obj])
-                self.__walk(obj.element_count, name=None, parents=parents + [obj])
+                self.__walk(
+                    obj.element_count, name=None, parents=parents + [obj]
+                )
                 self.__call_action('exit_array_type', obj, name, parents)
             case ArrayValue():
                 self.__call_action('enter_array_value', obj, name, parents)
@@ -249,7 +259,9 @@ class BaseVisitor:
             case MonoCArrayType():
                 self.__call_action('enter_c_array_type', obj, name, parents)
                 self.__walk(obj.element_type, name=None, parents=parents + [obj])
-                self.__walk(obj.element_count, name=None, parents=parents + [obj])
+                self.__walk(
+                    obj.element_count, name=None, parents=parents + [obj]
+                )
                 self.__call_action('exit_c_array_type', obj, name, parents)
             case CArrayValue():
                 self.__call_action('enter_c_array_value', obj, name, parents)
@@ -338,19 +350,23 @@ class BaseVisitor:
                 self.__walk(obj.expr, name=None, parents=parents + [obj])
                 self.__call_action('exit_return_stmt', obj, name, parents)
             case IfBlock():
-                self.__call_action('enter_if_stmt', obj, name, parents)
-                self.__walk(obj.conditional_expr, name=None, parents=parents + [obj])
+                self.__call_action('enter_if_block', obj, name, parents)
+                self.__walk(
+                    obj.conditional_expr, name=None, parents=parents + [obj]
+                )
                 self.__walk(obj.else_code, name=None, parents=parents + [obj])
-                self.__call_action('exit_if_stmt', obj, name, parents)
+                self.__call_action('exit_if_block', obj, name, parents)
             case LoopBlock():
-                self.__call_action('enter_loop_stmt', obj, name, parents)
+                self.__call_action('enter_loop_block', obj, name, parents)
                 self.__walk(obj.code, name=None, parents=parents + [obj])
-                self.__call_action('exit_loop_stmt', obj, name, parents)
+                self.__call_action('exit_loop_block', obj, name, parents)
             case WhileBlock():
-                self.__call_action('enter_while_stmt', obj, name, parents)
-                self.__walk(obj.conditional_expr, name=None, parents=parents + [obj])
+                self.__call_action('enter_while_block', obj, name, parents)
+                self.__walk(
+                    obj.conditional_expr, name=None, parents=parents + [obj]
+                )
                 self.__walk(obj.code, name=None, parents=parents + [obj])
-                self.__call_action('exit_while_stmt', obj, name, parents)
+                self.__call_action('exit_while_block', obj, name, parents)
             case MatchCaseBlock():
                 self.__call_action(
                     'enter_match_case_block', obj, name, parents
@@ -361,21 +377,21 @@ class BaseVisitor:
                 self.__walk(obj.code, name=None, parents=parents + [obj])
                 self.__call_action('exit_match_case_block', obj, name, parents)
             case DefaultBlock():
-                self.__call_action(
-                    'enter_match_case_default_block', obj, name, parents
+                self.__call_action('enter_default_block', obj, name, parents
                 )
                 self.__walk(obj.code, name=None, parents=parents + [obj])
-                self.__call_action(
-                    'exit_match_case_default_block', obj, name, parents
+                self.__call_action('exit_default_block', obj, name, parents
                 )
             case MatchBlock():
-                self.__call_action('enter_match', obj, name, parents)
+                self.__call_action('enter_match_block', obj, name, parents)
                 self.__walk(obj.variant_expr, name=None, parents=parents + [obj])
                 for match_case in obj.match_cases:
                     self.__walk(match_case, name=None, parents=parents + [obj])
                 if obj.default_case:
-                    self.__walk(obj.default_case, name=None, parents=parents + [obj])
-                self.__call_action('exit_match', obj, name, parents)
+                    self.__walk(
+                        obj.default_case, name=None, parents=parents + [obj]
+                    )
+                self.__call_action('exit_match_block', obj, name, parents)
             case LookupExpr():
                 self.__call_action('enter_lookup_expr', obj, name, parents)
                 self.__walk(obj.type, name=None, parents=parents + [obj])
@@ -544,6 +560,22 @@ class Visitor(BaseVisitor):
     ):
         self.scopes.pop()
 
+    def enter_default_block(
+        self,
+        default_block: DefaultBlock,
+        name: str,
+        parents: list[SylvaObject],
+    ):
+        self.scopes.push()
+
+    def exit_default_block(
+        self,
+        default_block: DefaultBlock,
+        name: str,
+        parents: list[SylvaObject],
+    ):
+        self.scopes.pop()
+
     def enter_fn(self, fn: FnValue, name: str, parents: list[SylvaObject]):
         self.funcs.append(fn)
         self.scopes.push()
@@ -555,6 +587,22 @@ class Visitor(BaseVisitor):
         self.funcs.pop()
         self.scopes.pop()
 
+    def enter_if_block(
+        self,
+        if_block: IfBlock,
+        name: str,
+        parents: list[SylvaObject],
+    ):
+        self.scopes.push()
+
+    def exit_if_block(
+        self,
+        if_block: IfBlock,
+        name: str,
+        parents: list[SylvaObject],
+    ):
+        self.scopes.pop()
+
     def enter_let_stmt(
         self,
         let_stmt: LetStmt,
@@ -563,6 +611,38 @@ class Visitor(BaseVisitor):
     ):
         if let_stmt.expr.type is not None:
             self.define(let_stmt.name, let_stmt.expr.type)
+
+    def enter_loop_block(
+        self,
+        loop_block: LoopBlock,
+        name: str,
+        parents: list[SylvaObject],
+    ):
+        self.scopes.push()
+
+    def exit_loop_block(
+        self,
+        loop_block: LoopBlock,
+        name: str,
+        parents: list[SylvaObject],
+    ):
+        self.scopes.pop()
+
+    def enter_match_block(
+        self,
+        match_block: MatchBlock,
+        name: str,
+        parents: list[SylvaObject],
+    ):
+        self.scopes.push()
+
+    def exit_match_block(
+        self,
+        match_block: MatchBlock,
+        name: str,
+        parents: list[SylvaObject],
+    ):
+        self.scopes.pop()
 
     def enter_match_case_block(
         self,
@@ -589,6 +669,15 @@ class Visitor(BaseVisitor):
         variant_field = matching_variant_fields[0]
 
         self.define(match_case_block.variant_name, variant_field.type)
+        self.scopes.push()
+
+    def exit_match_case_block(
+        self,
+        match_case_block: MatchCaseBlock,
+        name: str,
+        parents: list[SylvaObject],
+    ):
+        self.scopes.pop()
 
     def enter_mod(
         self,
@@ -599,3 +688,19 @@ class Visitor(BaseVisitor):
         self.module = module
         self.funcs = []
         self.scopes = Scope()
+
+    def enter_while_block(
+        self,
+        while_block: WhileBlock,
+        name: str,
+        parents: list[SylvaObject],
+    ):
+        self.scopes.push()
+
+    def exit_while_block(
+        self,
+        while_block: WhileBlock,
+        name: str,
+        parents: list[SylvaObject],
+    ):
+        self.scopes.pop()
