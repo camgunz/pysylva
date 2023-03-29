@@ -4,7 +4,6 @@ from io import StringIO
 
 from sylva import errors
 from sylva.builtins import (
-    CodeBlock,
     FnValue,
     MonoCArrayType,
     MonoCStructType,
@@ -17,12 +16,9 @@ from sylva.builtins import (
     SylvaType,
     TypePlaceholder,
 )
-from sylva.expr import Expr, LookupExpr
 from sylva.mod import Mod
 from sylva.scope import Scope
 from sylva.stmt import (
-    AssignStmt,
-    DefaultBlock,
     IfBlock,
     LetStmt,
     LoopBlock,
@@ -37,82 +33,32 @@ from sylva.visitor import Visitor
 @dataclass(kw_only=True)
 class CCodeGen(Visitor):
     _sio: StringIO = field(init=False, default_factory=StringIO)
-    _indent: int = 0
+    _indent_level: int = field(init=False, default=0)
+    indentation: str = '  '
 
-    @contextmanager
-    def block(self):
-        self.emit('{\n')
+    def indent(self):
+        self._indent_level += 1
 
-    def _emit_line_start(self):
-        self._sio.write('  ' * self._indent)
-
-    def _emit_line_end(self):
-        self._sio.write('\n')
+    def deindent(self):
+        if self._indent_level == 0:
+            raise Exception('Not indented')
+        self._indent_level -= 1
 
     def emit(self, s: str):
         self._sio.write(s)
 
+    def emit_indent(self):
+        self.emit('  ' * self._indent)
+
     def emit_line(self, line: str):
-        self._emit_line_start()
-        self.emit(line)
-        self._emit_line_end()
-
-    def array_expr(self, array_expr):
-        pass
-
-    def assign_stmt(self, assign_stmt: AssignStmt):
-        pass
-
-    def c_array(self, c_array: MonoCArrayType):
-        pass
-
-    def c_struct(self, c_struct: MonoCStructType):
-        pass
-
-    def c_union(self, c_union: MonoCUnionType):
-        pass
-
-    def code_block(self, code_block: CodeBlock):
-        with self.new_scope():
-            for node in code_block.code:
-                match node:
-                    case IfBlock():
-                        self.if_block(node)
-                    # case SwitchBlock:
-                    #     pass
-                    case MatchBlock():
-                        self.match_block(node)
-                    # case ForBlock:
-                    #     pass
-                    case WhileBlock():
-                        self.while_block(node)
-                    case LoopBlock():
-                        self.loop_block(node)
-                    case LetStmt():
-                        self.let_stmt(node)
-                    case AssignStmt():
-                        self.assign_stmt(node)
-                    case ReturnStmt():
-                        self.return_stmt(node)
-                    case Expr():
-                        self.expr(node)
-
-    def default_block(self, default_block: DefaultBlock):
-        self.code_block(default_block.code)
-
-    def enum(self, enum: MonoEnumType):
-        pass
-
-    def expr(self, expr: Expr):
-        match expr:
-            case LookupExpr():
-                pass
+        self.emit_indent()
+        self.emit(f'{line}\n')
 
     def enter_fn(self, fn: FnValue, name: str, parents: list[SylvaObject]):
         if not fn.type.return_type:
-            self._sio.write('void ')
+            self.emit('void ')
         else:
-            self.type(fn.type.return_type)
+            self.emit(f'{fn.type.return_type.name}')
 
         self._sio.write(f'{name} (')
 
@@ -127,6 +73,10 @@ class CCodeGen(Visitor):
                 if isinstance(param.type, SylvaType):
                     self.define(param.name, param.type)
             self.code_block(fn.value)
+
+    def exit_fn(self, fn: FnValue, name: str, parents: list[SylvaObject]):
+        self.emit('}')
+        self.deindent()
 
     def if_block(self, if_block: IfBlock):
         self.code_block(if_block.code)

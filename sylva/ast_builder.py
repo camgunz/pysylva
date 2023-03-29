@@ -78,7 +78,6 @@ from sylva.builtins import (  # noqa: F401
     U8,
     VARIANT,
     VariantValue,
-    get_int_type,
 )
 from sylva.expr import (
     AttributeLookupExpr,
@@ -590,9 +589,10 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
             value=str_token.value[1:-1],
             type=STR.build_type(
                 location=location,
-                element_count=IntValue(
-                    type=get_int_type(bits=None, signed=False),
-                    value=len(str_token.value) - 2
+                element_count=IntValue.FromValue(
+                    n=len(str_token.value) - 2,
+                    signed=False,
+                    location=location,
                 )
             )
         )

@@ -4,26 +4,24 @@ from typing import Any
 from sylva import debug, errors, utils
 from sylva.location import Location
 from sylva.builtins import (
-    BOOL,
     BoolType,
+    BoolValue,
     CPtrType,
     CVoidType,
     ComplexType,
     FloatType,
+    FloatValue,
     IntType,
     IntValue,
     MonoStrType,
     MonoVariantType,
-    RUNE,
     RuneType,
-    STR,
+    RuneValue,
+    StrValue,
     StringType,
     SylvaObject,
     SylvaType,
     SylvaValue,
-    get_int_type_for_value,
-    parse_int_value,
-    parse_float_value,
 )
 from sylva.mod import Mod
 from sylva.operator import Operator
@@ -158,17 +156,18 @@ class VariantExpr(Expr):
 @dataclass(kw_only=True)
 class BoolLiteralExpr(LiteralExpr):
     type: BoolType
-    value: bool
+    value: BoolValue
 
     @classmethod
     def FromString(cls, location: Location, strval: str):
-        return cls(location=location, type=BOOL, value=strval == 'true')
+        v = BoolValue.FromString(location=location, s=strval)
+        return cls(location=location, type=v.type, value=v)
 
 
 @dataclass(kw_only=True)
 class RuneLiteralExpr(LiteralExpr):
     type: RuneType
-    value: str
+    value: RuneValue
 
     def __post_init__(self):
         LiteralExpr.__post_init__(self)
@@ -177,7 +176,8 @@ class RuneLiteralExpr(LiteralExpr):
 
     @classmethod
     def FromString(cls, location: Location, strval: str):
-        return cls(location=location, type=RUNE, value=strval)
+        v = RuneValue.FromString(location=location, s=strval)
+        return cls(location=location, type=v.type, value=v)
 
 
 @dataclass(kw_only=True)
@@ -195,50 +195,39 @@ class ComplexLiteralExpr(LiteralExpr):
 @dataclass(kw_only=True)
 class FloatLiteralExpr(LiteralExpr):
     type: FloatType
-    value: float
+    value: FloatValue
 
     @classmethod
     def FromString(cls, location: Location, strval: str):
-        # [TODO] Parse float type literal
-        int_type, value = parse_float_value(location=location, strval=strval)
-        return cls(location=location, type=int_type, value=value)
+        v = FloatValue.FromString(location=location, s=strval)
+        return cls(location=location, type=v.type, value=v)
 
 
 @dataclass(kw_only=True)
 class IntLiteralExpr(LiteralExpr):
     type: IntType
-    value: int
+    value: IntValue
 
     def __post_init__(self):
         LiteralExpr.__post_init__(self)
-        if utils.bits_required_for_int(self.value) > self.type.bits:
-            raise errors.IntSizeExceeded(self.location, self.value)
+        if utils.bits_required_for_int(self.value.value) > self.type.bits:
+            raise errors.IntSizeExceeded(self.location, self.value.value)
 
     @classmethod
     def FromString(cls, location: Location, strval: str):
-        int_type, value = parse_int_value(location=location, strval=strval)
-        return cls(location=location, type=int_type, value=value)
+        v = IntValue.FromString(location=location, s=strval)
+        return cls(location=location, type=v.type, value=v)
 
 
 @dataclass(kw_only=True)
 class StrLiteralExpr(LiteralExpr):
     type: MonoStrType
-    value: bytes
+    value: StrValue
 
     @classmethod
     def FromString(cls, location: Location, strval: str):
-        return cls(
-            location=location,
-            type=STR.build_type( # type: ignore
-                location=location,
-                element_count=IntValue(
-                    location=location,
-                    type=get_int_type_for_value(len(strval), signed=False),
-                    value=len(strval)
-                )
-            ),
-            value=strval.encode('utf-8')
-        )
+        v = StrValue.FromString(location=location, s=strval[1:-1])
+        return cls(location=location, type=v.type, value=v)
 
 
 @dataclass(kw_only=True)

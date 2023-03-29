@@ -21,6 +21,5 @@ Note well that the C FFI offers none of Sylva's safety guarantees.
 
 ## `libc`
 
-We generate bindings to a platform's libc implementations, which generally are
-necessary or at least the most convenient ways to interact with the operating
-system.
+We generate bindings to a platform's libc implementations, which are the most
+convenient if not necessary ways to interact with the operating system.

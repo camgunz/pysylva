@@ -2,9 +2,12 @@
 
 ## General
 
+- Types need name fields for reverse lookups during code gen
 - Add an "interned string" type.
-  - Consider double quotes for interned strings and backquotes for everything
+  - Consider double quotes for interned strings and backticks for everything
     else (templates, etc.)
+    - Nah, auto-detection of templated strings is better. Ex: what happens when
+      a non-templated string uses backticks?
 
 ## Generics, Functions, Interfaces, Structs, Variants, etc.
 
@@ -17,6 +20,17 @@
     etc.)
 
 ## Can we toss interfaces?
+
+No. Interfaces:
+
+- the programmer can implement an interface on anything (scalar, struct,
+  variant, etc)
+- (probably) require a deref, which is sometimes preferable to variant's tag
+  requirement
+
+---
+
+Original thought process:
 
 OK thinking about:
 
@@ -162,12 +176,6 @@ fn gen_add(x: $num_type, y: $num_type): $num_type {
 typedef int_add: gen_add($num_type: int)
 ```
 
-## Sized types
-
-There's a conflict between "must specify the size of a(n) array/string value"
-and "can't possibly specify every length for a(n) array/string parameter".
-We're smoothing this over with interfaces.
-
 ## Language
 
 ### `str`
@@ -189,33 +197,6 @@ Otherwise syntax becomes pretty difficult.
 ### Add `cnull` type
 
 n.b.
-
-### Deprecate `dec`
-
-Decimals require allocation, and having raw number literals not be integers is
-pretty confusing.
-
-### Create an interface for `sys.print`.
-
-It's super handy to have some kind of default function to pass something to
-`sys.print`. It's not super clear what this should be called:
-- Stringable
-- Printable
-- Displayable
-
-I think `Stringable` and `to_string` win here. OK.
-
-Is `Stringable` better than `::string`?
-- Yes, because you can override the behavior of a `Stringable`
-
-### Error handling
-
-`on_failure` is too painful. You need to know the type of failure you're
-dealing with to provide a handler, which can result in a lot of reflection, and
-you need some pretty specific knowledge (indexing failures yield an
-<array>::IndexFailure or whatever). Plus it's pretty verbose, for basically no
-reason, and without string coercion you need a lot of custom error handling
-code even just to die.
 
 ### Interfaces
 

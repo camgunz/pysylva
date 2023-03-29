@@ -401,3 +401,9 @@ class NoSuchVariantField(LocationError):
         LocationError.__init__(
             self, location, f'Variant {variant_name} has no such field {name}'
         )
+
+
+class AnonymousGeneric(LocationError):
+
+    def __init__(self, location: Location):
+        LocationError.__init__(self, location, 'Anonymous generic')
