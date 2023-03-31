@@ -39,7 +39,7 @@ class TypeChecker(Visitor):
                 assign_stmt.location, assign_stmt.name
             )
 
-        if assign_stmt.expr.type != var_type:
+        if not assign_stmt.expr.type.matches(var_type):  # type: ignore
             raise errors.MismatchedVariableType(
                 assign_stmt.expr.location, assign_stmt.expr.type, var_type
             )
@@ -64,7 +64,9 @@ class TypeChecker(Visitor):
                     return_stmt.expr.type.name,
                     func.type.return_type.name
                 )
-        elif return_stmt.expr.type != func.type.return_type:
+        elif not return_stmt.expr.type.matches(  # type: ignore
+                func.type.return_type):
+            breakpoint()
             raise errors.MismatchedReturnType(
                 return_stmt.expr.location,
                 return_stmt.expr.type,

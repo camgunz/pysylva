@@ -407,3 +407,14 @@ class AnonymousGeneric(LocationError):
 
     def __init__(self, location: Location):
         LocationError.__init__(self, location, 'Anonymous generic')
+
+
+class MismatchedTypes(LocationError):
+
+    def __init__(self, location: Location, expected_type, given_type):
+        LocationError.__init__(
+            self,
+            location,
+            f'Mismatched types: expected {expected_type.name}; got '
+            f'{given_type.name}'
+        )

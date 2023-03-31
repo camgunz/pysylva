@@ -8,8 +8,10 @@ from cdump.parser import Parser as CParser  # type: ignore
 from sylva import errors, sylva
 from sylva.ast_builder import ASTBuilder
 from sylva.builtins import FnValue
+from sylva.c_code_gen import CCodeGen
 from sylva.lookup_expr_type_assigner import LookupExprTypeAssigner
 from sylva.mod import Mod
+from sylva.monomorphizer import Monomorphizer
 from sylva.package_loader import PackageLoader
 from sylva.package import BasePackage, SylvaPackage, get_package_from_path
 from sylva.parser import Parser
@@ -46,34 +48,47 @@ class Program:
             for location in module.locations
         ]
 
-        for _, __, tree in module_trees:
-            scope_gatherer.visit_topdown(tree)
+        try:
+            for _, __, tree in module_trees:
+                scope_gatherer.visit_topdown(tree)
+        except lark.exceptions.VisitError as ve:
+            raise ve.orig_exc from None
 
-        module_trees = [ # yapf: ignore
-            (
-                module,
-                location,
-                ASTBuilder( # yapf: ignore
-                    program=self,
-                    module=module,
-                    location=location
-                ).transform(tree)
-            )
-            for module, location, tree in module_trees
-        ]
+        try:
+            module_trees = [ # yapf: ignore
+                (
+                    module,
+                    location,
+                    ASTBuilder( # yapf: ignore
+                        program=self,
+                        module=module,
+                        location=location
+                    ).transform(tree)
+                )
+                for module, location, tree in module_trees
+            ]
+        except lark.exceptions.VisitError as ve:
+            raise ve.orig_exc from None
 
         return lark.Tree(data='Program', children=module_trees)
 
-    def type_check(self):
+    def process(self):
         self.parse()
         type_assigner = LookupExprTypeAssigner()
         type_checker = TypeChecker()
+        monomorphizer = Monomorphizer()
         for m in self.modules.values():
             type_assigner.visit(m)
             type_checker.visit(m)
+            monomorphizer.visit(m)
 
     def compile(self, output_folder):
-        self.type_check()
+        self.process()
+        c_code_generator = CCodeGen()
+        for m in self.modules.values():
+            c_code_generator.visit(m)
+            print(f'\n{m.name} ---')
+            print(c_code_generator.render())
 
     def get_module(self, name):
         return self.modules.get(name)

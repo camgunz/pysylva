@@ -25,6 +25,7 @@ from sylva.builtins import (
 )
 from sylva.mod import Mod
 from sylva.operator import Operator
+from sylva.scope import Scope
 
 
 @dataclass(kw_only=True)
@@ -36,7 +37,7 @@ class Expr(SylvaObject):
         if type is None:
             debug('nonetype', f'[{self.location.shorthand}] {type(self)}')
 
-    def eval(self, module):
+    def eval(self, module: Mod, scopes: Scope | None = None):
         raise NotImplementedError()
 
 
@@ -44,18 +45,28 @@ class Expr(SylvaObject):
 class LookupExpr(Expr):
     name: str
 
-    def eval(self, module: Mod) -> Mod | SylvaType | SylvaValue:
+    def eval(
+        self,
+        module: Mod,
+        scopes: Scope | None = None
+    ) -> Mod | SylvaType | SylvaValue:
+        if scopes:
+            val = scopes.lookup(self.name)
+            if val is not None:
+                return val
+
         val = module.lookup(self.name)
-        if val is None:
-            raise errors.UndefinedSymbol(self.location, self.name)
-        return val
+        if val:
+            return val
+
+        raise errors.UndefinedSymbol(self.location, self.name)
 
 
 @dataclass(kw_only=True)
 class LiteralExpr(Expr):
     value: Any
 
-    def eval(self, module):
+    def eval(self, module: Mod, scopes: Scope | None = None):
         return self.value
 
 
@@ -78,8 +89,12 @@ class AttributeLookupExpr(Expr):
     obj: Any
     reflection: bool = False
 
-    def eval(self, module: Mod):
-        obj = self.obj.eval(module) if isinstance(self.obj, Expr) else self.obj
+    def eval(self, module: Mod, scopes: Scope | None = None):
+        obj = ( # yapf: ignore
+            self.obj.eval(module, scopes)
+            if isinstance(self.obj, Expr)
+            else self.obj
+        )
         return ( # yapf: ignore
             obj.reflection_lookup(self.name)
             if self.reflection

@@ -544,6 +544,10 @@ class Visitor(BaseVisitor):
             case SylvaType():
                 return val
 
+    def reset(self):
+        self.funcs = []
+        self.scopes = Scope()
+
     def enter_code_block(
         self,
         code_block: CodeBlock,
@@ -686,8 +690,7 @@ class Visitor(BaseVisitor):
         parents: list[SylvaObject]
     ):
         self.module = module
-        self.funcs = []
-        self.scopes = Scope()
+        self.reset()
 
     def enter_while_block(
         self,

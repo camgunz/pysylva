@@ -72,7 +72,7 @@ class CModuleLoader:
 
             if (isinstance(value, SylvaValue) and
                     isinstance(existing, SylvaValue) and
-                    value.type != existing.type):
+                    not value.type.matches(existing.type)):
                 raise errors.IncompatibleTypeDefRedefinition(
                     name, value.type, existing.type
                 )
@@ -164,11 +164,12 @@ class CModuleLoader:
                 return_type=self._process_cdef(module, cdef.return_type),
                 parameters=[ # yapf: ignore
                     SylvaField(
-                        name=param_name, type=self._process_cdef(module, param_type)
+                        name=param_name,
+                        type=self._process_cdef(module, param_type)
                     )
                     for param_name, param_type in cdef.parameters.items()
                 ],
-            ),
+            )
 
         if isinstance(cdef, CDefs.Pointer):
             return CPTR.build_type(
@@ -306,7 +307,7 @@ class CModuleLoader:
     def load_package(self, package: CLibPackage):
         module = Mod(package=package, name=package.name, type=Mod.Type.C)
         literal_expr_parser = Parser(start='_literal_expr')
-        type_expr_parser = Parser(start='_type_expr')
+        type_expr_parser = Parser(start='type_expr')
 
         for name, literal_expr_text in package.defs.items():
             tree = ASTBuilder(
@@ -321,10 +322,10 @@ class CModuleLoader:
             )
 
         for name, type_expr_text in package.type_defs.items():
-            tree = ASTBuilder(
+            parts = ASTBuilder(
                 program=self.program, module=module
             ).transform(type_expr_parser.parse(type_expr_text))
-            new_type = tree.children[0]
+            new_type = parts[0]
 
             module.add_def(TypeDef(name=name, type=new_type))
 

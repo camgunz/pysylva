@@ -110,9 +110,9 @@ lookup_expr: _base_identifier
 runtime_lookup_expr: _base_identifier
 
 _sized_array_type_literal_expr: \
-  "[" _type_expr "*" (lookup_expr | int_literal_expr) "]"
+  "[" type_expr "*" (lookup_expr | int_literal_expr) "]"
 
-_unsized_array_type_literal_expr: "[" _type_expr ELLIPSIS "]"
+_unsized_array_type_literal_expr: "[" type_expr ELLIPSIS "]"
 
 _base_array_type_literal_expr: _sized_array_type_literal_expr
                            | _unsized_array_type_literal_expr
@@ -127,13 +127,13 @@ c_bit_field_type_literal_expr: \
   (STAR? CBITFIELD "(" _int_type "," int_literal_expr ")")
   | (AMP CBITFIELD "(" _int_type "," int_literal_expr ")" BANG?)
 
-_base_func: "(" _type_params? ")" [":" _type_expr]
+_base_func: "(" _type_params? ")" [":" type_expr]
 
 c_block_function_type_expr: CBLOCKFN _base_func
 
 c_function_type_expr: CFN _base_func
 
-c_pointer_type_literal_expr: CPTR "(" _type_expr ")" BANG?
+c_pointer_type_literal_expr: CPTR "(" type_expr ")" BANG?
 
 c_struct_type_literal_expr: \
   (STAR? CSTRUCT "{" _type_params? "}")
@@ -183,15 +183,15 @@ _literal_type_expr: array_type_literal_expr
 
 type_placeholder: "$" VALUE
 
-_type_expr: type_placeholder | _literal_type_expr | _var_type_expr
+type_expr: type_placeholder | _literal_type_expr | _var_type_expr
 
-?type_param_pair: VALUE ":" _type_expr
+?type_param_pair: VALUE ":" type_expr
 
 _type_params: _type_param_list | _type_param_pair_list
 
-_type_param_list: _type_expr
-                | _type_expr ("," _type_expr)+ [","]
-                | _type_expr ","
+_type_param_list: type_expr
+                | type_expr ("," type_expr)+ [","]
+                | type_expr ","
 
 _type_param_pair_list: type_param_pair
                      | type_param_pair ("," type_param_pair)+ [","]
@@ -362,7 +362,7 @@ struct_type_def: STRUCT VALUE struct_type_literal_expr
 
 variant_type_def: VARIANT VALUE "{" _type_params "}"
 
-type_def: TYPEDEF VALUE ":" _type_expr
+type_def: TYPEDEF VALUE ":" type_expr
 
 module: module_decl (array_type_def
                    | c_array_type_def

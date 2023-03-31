@@ -4,7 +4,7 @@ import itertools
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Any, TYPE_CHECKING, Union
+from typing import Any, Self, TYPE_CHECKING, Union
 
 import lark
 
@@ -19,10 +19,10 @@ if TYPE_CHECKING:
 _TYPE_NAME_COUNTS: defaultdict = defaultdict(lambda: 1)
 
 
-def get_type_name(base_type: str) -> str:
-    count = _TYPE_NAME_COUNTS[base_type]
-    type_name = base_type if count == 1 else f'{base_type}{count}'
-    _TYPE_NAME_COUNTS[base_type] += 1
+def gen_name(namespace: str) -> str:
+    count = _TYPE_NAME_COUNTS[namespace]
+    type_name = namespace if count == 1 else f'{namespace}{count}'
+    _TYPE_NAME_COUNTS[namespace] += 1
     return type_name
 
 
@@ -65,6 +65,9 @@ class SylvaType(SylvaObject):
     name: str
     mod: TypeModifier = TypeModifier.NoMod
 
+    def matches(self, other: Self) -> bool:
+        return self is other
+
 
 @dataclass(kw_only=True)
 class ParamSylvaType(SylvaType):
@@ -76,13 +79,23 @@ class ParamSylvaType(SylvaType):
 
 @dataclass(kw_only=True)
 class TypePlaceholder(ParamSylvaType):
-    pass
+
+    def matches(self, other: SylvaType) -> bool:
+        return isinstance(other, TypePlaceholder) and other.name == self.name
 
 
 @dataclass(kw_only=True)
 class SylvaValue(SylvaObject):
+    name: str = ''
     type: SylvaType
     value: Any
+
+    def __eq__(self, other):
+        return (  # yapf: ignore
+            isinstance(other, SylvaValue) and
+            self.type.matches(other.type) and
+            self.value == other.value
+        )
 
 
 @dataclass(kw_only=True)
@@ -97,11 +110,20 @@ class SylvaField(SylvaObject):
             (hasattr(self.type, 'is_var') and self.type.is_var)
         )
 
+    def __eq__(self, other):
+        return self.name == other.name and self.type.amtches(other.type)
+
 
 @dataclass(kw_only=True)
 class SylvaDef(SylvaObject):
     name: str
     value: SylvaValue
+
+    def __post_init__(self):
+        if isinstance(self.value, tuple):
+            breakpoint()
+        if not self.value.name:
+            self.value.name = self.name
 
     @property
     def type(self):
@@ -241,12 +263,25 @@ class FloatValue(SylvaValue):
 @dataclass(kw_only=True)
 class IntType(SizedNumericType):
     signed: bool
-    name: str = field(init=False, default='')
+    name: str = field(default='')
 
     def __post_init__(self):
-        self.name = (
+        if self.name != '':
+            print('Non-blank name given to IntType')
+            breakpoint()
+
+        self._name = (
             f'{"i" if self.signed else "u"}{self.bits if self.bits else ""}'
         )
+
+    # @property
+    # def name(self):
+    #     return self._name
+
+    # @name.setter
+    # def name(self, new_name: str):
+    #     breakpoint()
+    #     self._name = new_name
 
     @classmethod
     def Native(cls, location: Location | None = None, signed: bool = True):
@@ -368,7 +403,7 @@ class IntValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class MonoArrayType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('array'))
+    name: str = field(default_factory=lambda: gen_name('array'))
     element_type: SylvaType
     element_count: IntValue
 
@@ -376,10 +411,17 @@ class MonoArrayType(SylvaType):
         if self.element_count.value <= 0:
             raise errors.InvalidArraySize(self.location)
 
+    def matches(self, other: SylvaType) -> bool:
+        return (
+            isinstance(other, MonoArrayType) and
+            self.element_type.matches(other.element_type) and
+            self.element_count == other.element_count
+        )
+
 
 @dataclass(kw_only=True)
 class ParamArrayType(ParamSylvaType):
-    name: str = field(default_factory=lambda: get_type_name('array'))
+    name: str = field(default_factory=lambda: gen_name('array'))
     element_type: SylvaType
 
     def get_monomorphization(
@@ -394,10 +436,16 @@ class ParamArrayType(ParamSylvaType):
             element_count=element_count
         )
 
+    def matches(self, other: SylvaType) -> bool:
+        return (
+            isinstance(other, (MonoArrayType, ParamArrayType)) and
+            self.element_type.matches(other.element_type)
+        )
+
 
 @dataclass(kw_only=True)
 class ArrayType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('array'))
+    name: str = field(default_factory=lambda: gen_name('array'))
 
     @staticmethod
     def build_type(
@@ -429,7 +477,7 @@ class ArrayValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class MonoDynarrayType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('dynarray'))
+    name: str = field(default_factory=lambda: gen_name('dynarray'))
     element_type: SylvaType
 
     # [NOTE] Normally this would be a generic Struct, but because Sylva can't
@@ -439,36 +487,25 @@ class MonoDynarrayType(SylvaType):
         if self.element_count.value <= 0:
             raise errors.InvalidArraySize(self.location)
 
-
-@dataclass(kw_only=True)
-class ParamDynarrayType(ParamSylvaType):
-    name: str = field(default_factory=lambda: get_type_name('dynarray'))
-
-    def get_monomorphization(
-        self,
-        element_type: SylvaType,
-        location: Location | None,
-    ) -> MonoDynarrayType:
-        location = location if location else Location.Generate()
-        return MonoDynarrayType(location=location, element_type=element_type)
+    def matches(self, other: SylvaType) -> bool:
+        return (
+            isinstance(other, MonoDynarrayType) and
+            self.element_type.matches(other.element_type)
+        )
 
 
 @dataclass(kw_only=True)
 class DynarrayType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('dynarray'))
+    name: str = field(default_factory=lambda: gen_name('dynarray'))
 
     @staticmethod
     def build_type(
-        element_type: SylvaType | None,
-        location: Location | None,
+        element_type: SylvaType,
+        location: Location | None = None,
         mod: TypeModifier = TypeModifier.NoMod,
-    ) -> MonoDynarrayType | ParamDynarrayType:
+    ) -> MonoDynarrayType:
         location = location if location else Location.Generate()
-        return ( # yapf: ignore
-            MonoDynarrayType(location=location, element_type=element_type)
-            if element_type is not None
-            else ParamDynarrayType(location=location)
-        )
+        return MonoDynarrayType(location=location, element_type=element_type)
 
 
 @dataclass(kw_only=True)
@@ -479,7 +516,7 @@ class DynarrayValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class MonoStrType(MonoArrayType):
-    name: str = field(init=False, default_factory=lambda: get_type_name('str'))
+    name: str = field(init=False, default_factory=lambda: gen_name('str'))
     element_type: SylvaType = field(init=False)
 
     def __post_init__(self):
@@ -487,39 +524,25 @@ class MonoStrType(MonoArrayType):
             breakpoint()
         self.element_type = U8
 
-
-@dataclass(kw_only=True)
-class ParamStrType(ParamArrayType):
-    name: str = field(init=False, default_factory=lambda: get_type_name('str'))
-    element_type: SylvaType = field(init=False)
-
-    def __post_init__(self):
-        self.element_type = U8
-
-    def get_monomorphization(
-        self,
-        element_count: IntValue,
-        location: Location | None,
-    ) -> MonoStrType:
-        location = location if location else Location.Generate()
-        return MonoStrType(location=location, element_count=element_count)
+    def matches(self, other: SylvaType) -> bool:
+        return (
+            isinstance(other, MonoStrType) and
+            self.element_type.matches(other.element_type)
+        )
 
 
 @dataclass(kw_only=True)
 class StrType(ArrayType):
-    name: str = field(init=False, default_factory=lambda: get_type_name('str'))
+    name: str = field(init=False, default_factory=lambda: gen_name('str'))
 
     @staticmethod
     def build_type( # type: ignore
-        element_count: IntValue | None,
-        location: Location | None,
+        element_count: IntValue,
+        location: Location | None = None,
         mod: TypeModifier = TypeModifier.NoMod,
-    ) -> MonoStrType | ParamStrType:
+    ) -> MonoStrType:
         location = location if location else Location.Generate()
-        return (
-            MonoStrType(location=location, element_count=element_count)
-            if element_count is not None else ParamStrType(location=location)
-        )
+        return MonoStrType(location=location, element_count=element_count)
 
 
 @dataclass(kw_only=True)
@@ -542,9 +565,7 @@ class StrValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class StringType(MonoDynarrayType):
-    name: str = field(
-        init=False, default_factory=lambda: get_type_name('string')
-    )
+    name: str = field(init=False, default_factory=lambda: gen_name('string'))
     element_type: SylvaType = field(init=False)
 
     def __post_init__(self):
@@ -559,7 +580,7 @@ class StringValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class MonoEnumType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('enum'))
+    name: str = field(default_factory=lambda: gen_name('enum'))
     values: dict[str, SylvaValue]
 
     def __post_init__(self):
@@ -570,7 +591,8 @@ class MonoEnumType(SylvaType):
         if dupes:
             raise errors.DuplicateFields(self, dupes)
 
-        if any(v.type != self.type for v in list(self.values.values())[1:]):
+        other_types = list(self.values.values())[1:]
+        if any(not self.type.matches(v.type) for v in other_types):
             raise errors.InconsistentEnumMemberTypes(self)
 
     def get_attribute(self, name):
@@ -587,7 +609,7 @@ class MonoEnumType(SylvaType):
 
 @dataclass(kw_only=True)
 class EnumType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('enum'))
+    name: str = field(default_factory=lambda: gen_name('enum'))
 
     @staticmethod
     def build_type(
@@ -607,21 +629,27 @@ class EnumValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class MonoRangeType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('range'))
+    name: str = field(default_factory=lambda: gen_name('range'))
     min: IntValue | FloatValue | ComplexValue
     max: IntValue | FloatValue | ComplexValue
 
     def __post_init__(self):
-        if self.min.type != self.max.type:
+        if not self.min.type.matches(self.max.type):
             raise errors.MismatchedRangeTypes(
                 self.location, self.min.type, self.max.type
             )
         self.type = min.type
 
+    def matches(self, other: SylvaType) -> bool:
+        return (
+            isinstance(other, MonoRangeType) and self.min == other.min and
+            self.max == other.max
+        )
+
 
 @dataclass(kw_only=True)
 class RangeType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('range'))
+    name: str = field(default_factory=lambda: gen_name('range'))
 
     @staticmethod
     def build_type(
@@ -649,7 +677,7 @@ class RangeValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class MonoFnType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('fn'))
+    name: str = field(default_factory=lambda: gen_name('fn'))
     mod: TypeModifier = field(init=False, default=TypeModifier.NoMod)
     parameters: list[SylvaField] = field(default_factory=list)
     return_type: SylvaType | None
@@ -657,20 +685,68 @@ class MonoFnType(SylvaType):
     def __post_init__(self):
         if dupes := utils.get_dupes(p.name for p in self.parameters):
             raise errors.DuplicateParameters(self, dupes)
+        if any(p.is_var for p in self.parameters):
+            raise Exception('MonoFnType with generic params')
+        if self.return_type and self.return_type.is_var:
+            raise Exception('MonoFnType with generic return type')
+
+    def matches(self, other: SylvaType) -> bool:
+        return (  # yapf: ignore
+            isinstance(other, MonoFnType) and
+            all(
+                p == op for p, op in zip(self.parameters, other.parameters)
+            ) and
+            (
+                (self.return_type is None and other.return_type is None) or
+                (self.return_type is not None and self.return_type.matches(
+                    other.return_type # type: ignore
+                ))
+            )
+        )
 
 
 @dataclass(kw_only=True)
 class ParamFnType(ParamSylvaType):
-    name: str = field(default_factory=lambda: get_type_name('fn'))
+    name: str = field(default_factory=lambda: gen_name('fn'))
     parameters: list[SylvaField] = field(default_factory=list)
     return_type: SylvaType | None = None
     return_type_param: SylvaField | None = None
 
     def __post_init__(self):
+        if dupes := utils.get_dupes(p.name for p in self.parameters):
+            raise errors.DuplicateParameters(self, dupes)
+
         if self.return_type and self.return_type_param:
             raise ValueError(
                 'Cannot specify both return_type and return_type_param'
             )
+
+        if self.return_type_param:
+            generic_param_names = [p.name for p in self.parameters if p.is_var]
+            if self.return_type_param.name not in generic_param_names:
+                breakpoint()
+                raise errors.InvalidParameterization(
+                    self.location,
+                    'Cannot parameterize function return type, its type '
+                    f'parameter "{self.return_type_param.name}" was not found '
+                    'in function parameters'
+                )
+
+        if isinstance(self.return_type, list):
+            breakpoint()
+
+    def matches(self, other: SylvaType) -> bool:
+        return (  # yapf: ignore
+            isinstance(other, ParamFnType) and
+            all(
+                p == op for p, op in zip(self.parameters, other.parameters)
+            ) and
+            (
+                (self.return_type is None and other.return_type is None) or
+                (self.return_type.matches(other.return_type))
+            ) and
+            (self.return_type_param == other.return_type_param)
+        )
 
     @property
     def return_type_param_name(self):
@@ -680,31 +756,22 @@ class ParamFnType(ParamSylvaType):
 
     @property
     def type_parameters(self):
-        return ([p.name for p in self.parameters if p.is_var] +
-                ([self.return_type_param] if self.return_type_param else []))
+        return [p.name for p in self.parameters if p.is_var]
 
     @property
     def return_type_must_be_inferred(self):
         return bool(self.return_type_param)
 
-    def get_monomorphization(
+    # [TODO] Infer return type based on variable assignment when possible
+    # [TODO] Monomorphizations should be unique by params/return type
+    def get_or_create_monomorphization(
         self,
         name: str = '',
         parameters: list[SylvaField] | None = None,
-        return_type: SylvaType | None = None,
         location: Location | None = None,
     ) -> MonoFnType:
         location = location if location else Location.Generate()
         parameters = parameters if parameters else []
-
-        if self.return_type_must_be_inferred and return_type is None:
-            raise errors.InvalidParameterization(
-                location,
-                'Cannot parameterize function return type; return type could '
-                'not be inferred, and its type parameter '
-                f'"{self.return_type_param_name}" was not found in function '
-                'parameters'
-            )
 
         if len(parameters) != len(self.parameters):
             raise errors.InvalidParameterization(
@@ -713,65 +780,89 @@ class ParamFnType(ParamSylvaType):
                 f'{len(parameters)}'
             )
 
-        iparams = iter(parameters)
+        type_params = {}.fromkeys(self.type_parameters)
+        monomorphized_params = []
+        for fn_param, given_param in zip(self.parameters, parameters):
+            if fn_param.is_var:
+                monomorphized_params.append(given_param)
+                type_params[fn_param.name] = given_param.type  # type: ignore
+            elif given_param.type != fn_param.type:
+                raise errors.MismatchedTypes(
+                    location, fn_param.type, given_param.type
+                )
+            else:
+                monomorphized_params.append(fn_param)
 
         return MonoFnType(
             location=location,
-            parameters=[
-                p if not p.is_var else next(iparams) for p in self.parameters
-            ],
-            return_type=return_type
+            parameters=monomorphized_params,
+            return_type=(  # yapf: ignore
+                type_params[self.return_type_param.name]
+                if self.return_type_param is not None
+                else self.return_type
+            )
         )
 
 
 @dataclass(kw_only=True)
 class FnType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('fn'))
+    name: str = field(default_factory=lambda: gen_name('fn'))
 
     @staticmethod
     def build_type(
         name: str = '',
         parameters: list[SylvaField] | None = None,
-        return_type: SylvaType | None = None,
+        return_type: SylvaType | SylvaField | None = None,
         location: Location | None = None,
     ) -> MonoFnType | ParamFnType:
         location = location if location else Location.Generate()
         parameters = parameters if parameters else []
+        is_param = (
+            any(p.is_var for p in parameters) or
+            isinstance(return_type, SylvaField)
+        )
 
-        if not any(p.is_var for p in parameters):
-            return MonoFnType(
+        return (
+            MonoFnType(
                 location=location,
                 name=name,
                 parameters=parameters,
-                return_type=return_type
+                return_type=return_type  # type: ignore
+            ) if not is_param else ParamFnType(
+                location=location,
+                name=name,
+                parameters=parameters,
+                return_type=(  # yapf: ignore
+                    return_type
+                    if not isinstance(return_type, SylvaField)
+                    else None
+                ),
+                return_type_param=(  # yapf: ignore
+                    return_type if isinstance(return_type, SylvaField) else None
+                )
             )
-
-        # if not name:  # [TODO] Make this a syntax error
-        #     raise errors.AnonymousGeneric(location)
-
-        return ParamFnType(
-            location=location,
-            name=name,
-            parameters=parameters,
-            return_type=return_type
         )
 
 
 @dataclass(kw_only=True)
 class FnValue(SylvaValue):
-    type: MonoFnType
+    type: MonoFnType | ParamFnType
     value: CodeBlock
+
+    @property
+    def is_var(self):
+        return isinstance(self.type, ParamFnType)
 
 
 @dataclass(kw_only=True)
 class MonoStructType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('struct'))
+    name: str = field(default_factory=lambda: gen_name('struct'))
     fields: list[SylvaField] = field(default_factory=list)
 
 
 @dataclass(kw_only=True)
 class ParamStructType(ParamSylvaType):
-    name: str = field(default_factory=lambda: get_type_name('struct'))
+    name: str = field(default_factory=lambda: gen_name('struct'))
     fields: list[SylvaField] = field(default_factory=list)
 
     @property
@@ -814,7 +905,7 @@ class ParamStructType(ParamSylvaType):
 
 @dataclass(kw_only=True)
 class StructType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('struct'))
+    name: str = field(default_factory=lambda: gen_name('struct'))
 
     @staticmethod
     def build_type(
@@ -840,7 +931,7 @@ class StructValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class MonoVariantType(MonoStructType):
-    name: str = field(default_factory=lambda: get_type_name('variant'))
+    name: str = field(default_factory=lambda: gen_name('variant'))
 
     # def set_fields(self, fields):
     #     dupes = utils.get_dupes(f.name for f in fields)
@@ -884,7 +975,7 @@ class MonoVariantType(MonoStructType):
 
 @dataclass(kw_only=True)
 class ParamVariantType(ParamStructType):
-    name: str = field(default_factory=lambda: get_type_name('variant'))
+    name: str = field(default_factory=lambda: gen_name('variant'))
 
     def get_monomorphization(
         self,
@@ -913,7 +1004,7 @@ class ParamVariantType(ParamStructType):
 
 @dataclass(kw_only=True)
 class VariantType(StructType):
-    name: str = field(default_factory=lambda: get_type_name('variant'))
+    name: str = field(default_factory=lambda: gen_name('variant'))
 
     @staticmethod
     def build_type(
@@ -943,12 +1034,12 @@ class VariantValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class MonoCArrayType(MonoArrayType):
-    name: str = field(default_factory=lambda: get_type_name('carray'))
+    name: str = field(default_factory=lambda: gen_name('carray'))
 
 
 @dataclass(kw_only=True)
 class ParamCArrayType(ParamArrayType):
-    name: str = field(default_factory=lambda: get_type_name('carray'))
+    name: str = field(default_factory=lambda: gen_name('carray'))
 
     def get_monomorphization(
         self,
@@ -965,7 +1056,7 @@ class ParamCArrayType(ParamArrayType):
 
 @dataclass(kw_only=True)
 class CArrayType(ArrayType):
-    name: str = field(default_factory=lambda: get_type_name('carray'))
+    name: str = field(default_factory=lambda: gen_name('carray'))
 
     @staticmethod
     def build_type(
@@ -996,7 +1087,7 @@ class CArrayValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class MonoCBitFieldType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('cbitfield'))
+    name: str = field(default_factory=lambda: gen_name('cbitfield'))
     bits: int
     signed: bool
     field_size: int
@@ -1004,7 +1095,7 @@ class MonoCBitFieldType(SylvaType):
 
 @dataclass(kw_only=True)
 class CBitFieldType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('cbitfield'))
+    name: str = field(default_factory=lambda: gen_name('cbitfield'))
 
     @staticmethod
     def build_type(
@@ -1039,7 +1130,7 @@ class CBitFieldValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class MonoCBlockFnType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('cblockfn'))
+    name: str = field(default_factory=lambda: gen_name('cblockfn'))
     parameters: list[SylvaField] = field(default_factory=list)
     return_type: SylvaType | None
 
@@ -1050,7 +1141,7 @@ class MonoCBlockFnType(SylvaType):
 
 @dataclass(kw_only=True)
 class CBlockFnType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('cblockfn'))
+    name: str = field(default_factory=lambda: gen_name('cblockfn'))
 
     @staticmethod
     def build_type(
@@ -1071,7 +1162,7 @@ class CBlockFnType(SylvaType):
 
 @dataclass(kw_only=True)
 class MonoCFnType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('cfn'))
+    name: str = field(default_factory=lambda: gen_name('cfn'))
     parameters: list[SylvaField] = field(default_factory=list)
     return_type: SylvaType | None
 
@@ -1082,7 +1173,7 @@ class MonoCFnType(SylvaType):
 
 @dataclass(kw_only=True)
 class CFnType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('cfn'))
+    name: str = field(default_factory=lambda: gen_name('cfn'))
 
     @staticmethod
     def build_type(
@@ -1105,10 +1196,14 @@ class CFnType(SylvaType):
 class CFnValue(SylvaValue):
     type: MonoCFnType
 
+    @property
+    def is_var(self):
+        return False
+
 
 @dataclass(kw_only=True)
 class MonoCPtrType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('cptr'))
+    name: str = field(default_factory=lambda: gen_name('cptr'))
     referenced_type: SylvaType
 
     @cached_property
@@ -1120,7 +1215,7 @@ class MonoCPtrType(SylvaType):
 
 @dataclass(kw_only=True)
 class ParamCPtrType(ParamSylvaType):
-    name: str = field(default_factory=lambda: get_type_name('cptr'))
+    name: str = field(default_factory=lambda: gen_name('cptr'))
 
     def get_monomorphization(
         self,
@@ -1136,7 +1231,7 @@ class ParamCPtrType(ParamSylvaType):
 
 @dataclass(kw_only=True)
 class CPtrType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('cptr'))
+    name: str = field(default_factory=lambda: gen_name('cptr'))
 
     @staticmethod
     def build_type(
@@ -1168,7 +1263,7 @@ class CPtrValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class CStrType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('cstr'))
+    name: str = field(default_factory=lambda: gen_name('cstr'))
 
 
 @dataclass(kw_only=True)
@@ -1179,13 +1274,13 @@ class CStrValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class MonoCStructType(MonoStructType):
-    name: str = field(default_factory=lambda: get_type_name('cstruct'))
+    name: str = field(default_factory=lambda: gen_name('cstruct'))
     pass
 
 
 @dataclass(kw_only=True)
 class CStructType(StructType):
-    name: str = field(default_factory=lambda: get_type_name('cstruct'))
+    name: str = field(default_factory=lambda: gen_name('cstruct'))
 
     @staticmethod
     def build_type(
@@ -1211,12 +1306,12 @@ class CStructValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class MonoCUnionType(MonoStructType):
-    name: str = field(default_factory=lambda: get_type_name('cunion'))
+    name: str = field(default_factory=lambda: gen_name('cunion'))
 
 
 @dataclass(kw_only=True)
 class CUnionType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('cunion'))
+    name: str = field(default_factory=lambda: gen_name('cunion'))
 
     @staticmethod
     def build_type(
@@ -1240,7 +1335,7 @@ class CUnionValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class CVoidType(SylvaType):
-    name: str = field(default_factory=lambda: get_type_name('cvoid'))
+    name: str = field(default_factory=lambda: gen_name('cvoid'))
     is_exclusive: bool = False
 
 
@@ -1279,6 +1374,7 @@ ENUM = EnumType()
 RANGE = RangeType()
 FN = FnType()
 STRUCT = StructType()
+TYPE = Type()
 VARIANT = VariantType()
 
 CARRAY = CArrayType()
@@ -1342,7 +1438,8 @@ class TypeDef(SylvaObject):
     type: SylvaType
 
     def __post_init__(self):
-        self.type.name = self.name
+        if not self.type.name:
+            self.type.name = self.name
 
 
 @dataclass(kw_only=True)

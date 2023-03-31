@@ -385,14 +385,11 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
     def function_def(self, parts):
         debug('ast_builder', f'function_def: {parts}')
 
-        fn = parts.pop(0)
-        name = parts.pop(0).value
-        code_block = parts.pop(-1)
-        return_type = ( # yapf: ignore
-            parts.pop(-1)
-            if parts and not isinstance(parts[-1], SylvaField)
-            else None
-        )
+        fn = parts[0]
+        name = parts[1].value
+        code_block = parts[-1]
+        return_type = parts[-2][0] if parts[-2] else None
+        params = parts[2:-2]
 
         location = Location.FromToken(fn, stream=self._stream)
 
@@ -402,7 +399,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
                 location=location,
                 type=FN.build_type(
                     location=location,
-                    parameters=parts,
+                    parameters=params,
                     return_type=return_type
                 ),
                 value=code_block
@@ -414,16 +411,12 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         return function_def
 
     def function_type_literal_expr(self, parts):
-        debug('ast_builder', f'function_type_literal_expr: {parts}')
+        print('ast_builder', f'function_type_literal_expr: {parts}')
 
         return FN.build_type(
-            location=Location.FromToken(parts.pop(0), stream=self._stream),
-            return_type=( # yapf: ignore
-                parts.pop(-1)
-                if parts and isinstance(parts[-1], SylvaField)
-                else None
-            ),
-            parameters=parts
+            location=Location.FromToken(parts[0], stream=self._stream),
+            return_type=parts[-1],
+            parameters=parts[1:-1]
         )
 
     def int_expr(self, parts):
@@ -611,12 +604,16 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         return type_def
 
+    def type_expr(self, parts):
+        debug('ast_builder', f'type_expr: {parts}')
+        return parts
+
     def type_param_pair(self, parts):
         debug('ast_builder', f'type_param_pair: {parts}')
-        name = parts.pop(0)
+        name, type = parts
 
-        mod, rest = TypeModifier.separate_type_mod(parts)
-        type = rest[0]
+        mod, type = TypeModifier.separate_type_mod(type)
+        type = type[0]
         type.mod = mod
 
         return SylvaField(
