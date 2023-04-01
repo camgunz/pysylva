@@ -634,11 +634,11 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
             type=STR.build_type(
                 location=location,
                 module=self._module,
-                element_count=IntValue.FromValue(
+                element_count=IntValue.Native(
                     n=len(str_token.value) - 2,
-                    signed=False,
                     location=location,
                     module=self._module,
+                    signed=False,
                 )
             )
         )

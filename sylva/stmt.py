@@ -9,12 +9,11 @@ from sylva.expr import (
     LookupExpr,
     VariantFieldTypeLookupExpr,
 )
-from sylva.location import Location
 
 
 @dataclass(kw_only=True)
 class Stmt(SylvaObject):
-    location: Location
+    pass
 
 
 @dataclass(kw_only=True)

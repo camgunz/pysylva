@@ -71,6 +71,10 @@ class SylvaType(SylvaObject):
     name: str
     mod: TypeModifier = TypeModifier.NoMod
 
+    @property
+    def is_var(self):
+        return False
+
     def matches(self, other: Self) -> bool:
         return self is other
 
@@ -149,7 +153,6 @@ class TypeValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class CodeBlock(SylvaObject):
-    location: Location
     code: list[Union['Expr', 'Stmt']] = field(default_factory=list)
 
 
@@ -438,8 +441,28 @@ class IntValue(SylvaValue):
         location: Location | None = None
     ):
         location = location if location else Location.Generate()
-        type = IntType.FromValue(location=location, value=n)
-        return cls(location=location, module=module, type=type, value=n)
+        return cls(
+            location=location,
+            module=module,
+            type=IntType.FromValue(location=location, value=n),
+            value=n
+        )
+
+    @classmethod
+    def Native(
+        cls,
+        module: 'Mod',
+        n: int,
+        signed: bool = True,
+        location: Location | None = None
+    ):
+        location = location if location else Location.Generate()
+        return cls(
+            location=location,
+            module=module,
+            type=IntType.Native(location=location, signed=signed),
+            value=n
+        )
 
 
 @dataclass(kw_only=True)
@@ -458,6 +481,37 @@ class MonoArrayType(SylvaType):
             self.element_type.matches(other.element_type) and
             self.element_count == other.element_count
         )
+
+    def lookup(self, name: str):
+        from sylva.expr import IntLiteralExpr
+        from sylva.stmt import ReturnStmt
+
+        if name == 'get_length':
+            return FnValue(
+                module=self.module,
+                name='get_length',
+                type=MonoFnType(
+                    module=self.module,
+                    return_type=self.element_count.type,
+                ),
+                value=CodeBlock(
+                    module=self.module,
+                    code=[
+                        ReturnStmt(
+                            module=self.module,
+                            expr=IntLiteralExpr(
+                                module=self.module,
+                                type=self.element_count.type,
+                                value=self.element_count
+                            )
+                        )
+                    ]
+                )
+            )
+            pass
+
+    def reflection_lookup(self, name):
+        pass
 
 
 @dataclass(kw_only=True)
@@ -567,13 +621,12 @@ class DynarrayValue(SylvaValue):
 
 @dataclass(kw_only=True)
 class MonoStrType(MonoArrayType):
-    name: str = field(init=False, default_factory=lambda: gen_name('str'))
+    name: str = field(init=False)
     element_type: SylvaType = field(init=False)
 
     def __post_init__(self):
-        if not isinstance(self.element_count, IntValue):
-            breakpoint()
         self.element_type = U8
+        self.name = f'str{self.element_count.value}'
 
     def matches(self, other: SylvaType) -> bool:
         return (
@@ -1473,50 +1526,50 @@ class CVoidValue(SylvaValue):
     value: None = None
 
 
-TYPE = Type(module=None)
-BOOL = BoolType(module=None)
-RUNE = RuneType(module=None)
-C16 = ComplexType(module=None, bits=16)
-C32 = ComplexType(module=None, bits=32)
-C64 = ComplexType(module=None, bits=64)
-C128 = ComplexType(module=None, bits=128)
-F16 = FloatType(module=None, bits=16)
-F32 = FloatType(module=None, bits=32)
-F64 = FloatType(module=None, bits=64)
-F128 = FloatType(module=None, bits=128)
-I8 = IntType(module=None, bits=8, signed=True)
-I16 = IntType(module=None, bits=16, signed=True)
-I32 = IntType(module=None, bits=32, signed=True)
-I64 = IntType(module=None, bits=64, signed=True)
-I128 = IntType(module=None, bits=128, signed=True)
-U8 = IntType(module=None, bits=8, signed=False)
-U16 = IntType(module=None, bits=16, signed=False)
-U32 = IntType(module=None, bits=32, signed=False)
-U64 = IntType(module=None, bits=64, signed=False)
-U128 = IntType(module=None, bits=128, signed=False)
-ARRAY = ArrayType(module=None)
-DYNARRAY = DynarrayType(module=None)
-STR = StrType(module=None)
-STRING = StringType(module=None)
-ENUM = EnumType(module=None)
-RANGE = RangeType(module=None)
-FN = FnType(module=None)
-STRUCT = StructType(module=None)
-TYPE = Type(module=None)
-VARIANT = VariantType(module=None)
-
-CARRAY = CArrayType(module=None)
-CBITFIELD = CBitFieldType(module=None)
-CBLOCKFN = CBlockFnType(module=None)
-CFN = CFnType(module=None)
-CPTR = CPtrType(module=None)
-CSTR = CStrType(
-    module=None
-)  # [NOTE] Should this also inherit from CARRAY or w/e?
-CSTRUCT = CStructType(module=None)
-CUNION = CUnionType(module=None)
-CVOID = CVoidType(module=None)
-CVOIDEX = CVoidType(module=None, is_exclusive=True)
+TYPE = Type(module=None)  # type: ignore
+BOOL = BoolType(module=None)  # type: ignore
+RUNE = RuneType(module=None)  # type: ignore
+C16 = ComplexType(module=None, bits=16)  # type: ignore
+C32 = ComplexType(module=None, bits=32)  # type: ignore
+C64 = ComplexType(module=None, bits=64)  # type: ignore
+C128 = ComplexType(module=None, bits=128)  # type: ignore
+F16 = FloatType(module=None, bits=16)  # type: ignore
+F32 = FloatType(module=None, bits=32)  # type: ignore
+F64 = FloatType(module=None, bits=64)  # type: ignore
+F128 = FloatType(module=None, bits=128)  # type: ignore
+I8 = IntType(module=None, bits=8, signed=True)  # type: ignore
+I16 = IntType(module=None, bits=16, signed=True)  # type: ignore
+I32 = IntType(module=None, bits=32, signed=True)  # type: ignore
+I64 = IntType(module=None, bits=64, signed=True)  # type: ignore
+I128 = IntType(module=None, bits=128, signed=True)  # type: ignore
+U8 = IntType(module=None, bits=8, signed=False)  # type: ignore
+U16 = IntType(module=None, bits=16, signed=False)  # type: ignore
+U32 = IntType(module=None, bits=32, signed=False)  # type: ignore
+U64 = IntType(module=None, bits=64, signed=False)  # type: ignore
+U128 = IntType(module=None, bits=128, signed=False)  # type: ignore
+ARRAY = ArrayType(module=None)  # type: ignore
+DYNARRAY = DynarrayType(module=None)  # type: ignore
+STR = StrType(module=None)  # type: ignore
+STRING = StringType(module=None)  # type: ignore
+ENUM = EnumType(module=None)  # type: ignore
+RANGE = RangeType(module=None)  # type: ignore
+FN = FnType(module=None)  # type: ignore
+STRUCT = StructType(module=None)  # type: ignore
+TYPE = Type(module=None)  # type: ignore
+VARIANT = VariantType(module=None)  # type: ignore
+# type: ignore
+CARRAY = CArrayType(module=None)  # type: ignore
+CBITFIELD = CBitFieldType(module=None)  # type: ignore
+CBLOCKFN = CBlockFnType(module=None)  # type: ignore
+CFN = CFnType(module=None)  # type: ignore
+CPTR = CPtrType(module=None)  # type: ignore
+CSTR = CStrType(  # type: ignore
+    module=None  # type: ignore
+)  # [NOTE] Should this also inherit from CARRAY or w/e?  # type: ignore
+CSTRUCT = CStructType(module=None)  # type: ignore
+CUNION = CUnionType(module=None)  # type: ignore
+CVOID = CVoidType(module=None)  # type: ignore
+CVOIDEX = CVoidType(module=None, is_exclusive=True)  # type: ignore
 
 
 def lookup(name):
