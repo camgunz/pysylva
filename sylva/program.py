@@ -75,12 +75,12 @@ class Program:
     def process(self):
         self.parse()
         type_assigner = LookupExprTypeAssigner()
-        type_checker = TypeChecker()
         monomorphizer = Monomorphizer()
+        type_checker = TypeChecker()
         for m in self.modules.values():
             type_assigner.visit(m)
-            type_checker.visit(m)
             monomorphizer.visit(m)
+            type_checker.visit(m)
 
     def compile(self, output_folder):
         self.process()

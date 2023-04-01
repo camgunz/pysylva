@@ -61,6 +61,9 @@ class CCodeGen(Visitor):
         self._sio = StringIO()
 
     def enter_fn(self, fn: FnValue, name: str, parents: list[SylvaObject]):
+        if fn.is_var:
+            return
+
         Visitor.enter_fn(self, fn, name, parents)
 
         if not fn.type.return_type:
@@ -84,6 +87,9 @@ class CCodeGen(Visitor):
         self.indent()
 
     def exit_fn(self, fn: FnValue, name: str, parents: list[SylvaObject]):
+        if fn.is_var:
+            return
+
         self.dedent()
         self.emit('}\n\n')
 

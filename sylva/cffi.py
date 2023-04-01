@@ -85,8 +85,9 @@ class CModuleLoader:
                 return (value, False)
 
         new_def: SylvaDef | TypeDef = (
-            TypeDef(name=name, type=value) if isinstance(value, SylvaType) else
-            SylvaDef(name=name, value=value)
+            TypeDef(module=module, name=name, type=value)
+            if isinstance(value, SylvaType) else
+            SylvaDef(module=module, name=name, value=value)
         )
 
         module.add_def(new_def)
@@ -97,6 +98,7 @@ class CModuleLoader:
         if isinstance(cdef, CDefs.Array):
             carray_type = (
                 CPTR.build_type( # yapf: ignore
+                    module=module,
                     location=None,
                     referenced_type=self._process_cdef(
                         module, cdef.element_type
@@ -104,9 +106,11 @@ class CModuleLoader:
                 )
                 if cdef.element_count is None
                 else CARRAY.build_type(
+                    module=module,
                     location=None,
                     element_type=self._process_cdef(module, cdef.element_type),
                     element_count=IntValue.FromValue(
+                        module=module,
                         n=cdef.element_count,
                         signed=False,
                     )
@@ -121,9 +125,11 @@ class CModuleLoader:
 
         if isinstance(cdef, CDefs.Enum):
             enum_type = ENUM.build_type(
+                module=module,
                 location=None,
                 values={ # yapf: ignore
                     name: SylvaValue(
+                        module=module,
                         # [NOTE] This should always be some kind of integer
                         type=self._process_cdef(module, cdef.type),
                         value=value,
@@ -144,14 +150,19 @@ class CModuleLoader:
                 module,
                 cdef.name,
                 CFnValue(
+                    module=module,
                     type=CFN.build_type(
-                        return_type=self._process_cdef(module, cdef.return_type),
+                        module=module,
+                        return_type=self._process_cdef(
+                            module, cdef.return_type
+                        ),
                         parameters=[ # yapf: ignore
                             SylvaField(
-                                name=param_name,
-                                type=self._process_cdef(module, param_type)
+                                module=module,
+                                name=pname,
+                                type=self._process_cdef(module, ptype)
                             )
-                            for param_name, param_type in cdef.parameters.items()
+                            for pname, ptype in cdef.parameters.items()
                         ],
                     ),
                     value=None
@@ -161,9 +172,11 @@ class CModuleLoader:
 
         if isinstance(cdef, CDefs.FunctionPointer):
             return CFN.build_type(
+                module=module,
                 return_type=self._process_cdef(module, cdef.return_type),
                 parameters=[ # yapf: ignore
                     SylvaField(
+                        module=module,
                         name=param_name,
                         type=self._process_cdef(module, param_type)
                     )
@@ -174,6 +187,7 @@ class CModuleLoader:
         if isinstance(cdef, CDefs.Pointer):
             return CPTR.build_type(
                 location=None,
+                module=module,
                 mod=TypeModifier.NoMod if cdef.is_const else TypeModifier.CMut,
                 referenced_type=self._process_cdef(module, cdef.base_type)
             )
@@ -181,7 +195,7 @@ class CModuleLoader:
         if isinstance(cdef, CDefs.Reference):
             mod = TypeModifier.NoMod if cdef.is_const else TypeModifier.CMut
             value = LookupExpr(
-                name=cdef.target.replace(' ', '_'), type=TYPE
+                module=module, name=cdef.target.replace(' ', '_'), type=TYPE
             ).eval(module)
 
             if not isinstance(value, SylvaType):
@@ -223,7 +237,9 @@ class CModuleLoader:
             raise ValueError(f'Unsupported builtin type {cdef}')
 
         if isinstance(cdef, CDefs.Struct):
-            cstruct_type = CSTRUCT.build_type(location=None, fields=[])
+            cstruct_type = CSTRUCT.build_type(
+                location=None, module=module, fields=[]
+            )
 
             if cdef.name:
                 cstruct_type_def, added = self.add_def(
@@ -239,6 +255,7 @@ class CModuleLoader:
 
                 cstruct_type.fields.append(
                     SylvaField(
+                        module=module,
                         name=field_name,
                         type=(
                             cstruct_type if cdef.name is not None and
@@ -263,7 +280,9 @@ class CModuleLoader:
             )[0]
 
         if isinstance(cdef, CDefs.Union):
-            cunion_type = CUNION.build_type(location=None, fields=[])
+            cunion_type = CUNION.build_type(
+                location=None, module=module, fields=[]
+            )
 
             if cdef.name:
                 cunion_type_def, added = self.add_def(
@@ -276,6 +295,7 @@ class CModuleLoader:
             for field_name, field_type in cdef.fields.items():
                 cunion_type.fields.append(
                     SylvaField(
+                        module=module,
                         name=field_name,
                         type=(
                             cunion_type if cdef.name is not None and
@@ -292,9 +312,11 @@ class CModuleLoader:
 
         if isinstance(cdef, CDefs.BlockFunctionPointer):
             return CBLOCKFN.build_type(
+                module=module,
                 return_type=self._process_cdef(module, cdef.return_type),
                 parameters=[ # yapf: ignore
                     SylvaField(
+                        module=module,
                         name=param_name,
                         type=self._process_cdef(module, param_type)
                     )
@@ -317,7 +339,11 @@ class CModuleLoader:
             value = expr.eval(module)
             module.add_def(
                 SylvaDef(
-                    name=name, value=SylvaValue(type=expr.type, value=value)
+                    name=name,
+                    module=module,
+                    value=SylvaValue(
+                        module=module, type=expr.type, value=value
+                    )
                 )
             )
 
@@ -327,7 +353,7 @@ class CModuleLoader:
             ).transform(type_expr_parser.parse(type_expr_text))
             new_type = parts[0]
 
-            module.add_def(TypeDef(name=name, type=new_type))
+            module.add_def(TypeDef(module=module, name=name, type=new_type))
 
         for header_file in package.header_files:
             for cdef in self.program.c_parser.parse(header_file):

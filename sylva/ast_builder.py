@@ -120,9 +120,11 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         typedef = TypeDef(
             location=location,
+            module=self._module,
             name=name,
             type=CARRAY.build_type(
                 location=location,
+                module=self._module,
                 element_type=type_expr.eval(self._module),
                 element_count=count_expr.eval(self._module),
             )
@@ -140,6 +142,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         return CARRAY.build_type(
             location=location,
+            module=self._module,
             mod=mod,
             element_type=element_type,
             element_count=element_count,
@@ -152,12 +155,14 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         location = Location.FromToken(cbitfield, stream=self._stream)
         int_type = LookupExpr(
             location=Location.FromToken(int_type_expr, stream=self._stream),
+            module=self._module,
             name=int_type_expr.value,
             type=IntType
         ).eval(self._module)
 
         return CBITFIELD.build_type(
             location=location,
+            module=self._module,
             mod=mod,
             bits=int_type.bits,
             signed=int_type.signed,
@@ -171,6 +176,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         return CBLOCKFN.build_type(
             location=location,
+            module=self._module,
             return_type=(
                 parts.pop(-1)
                 if parts and not isinstance(parts[-1], SylvaField) else None
@@ -186,11 +192,14 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         cfn_def = SylvaDef(
             location=location,
+            module=self._module,
             name=name.value,
             value=CFnValue(
                 location=location,
+                module=self._module,
                 type=CFN.build_type(
                     location=location,
+                    module=self._module,
                     return_type=( # yapf: ignore
                         parts.pop(-1)
                         if parts and not isinstance(parts[-1], SylvaField)
@@ -213,6 +222,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         return CFN.build_type(
             location=location,
+            module=self._module,
             return_type=(
                 parts.pop(-1)
                 if parts and not isinstance(parts[-1], SylvaField) else None
@@ -229,8 +239,10 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         return CPtrExpr(
             location=location,
+            module=self._module,
             type=CPTR.build_type(
                 location=location,
+                module=self._module,
                 mod=TypeModifier.CMut if is_exclusive else TypeModifier.NoMod,
                 referenced_type=expr.type,
             ),
@@ -246,6 +258,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         return CPTR.build_type(
             location=location,
+            module=self._module,
             mod=TypeModifier.CMut if mut else TypeModifier.NoMod,
             referenced_type=ref_type,
         )
@@ -256,7 +269,9 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         name = parts.pop(0).value
         location = Location.FromToken(cstruct, stream=self._stream)
 
-        cstruct_type = CSTRUCT.build_type(location=location)
+        cstruct_type = CSTRUCT.build_type(
+            location=location, module=self._module
+        )
 
         for field in parts:
             if not isinstance(field, UndefinedSymbol):
@@ -276,8 +291,11 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         type_def = TypeDef(
             location=location,
+            module=self._module,
             name=name,
-            type=CSTRUCT.build_type(location=location, fields=parts),
+            type=CSTRUCT.build_type(
+                location=location, module=self._module, fields=parts
+            ),
         )
 
         self._module.add_def(type_def)
@@ -292,8 +310,11 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         type_def = TypeDef(
             location=location,
+            module=self._module,
             name=name,
-            type=CUNION.build_type(location=location, fields=parts),
+            type=CUNION.build_type(
+                location=location, module=self._module, fields=parts
+            ),
         )
 
         self._module.add_def(type_def)
@@ -309,6 +330,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         return CVoidExpr(
             location=location,
+            module=self._module,
             type=CVOIDEX if is_exclusive else CVOID,
             expr=expr,
         )
@@ -324,6 +346,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         func_lookup, args = parts[0], parts[1:]
         return CallExpr(
             location=func_lookup.location.copy(),
+            module=self._module,
             function=func_lookup,
             arguments=args,
             type=None
@@ -333,6 +356,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         debug('ast_builder', f'code_block: {parts}')
         return CodeBlock(
             location=Location.FromToken(parts[0], stream=self._stream),
+            module=self._module,
             code=parts[1:-1]
         )
 
@@ -342,6 +366,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         const_def = SylvaDef(
             location=Location.FromToken(const, stream=self._stream),
+            module=self._module,
             name=name_token.value,
             value=value
         )
@@ -354,6 +379,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         debug('ast_builder', f'match_case_block: {parts}')
         return DefaultBlock(
             location=Location.FromToken(parts[0], stream=self._stream),
+            module=self._module,
             code=parts[1]
         )
 
@@ -370,9 +396,11 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         type_def = TypeDef(
             location=location,
+            module=self._module,
             name=parts.pop(0).value,
             type=FN.build_type(
                 location=location,
+                module=self._module,
                 parameters=parts[1].children[:-1],
                 return_type=parts[1].children[-1],
             )
@@ -394,11 +422,15 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         location = Location.FromToken(fn, stream=self._stream)
 
         function_def = SylvaDef(
+            location=location,
+            module=self._module,
             name=name,
             value=FnValue(
                 location=location,
+                module=self._module,
                 type=FN.build_type(
                     location=location,
+                    module=self._module,
                     parameters=params,
                     return_type=return_type
                 ),
@@ -411,10 +443,11 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         return function_def
 
     def function_type_literal_expr(self, parts):
-        print('ast_builder', f'function_type_literal_expr: {parts}')
+        debug('ast_builder', f'function_type_literal_expr: {parts}')
 
         return FN.build_type(
             location=Location.FromToken(parts[0], stream=self._stream),
+            module=self._module,
             return_type=parts[-1],
             parameters=parts[1:-1]
         )
@@ -425,6 +458,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         return IntValue.FromString(
             location=Location.FromToken(int_token, stream=self._stream),
+            module=self._module,
             strval=int_token.value
         )
 
@@ -434,6 +468,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         return IntLiteralExpr.FromString(
             location=Location.FromToken(int_token, stream=self._stream),
+            module=self._module,
             strval=int_token.value
         )
 
@@ -445,7 +480,9 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         if (hasattr(tree.meta, 'self_referential_field_names') and
                 name in tree.meta.self_referential_field_names):
-            value = SelfReferentialField(location=location, name=name.value)
+            value = SelfReferentialField(
+                location=location, module=self._module, name=name.value
+            )
         elif (hasattr(tree.meta, 'function_parameters') and
               name in tree.meta.function_parameters):
             param = tree.meta.function_parameters[name]
@@ -473,6 +510,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
                     location=Location.FromTree(
                         param_type_expr, stream=self._stream
                     ),
+                    module=self._module,
                     name=param_type_expr.children[0].value,
                 )
             else:
@@ -481,6 +519,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
                 )
                 param_type = LookupExpr(
                     location=Location.FromToken(rest[0], stream=self._stream),
+                    module=self._module,
                     name=rest[0].value,
                     type=SylvaType,
                 ).eval(self._module)
@@ -490,7 +529,10 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
             )
         else:
             value = LookupExpr(
-                location=location, name=name.value, type=SylvaType
+                location=location,
+                module=self._module,
+                name=name.value,
+                type=SylvaType
             ).eval(self._module)
 
         while tree.children:
@@ -499,6 +541,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
             value = AttributeLookupExpr(
                 location=Location.FromToken(attr_name, stream=self._stream),
+                module=self._module,
                 name=attr_name.value,
                 obj=value,
                 reflection=reflection,
@@ -511,6 +554,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         debug('ast_builder', f'match_block: {parts}')
         return MatchBlock(
             location=Location.FromToken(parts.pop(0), stream=self._stream),
+            module=self._module,
             variant_expr=parts.pop(0),
             default_case=( # yapf: ignore
                 parts.pop(-1)
@@ -525,9 +569,11 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         case, var_name, var_type, code_block = parts
         return MatchCaseBlock(
             location=Location.FromToken(case, stream=self._stream),
+            module=self._module,
             variant_name=var_name.value,
             variant_field_type_lookup_expr=VariantFieldTypeLookupExpr(
                 location=Location.FromToken(var_type, stream=self._stream),
+                module=self._module,
                 name=var_type.value
             ),
             code=code_block,
@@ -537,6 +583,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         debug('ast_builder', f'match_case_block: {parts}')
         return ReturnStmt(
             location=Location.FromToken(parts[0], stream=self._stream),
+            module=self._module,
             expr=parts[1]
         )
 
@@ -546,6 +593,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         expr = LookupExpr(
             location=Location.FromToken(name, stream=self._stream),
+            module=self._module,
             name=name.value,
             type=None
         )
@@ -556,6 +604,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
             expr = AttributeLookupExpr(
                 location=Location.FromToken(attr_name, stream=self._stream),
+                module=self._module,
                 name=attr_name.value,
                 obj=expr,
                 reflection=reflection,
@@ -569,6 +618,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         return StrLiteralExpr.FromString(
             location=Location.FromToken(parts[0], stream=self._stream),
+            module=self._module,
             strval=parts[0].value[1:-1]
         )
 
@@ -579,13 +629,16 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         return StrValue(
             location=Location.FromToken(str_token, stream=self._stream),
+            module=self._module,
             value=str_token.value[1:-1],
             type=STR.build_type(
                 location=location,
+                module=self._module,
                 element_count=IntValue.FromValue(
                     n=len(str_token.value) - 2,
                     signed=False,
                     location=location,
+                    module=self._module,
                 )
             )
         )
@@ -596,6 +649,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         type_def = TypeDef(
             location=Location.FromToken(typedef, stream=self._stream),
+            module=self._module,
             name=name.value,
             type=type,
         )
@@ -618,6 +672,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         return SylvaField(
             location=Location.FromToken(name, stream=self._stream),
+            module=self._module,
             name=name.value,
             type=type
         )
@@ -627,6 +682,7 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
         name = parts.pop(0)
         return TypePlaceholder(
             location=Location.FromToken(name, stream=self._stream),
+            module=self._module,
             name=name.value
         )
 
@@ -639,7 +695,11 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
             raise errors.NoSuchUnaryOperator(location, op.value)
 
         return UnaryExpr(
-            location=location, operator=operator, expr=expr, type=expr.type
+            location=location,
+            module=self._module,
+            operator=operator,
+            expr=expr,
+            type=expr.type
         )
 
     def var_type_expr(self, parts):
@@ -659,8 +719,11 @@ class ASTBuilder(lark.visitors.Transformer_InPlaceRecursive):
 
         type_def = TypeDef(
             location=location,
+            module=self._module,
             name=name.value,
-            type=VARIANT.build_type(location=location, fields=parts),
+            type=VARIANT.build_type(
+                location=location, module=self._module, fields=parts
+            ),
         )
 
         self._module.add_def(type_def)

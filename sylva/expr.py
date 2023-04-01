@@ -37,7 +37,7 @@ class Expr(SylvaObject):
         if type is None:
             debug('nonetype', f'[{self.location.shorthand}] {type(self)}')
 
-    def eval(self, module: Mod, scopes: Scope | None = None):
+    def eval(self, scopes: Scope | None = None):
         raise NotImplementedError()
 
 
@@ -46,16 +46,14 @@ class LookupExpr(Expr):
     name: str
 
     def eval(
-        self,
-        module: Mod,
-        scopes: Scope | None = None
+        self, scopes: Scope | None = None
     ) -> Mod | SylvaType | SylvaValue:
         if scopes:
             val = scopes.lookup(self.name)
             if val is not None:
                 return val
 
-        val = module.lookup(self.name)
+        val = self.module.lookup(self.name)
         if val:
             return val
 
@@ -66,7 +64,7 @@ class LookupExpr(Expr):
 class LiteralExpr(Expr):
     value: Any
 
-    def eval(self, module: Mod, scopes: Scope | None = None):
+    def eval(self, scopes: Scope | None = None):
         return self.value
 
 
@@ -89,12 +87,13 @@ class AttributeLookupExpr(Expr):
     obj: Any
     reflection: bool = False
 
-    def eval(self, module: Mod, scopes: Scope | None = None):
+    def eval(self, scopes: Scope | None = None):
         obj = ( # yapf: ignore
-            self.obj.eval(module, scopes)
+            self.obj.eval(scopes)
             if isinstance(self.obj, Expr)
             else self.obj
         )
+        print(obj.name, self.name, self.reflection)
         return ( # yapf: ignore
             obj.reflection_lookup(self.name)
             if self.reflection
@@ -174,9 +173,9 @@ class BoolLiteralExpr(LiteralExpr):
     value: BoolValue
 
     @classmethod
-    def FromString(cls, location: Location, strval: str):
-        v = BoolValue.FromString(location=location, s=strval)
-        return cls(location=location, type=v.type, value=v)
+    def FromString(cls, location: Location, module: Mod, strval: str):
+        v = BoolValue.FromString(location=location, module=module, s=strval)
+        return cls(location=location, module=module, type=v.type, value=v)
 
 
 @dataclass(kw_only=True)
@@ -190,9 +189,9 @@ class RuneLiteralExpr(LiteralExpr):
             raise errors.invalidRuneValue('Runes must have len <= 1')
 
     @classmethod
-    def FromString(cls, location: Location, strval: str):
-        v = RuneValue.FromString(location=location, s=strval)
-        return cls(location=location, type=v.type, value=v)
+    def FromString(cls, location: Location, module: Mod, strval: str):
+        v = RuneValue.FromString(location=location, module=module, s=strval)
+        return cls(location=location, module=module, type=v.type, value=v)
 
 
 @dataclass(kw_only=True)
@@ -213,9 +212,9 @@ class FloatLiteralExpr(LiteralExpr):
     value: FloatValue
 
     @classmethod
-    def FromString(cls, location: Location, strval: str):
-        v = FloatValue.FromString(location=location, s=strval)
-        return cls(location=location, type=v.type, value=v)
+    def FromString(cls, location: Location, module: Mod, strval: str):
+        v = FloatValue.FromString(location=location, module=module, s=strval)
+        return cls(location=location, module=module, type=v.type, value=v)
 
 
 @dataclass(kw_only=True)
@@ -229,9 +228,9 @@ class IntLiteralExpr(LiteralExpr):
             raise errors.IntSizeExceeded(self.location, self.value.value)
 
     @classmethod
-    def FromString(cls, location: Location, strval: str):
-        v = IntValue.FromString(location=location, s=strval)
-        return cls(location=location, type=v.type, value=v)
+    def FromString(cls, location: Location, module: Mod, strval: str):
+        v = IntValue.FromString(location=location, module=module, s=strval)
+        return cls(location=location, module=module, type=v.type, value=v)
 
 
 @dataclass(kw_only=True)
@@ -240,9 +239,9 @@ class StrLiteralExpr(LiteralExpr):
     value: StrValue
 
     @classmethod
-    def FromString(cls, location: Location, strval: str):
-        v = StrValue.FromString(location=location, s=strval[1:-1])
-        return cls(location=location, type=v.type, value=v)
+    def FromString(cls, location: Location, module: Mod, strval: str):
+        v = StrValue.FromString(location=location, module=module, s=strval)
+        return cls(location=location, module=module, type=v.type, value=v)
 
 
 @dataclass(kw_only=True)

@@ -209,7 +209,7 @@ class Target:
     os: OS = OS.ANY
     environment: Environment = Environment.ANY
     object_format: ObjectFormat = ObjectFormat.ANY
-    header_files: list[Path] = field(default_factory=list)
+    header_files: list[Path] = field(default_factory=list, repr=False)
     dynamic_libraries: list[Path] = field(default_factory=list)
     static_libraries: list[Path] = field(default_factory=list)
     defs: dict[str, str] = field(default_factory=dict)
@@ -241,7 +241,7 @@ class BasePackage:
 @dataclass(kw_only=True, frozen=True)
 class SylvaPackage(BasePackage):
     type: Literal['bin', 'lib']
-    source_files: list[Path] = field(default_factory=list)
+    source_files: list[Path] = field(default_factory=list, repr=False)
     dependencies: list[Dependency] = field(default_factory=list)
 
     @classmethod
