@@ -9,7 +9,7 @@ from sylva.builtins import (
     SylvaObject,
     gen_name,
 )
-from sylva.expr import CallExpr
+from sylva.expr import CallExpr, LiteralExpr
 from sylva.lookup_expr_type_assigner import LookupExprTypeAssigner
 from sylva.mod import Mod
 from sylva.visitor import Visitor
@@ -26,7 +26,6 @@ class Monomorphizer(Visitor):
         )
 
         if fn_parent.is_var:
-            print(f'Skipping generic function {fn_parent.name}')
             return
 
         if self.module is None:
@@ -67,6 +66,12 @@ class Monomorphizer(Visitor):
         )
 
         fn.module.add_def(fn_def)
+
+        call_expr.function = LiteralExpr(
+            module=call_expr.function.module,
+            location=call_expr.function.location,
+            value=fn_def.value
+        )
 
         print(f'Monomorphized {fn_def.name} ({fn_def.module.name})')
 

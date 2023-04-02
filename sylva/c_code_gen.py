@@ -3,6 +3,7 @@ from io import StringIO
 
 from sylva import errors  # noqa: F401
 from sylva.builtins import (
+    CFnValue,
     FnValue,
     MonoCArrayType,  # noqa: F401
     MonoCStructType,  # noqa: F401
@@ -15,6 +16,7 @@ from sylva.builtins import (
     SylvaType,  # noqa: F401
     TypePlaceholder,  # noqa: F401
 )
+from sylva.expr import CallExpr
 from sylva.mod import Mod  # noqa: F401
 from sylva.scope import Scope  # noqa: F401
 from sylva.stmt import (
@@ -27,6 +29,10 @@ from sylva.stmt import (
     WhileBlock,  # noqa: F401
 )
 from sylva.visitor import Visitor
+
+
+def prefix(s: str) -> str:
+    return f'SYLVA_{s}'
 
 
 @dataclass(kw_only=True)
@@ -43,14 +49,12 @@ class CCodeGen(Visitor):
             raise Exception('Not indented')
         self._indent_level -= 1
 
-    def emit(self, s: str):
+    def emit(self, s: str, indent=True):
+        if indent:
+            self._sio.write('    ' * self._indent_level)
         self._sio.write(s)
 
-    def emit_indent(self):
-        self.emit('  ' * self._indent)
-
     def emit_line(self, line: str):
-        self.emit_indent()
         self.emit(f'{line}\n')
 
     def render(self):
@@ -60,6 +64,32 @@ class CCodeGen(Visitor):
         Visitor.reset(self)
         self._sio = StringIO()
 
+    def enter_call_expr(
+        self, call_expr: CallExpr, name: str, parents: list[SylvaObject | Mod]
+    ):
+        fn_parent: FnValue = next( # type: ignore
+            filter(lambda p: isinstance(p, FnValue), reversed(parents))
+        )
+
+        if fn_parent.is_var:
+            return
+
+        fn = call_expr.function.eval(self.scopes)
+        fn_name = fn.name if isinstance(fn, CFnValue) else prefix(fn.name)
+        self.emit(f'{fn_name}(')
+
+    def exit_call_expr(
+        self, call_expr: CallExpr, name: str, parents: list[SylvaObject | Mod]
+    ):
+        fn_parent: FnValue = next( # type: ignore
+            filter(lambda p: isinstance(p, FnValue), reversed(parents))
+        )
+
+        if fn_parent.is_var:
+            return
+
+        self.emit(');\n', indent=False)
+
     def enter_fn(self, fn: FnValue, name: str, parents: list[SylvaObject]):
         if fn.is_var:
             return
@@ -67,11 +97,11 @@ class CCodeGen(Visitor):
         Visitor.enter_fn(self, fn, name, parents)
 
         if not fn.type.return_type:
-            self.emit('void ')
+            self.emit('void ', indent=False)
         else:
-            self.emit(f'{fn.type.return_type.name} ')
+            self.emit(f'{fn.type.return_type.name} ', indent=False)
 
-        self._sio.write(f'{name} (')
+        self._sio.write(f'{prefix(name)}(')
 
         for n, param in enumerate(fn.type.parameters):
             if n == 0:
@@ -91,7 +121,7 @@ class CCodeGen(Visitor):
             return
 
         self.dedent()
-        self.emit('}\n\n')
+        self.emit('}\n\n', indent=False)
 
     # def if_block(self, if_block: IfBlock):
     #     self.code_block(if_block.code)

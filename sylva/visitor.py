@@ -587,6 +587,7 @@ class Visitor(BaseVisitor):
         self.scopes.push()
         for param in fn.type.parameters:
             if isinstance(param.type, SylvaType):
+                print(f'{fn.name}: Defining {param.name}: {param.type}')
                 self.define(param.name, param.type)
 
     def exit_fn(self, fn: FnValue, name: str, parents: list[SylvaObject]):
