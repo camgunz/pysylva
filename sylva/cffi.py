@@ -337,15 +337,7 @@ class CModuleLoader:
             ).transform(literal_expr_parser.parse(literal_expr_text))
             expr = tree.children[0]
             value = expr.eval(module)
-            module.add_def(
-                SylvaDef(
-                    name=name,
-                    module=module,
-                    value=SylvaValue(
-                        module=module, type=expr.type, value=value
-                    )
-                )
-            )
+            module.add_def(SylvaDef(name=name, module=module, value=value))
 
         for name, type_expr_text in package.type_defs.items():
             parts = ASTBuilder(
@@ -353,7 +345,14 @@ class CModuleLoader:
             ).transform(type_expr_parser.parse(type_expr_text))
             new_type = parts[0]
 
-            module.add_def(TypeDef(module=module, name=name, type=new_type))
+            module.add_def(
+                TypeDef(
+                    module=module,
+                    name=name,
+                    type=new_type,
+                    c_compiler_builtin=True
+                )
+            )
 
         for header_file in package.header_files:
             for cdef in self.program.c_parser.parse(header_file):

@@ -3,10 +3,19 @@ from io import StringIO
 
 from sylva import errors  # noqa: F401
 from sylva.builtins import (
+    BOOL,
     CFnValue,  # noqa: F401
     CodeBlock,
+    F32,
+    F64,
     FnValue,
+    I8,
+    I16,
+    I32,
+    I64,
+    I128,
     MonoCArrayType,  # noqa: F401
+    MonoCFnType,
     MonoCStructType,  # noqa: F401
     MonoCUnionType,  # noqa: F401
     MonoEnumType,  # noqa: F401
@@ -14,10 +23,20 @@ from sylva.builtins import (
     MonoStructType,  # noqa: F401
     MonoVariantType,  # noqa: F401
     NamedSylvaObject,
-    SylvaDef,  # noqa: F401
-    SylvaObject,  # noqa: F401
-    SylvaType,  # noqa: F401
+    RUNE,
+    STR,
+    StrValue,
+    SylvaDef,
+    SylvaObject,
+    SylvaType,
+    SylvaValue,
+    TypeDef,
     TypePlaceholder,  # noqa: F401
+    U8,
+    U16,
+    U32,
+    U64,
+    U128,
 )
 from sylva.expr import (
     AttributeLookupExpr,
@@ -173,15 +192,45 @@ class CCodeGen(Visitor):
 
     def render_requirement(self, req: Req, start=False, end=False) -> str:
         mod = req.module
+        sio = StringIO()
 
         if isinstance(mod.package, CLibPackage):
             includes = [f'#include "{hf}"' for hf in mod.package.header_files]
-            return '\n'.join(includes) + '\n\n'
-        return ''
+            sio.write('\n'.join(includes) + '\n\n')
+
+            for d in mod.defs.values():
+                if not isinstance(d, TypeDef):
+                    continue
+                if d.name == d.type.name:
+                    continue
+                if d.c_compiler_builtin:
+                    continue
+                sio.write(f'typedef {d.type.name} {d.name};\n')
+
+            sio.write('\n')
+
+            for d in mod.defs.values():
+                if not isinstance(d, SylvaDef):
+                    continue
+                if isinstance(d.type, MonoCFnType):
+                    continue
+                val = self.render_value(d.value, end=True)
+                sio.write(f'static {d.type.name} {d.name} = {val}')
+
+            sio.write('\n')
+
+        return sio.getvalue()
 
 
     def render_stmt(self, stmt: Stmt, start=False, end=False) -> str:
         return ''
+
+    def render_value(self, value: SylvaValue, start=False, end=False) -> str:
+        match value:
+            case StrValue():
+                return self.render(f'"{value.str}"', start, end)
+            case _:
+                return self.render(f"{value.value}", start, end)
 
     def enter_code_block(
         self, code_block: CodeBlock, name: str, parents: list[SylvaObject | Mod]
@@ -223,6 +272,24 @@ class CCodeGen(Visitor):
         name: str,
         parents: list[SylvaObject | Mod],
     ) -> bool:
+        Visitor.enter_mod(self, mod, name, parents)
+        self.emit(f'typedef int8_t {prefix(I8)}', end=True)
+        self.emit(f'typedef uint8_t {prefix(U8)}', end=True)
+        self.emit(f'typedef int16_t {prefix(I16)}', end=True)
+        self.emit(f'typedef uint16_t {prefix(U16)}', end=True)
+        self.emit(f'typedef int32_t {prefix(I32)}', end=True)
+        self.emit(f'typedef uint32_t {prefix(U32)}', end=True)
+        self.emit(f'typedef int64_t {prefix(I64)}', end=True)
+        self.emit(f'typedef uint64_t {prefix(U64)}', end=True)
+        self.emit(f'typedef int128_t {prefix(I128)}', end=True)
+        self.emit(f'typedef uint128_t {prefix(U128)}', end=True)
+        self.emit(f'typedef bool {prefix(BOOL)}', end=True)
+        self.emit(f'typedef uint32_t {prefix(RUNE)}', end=True)
+        self.emit(f'typedef float {prefix(F32)}', end=True)
+        self.emit(f'typedef double {prefix(F64)}', end=True)
+        self.emit(f'typedef const char * {prefix(STR)}', end=True)
+        self.emit('\n')
+
         for req in mod.requirements.values():
             self.emit(self.render_requirement(req))
         return True

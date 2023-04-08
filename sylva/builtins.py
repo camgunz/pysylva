@@ -307,7 +307,7 @@ class IntType(SizedNumericType):
         if self.name != '':
             raise Exception('Non-blank name given to IntType')
 
-        self._name = (
+        self.name = (
             f'{"i" if self.signed else "u"}{self.bits if self.bits else ""}'
         )
 
@@ -1524,7 +1524,6 @@ class CVoidValue(SylvaValue):
     value: None = None
 
 
-TYPE = Type(module=None)  # type: ignore
 BOOL = BoolType(module=None)  # type: ignore
 RUNE = RuneType(module=None)  # type: ignore
 C16 = ComplexType(module=None, bits=16)  # type: ignore
@@ -1555,7 +1554,7 @@ FN = FnType(module=None)  # type: ignore
 STRUCT = StructType(module=None)  # type: ignore
 TYPE = Type(module=None)  # type: ignore
 VARIANT = VariantType(module=None)  # type: ignore
-# type: ignore
+
 CARRAY = CArrayType(module=None)  # type: ignore
 CBITFIELD = CBitFieldType(module=None)  # type: ignore
 CBLOCKFN = CBlockFnType(module=None)  # type: ignore
@@ -1616,6 +1615,7 @@ def lookup(name):
 @dataclass(kw_only=True, slots=True)
 class TypeDef(NamedSylvaObject):
     type: SylvaType
+    c_compiler_builtin: bool = field(default=False)
 
     def __post_init__(self):
         if not self.type.name:
