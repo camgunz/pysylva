@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from sylva import errors
 from sylva.builtins import SylvaObject
-from sylva.expr import CallExpr, LookupExpr
+from sylva.expr import LookupExpr
 from sylva.mod import Mod
 from sylva.visitor import Visitor
 
@@ -23,7 +23,4 @@ class LookupExprTypeAssigner(Visitor):
             )
         lookup_expr.type = val_type
 
-    def enter_call_expr(
-        self, call_expr: CallExpr, name: str, parents: list[SylvaObject | Mod]
-    ):
-        pass
+        return True

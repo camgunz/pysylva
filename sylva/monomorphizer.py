@@ -26,7 +26,7 @@ class Monomorphizer(Visitor):
         )
 
         if fn_parent.is_var:
-            return
+            return True
 
         if self.module is None:
             raise Exception('We expect to be inside of a module here')
@@ -37,7 +37,7 @@ class Monomorphizer(Visitor):
         if not isinstance(fn, (CFnValue, FnValue)):
             raise Exception(f'{fn} is not a function')
         if not isinstance(fn.type, ParamFnType):
-            return
+            return True
 
         fn_def = SylvaDef(
             module=fn.module,
@@ -73,9 +73,9 @@ class Monomorphizer(Visitor):
             value=fn_def.value
         )
 
-        print(f'Monomorphized {fn_def.name} ({fn_def.module.name})')
-
         type_assigner = LookupExprTypeAssigner()
         type_assigner.module = fn_def.module
         type_assigner._walk(fn_def.value, name=name, parents=parents)
         self._walk(fn_def.value, name=name, parents=parents)
+
+        return True

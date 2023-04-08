@@ -100,22 +100,24 @@ class BaseVisitor:
         action_name: str,
         obj: SylvaObject | Mod,
         obj_name: str | None,
-        parents: list[Mod | SylvaObject] | None = None
-    ):
+        parents: list[Mod | SylvaObject | Mod] | None = None
+    ) -> bool:
         parents = parents if parents is not None else []
         if func := getattr(self, action_name, None):
-            func(obj, obj_name, parents)
+            return func(obj, obj_name, parents)
+        return True
 
     def _walk(
         self,
         obj: SylvaObject | Mod | None,
         name: str | None = None,
-        parents: list[Mod | SylvaObject] | None = None,
+        parents: list[Mod | SylvaObject | Mod] | None = None,
     ):
         parents = parents if parents else []
         match obj:
             case Mod():
-                self._call_action('enter_mod', obj, name, parents)
+                if not self._call_action('enter_mod', obj, name, parents):
+                    return
                 with obj.def_listener() as defs:
                     while not defs.empty():
                         d = defs.get()
@@ -124,268 +126,370 @@ class BaseVisitor:
                                 self._walk(d.value, d.name, parents + [obj])
                             case SylvaType():
                                 self._walk(d, d.name, parents + [obj])
-                self._call_action('exit_mod', obj, name, parents)
+                if not self._call_action('exit_mod', obj, name, parents):
+                    return
             case SylvaField():
-                self._call_action('enter_field', obj, name, parents)
+                if not self._call_action('enter_field', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_field', obj, name, parents)
+                if not self._call_action('exit_field', obj, name, parents):
+                    return
             case Type():
-                self._call_action('enter_type', obj, name, parents)
-                self._call_action('exit_type', obj, name, parents)
+                if not self._call_action('enter_type', obj, name, parents):
+                    return
+                if not self._call_action('exit_type', obj, name, parents):
+                    return
             case BoolType():
-                self._call_action('enter_bool_type', obj, name, parents)
-                self._call_action('exit_bool_type', obj, name, parents)
+                if not self._call_action('enter_bool_type', obj, name, parents):
+                    return
+                if not self._call_action('exit_bool_type', obj, name, parents):
+                    return
             case BoolValue():
-                self._call_action('enter_bool', obj, name, parents)
+                if not self._call_action('enter_bool', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_bool', obj, name, parents)
+                if not self._call_action('exit_bool', obj, name, parents):
+                    return
             case MonoCPtrType():
-                self._call_action('enter_c_ptr_type', obj, name, parents)
+                if not self._call_action('enter_c_ptr_type', obj, name, parents):
+                    return
                 self._walk(
                     obj.referenced_type, name=None, parents=parents + [obj]
                 )
-                self._call_action('exit_c_ptr_type', obj, name, parents)
+                if not self._call_action('exit_c_ptr_type', obj, name, parents):
+                    return
             case CPtrValue():
-                self._call_action('enter_c_ptr', obj, name, parents)
+                if not self._call_action('enter_c_ptr', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_c_ptr', obj, name, parents)
+                if not self._call_action('exit_c_ptr', obj, name, parents):
+                    return
             case CStrType():
-                self._call_action('enter_c_str_type', obj, name, parents)
-                self._call_action('exit_c_str_type', obj, name, parents)
+                if not self._call_action('enter_c_str_type', obj, name, parents):
+                    return
+                if not self._call_action('exit_c_str_type', obj, name, parents):
+                    return
             case CStrValue():
-                self._call_action('enter_c_str', obj, name, parents)
+                if not self._call_action('enter_c_str', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_c_str', obj, name, parents)
+                if not self._call_action('exit_c_str', obj, name, parents):
+                    return
             case CVoidType():
-                self._call_action('enter_c_void_type', obj, name, parents)
-                self._call_action('exit_c_void_type', obj, name, parents)
+                if not self._call_action('enter_c_void_type', obj, name, parents):
+                    return
+                if not self._call_action('exit_c_void_type', obj, name, parents):
+                    return
             case CVoidValue():
-                self._call_action('enter_c_void', obj, name, parents)
+                if not self._call_action('enter_c_void', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_c_void', obj, name, parents)
+                if not self._call_action('exit_c_void', obj, name, parents):
+                    return
             case MonoEnumType():
-                self._call_action('enter_enum_type', obj, name, parents)
+                if not self._call_action('enter_enum_type', obj, name, parents):
+                    return
                 for value in obj.values.values():
                     self._walk(value, name=None, parents=parents + [obj])
-                self._call_action('exit_enum_type', obj, name, parents)
+                if not self._call_action('exit_enum_type', obj, name, parents):
+                    return
             case EnumValue():
-                self._call_action('enter_enum', obj, name, parents)
+                if not self._call_action('enter_enum', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_enum', obj, name, parents)
+                if not self._call_action('exit_enum', obj, name, parents):
+                    return
             case CodeBlock():
-                self._call_action('enter_code_block', obj, name, parents)
+                if not self._call_action('enter_code_block', obj, name, parents):
+                    return
                 for node in obj.code:
                     self._walk(node, name=None, parents=parents + [obj])
-                self._call_action('exit_code_block', obj, name, parents)
+                if not self._call_action('exit_code_block', obj, name, parents):
+                    return
             case MonoFnType():
-                self._call_action('enter_fn_type', obj, name, parents)
+                if not self._call_action('enter_fn_type', obj, name, parents):
+                    return
                 for param in obj.parameters:
                     self._walk(param.type, name=None, parents=parents + [obj])
                 if obj.return_type:
                     self._walk(
                         obj.return_type, name=None, parents=parents + [obj]
                     )
-                self._call_action('exit_fn_type', obj, name, parents)
+                if not self._call_action('exit_fn_type', obj, name, parents):
+                    return
             case MonoCFnType():
-                self._call_action('enter_c_fn_type', obj, name, parents)
+                if not self._call_action('enter_c_fn_type', obj, name, parents):
+                    return
                 for param in obj.parameters:
                     self._walk(param.type, name=None, parents=parents + [obj])
                 if obj.return_type:
                     self._walk(
                         obj.return_type, name=None, parents=parents + [obj]
                     )
-                self._call_action('exit_c_fn_type', obj, name, parents)
+                if not self._call_action('exit_c_fn_type', obj, name, parents):
+                    return
             case MonoCBlockFnType():
-                self._call_action('enter_c_block_fn_type', obj, name, parents)
+                if not self._call_action('enter_c_block_fn_type', obj, name, parents):
+                    return
                 for param in obj.parameters:
                     self._walk(param.type, name=None, parents=parents + [obj])
                 if obj.return_type:
                     self._walk(
                         obj.return_type, name=None, parents=parents + [obj]
                     )
-                self._call_action('exit_c_block_fn_type', obj, name, parents)
+                if not self._call_action('exit_c_block_fn_type', obj, name, parents):
+                    return
             case FnValue():
-                self._call_action('enter_fn', obj, name, parents)
+                if not self._call_action('enter_fn', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
                 self._walk(obj.value, name=None, parents=parents + [obj])
-                self._call_action('exit_fn', obj, name, parents)
+                if not self._call_action('exit_fn', obj, name, parents):
+                    return
             case CFnValue():
-                self._call_action('enter_c_fn', obj, name, parents)
+                if not self._call_action('enter_c_fn', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
                 self._walk(obj.value, name=None, parents=parents + [obj])
-                self._call_action('exit_c_fn', obj, name, parents)
+                if not self._call_action('exit_c_fn', obj, name, parents):
+                    return
             case RuneType():
-                self._call_action('enter_rune_type', obj, name, parents)
-                self._call_action('exit_rune_type', obj, name, parents)
+                if not self._call_action('enter_rune_type', obj, name, parents):
+                    return
+                if not self._call_action('exit_rune_type', obj, name, parents):
+                    return
             case RuneValue():
-                self._call_action('enter_rune', obj, name, parents)
+                if not self._call_action('enter_rune', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
+                if not self._call_action('exit_rune', obj, name, parents):
+                    return
             # case ComplexType():
             #     self._call_action('enter_complex_type', obj, name, parents)
             # case ComplexValue():
             #     self._call_action('enter_complex', obj, name, parents)
             #     self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_rune', obj, name, parents)
             case FloatType():
-                self._call_action('enter_float_type', obj, name, parents)
-                self._call_action('exit_float_type', obj, name, parents)
+                if not self._call_action('enter_float_type', obj, name, parents):
+                    return
+                if not self._call_action('exit_float_type', obj, name, parents):
+                    return
             case FloatValue():
-                self._call_action('enter_float', obj, name, parents)
+                if not self._call_action('enter_float', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_float', obj, name, parents)
+                if not self._call_action('exit_float', obj, name, parents):
+                    return
             case IntType():
-                self._call_action('enter_int_type', obj, name, parents)
-                self._call_action('exit_int_type', obj, name, parents)
+                if not self._call_action('enter_int_type', obj, name, parents):
+                    return
+                if not self._call_action('exit_int_type', obj, name, parents):
+                    return
             case IntValue():
-                self._call_action('enter_int', obj, name, parents)
+                if not self._call_action('enter_int', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_int', obj, name, parents)
+                if not self._call_action('exit_int', obj, name, parents):
+                    return
             case RangeType():
-                self._call_action('enter_range', obj, name, parents)
-                self._call_action('exit_range', obj, name, parents)
+                if not self._call_action('enter_range', obj, name, parents):
+                    return
+                if not self._call_action('exit_range', obj, name, parents):
+                    return
             case RangeValue():
-                self._call_action('enter_range_value', obj, name, parents)
+                if not self._call_action('enter_range_value', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_range_value', obj, name, parents)
+                if not self._call_action('exit_range_value', obj, name, parents):
+                    return
             case MonoArrayType():
-                self._call_action('enter_array_type', obj, name, parents)
+                if not self._call_action('enter_array_type', obj, name, parents):
+                    return
                 self._walk(obj.element_type, name=None, parents=parents + [obj])
                 self._walk(
                     obj.element_count, name=None, parents=parents + [obj]
                 )
-                self._call_action('exit_array_type', obj, name, parents)
+                if not self._call_action('exit_array_type', obj, name, parents):
+                    return
             case ArrayValue():
-                self._call_action('enter_array_value', obj, name, parents)
+                if not self._call_action('enter_array_value', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_array_value', obj, name, parents)
+                if not self._call_action('exit_array_value', obj, name, parents):
+                    return
             case MonoCArrayType():
-                self._call_action('enter_c_array_type', obj, name, parents)
+                if not self._call_action('enter_c_array_type', obj, name, parents):
+                    return
                 self._walk(obj.element_type, name=None, parents=parents + [obj])
                 self._walk(
                     obj.element_count, name=None, parents=parents + [obj]
                 )
-                self._call_action('exit_c_array_type', obj, name, parents)
+                if not self._call_action('exit_c_array_type', obj, name, parents):
+                    return
             case CArrayValue():
-                self._call_action('enter_c_array_value', obj, name, parents)
+                if not self._call_action('enter_c_array_value', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_c_array_value', obj, name, parents)
+                if not self._call_action('exit_c_array_value', obj, name, parents):
+                    return
             case CBitFieldType():
-                self._call_action(
-                    'enter_c_bit_field_type', obj, name, parents
-                )
-                self._call_action('exit_c_bit_field_type', obj, name, parents)
+                if not self._call_action('enter_c_bit_field_type', obj, name, parents):
+                    return
+                if not self._call_action('exit_c_bit_field_type', obj, name, parents):
+                    return
             case CBitFieldValue():
-                self._call_action(
-                    'enter_c_bit_field_value', obj, name, parents
-                )
+                if not self._call_action('enter_c_bit_field_value', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action(
-                    'exit_c_bit_field_value', obj, name, parents
-                )
+                if not self._call_action('exit_c_bit_field_value', obj, name, parents):
+                    return
             case MonoStructType():
-                self._call_action('enter_struct_type', obj, name, parents)
-                self._call_action('exit_struct_type', obj, name, parents)
+                if not self._call_action('enter_struct_type', obj, name, parents):
+                    return
+                if not self._call_action('exit_struct_type', obj, name, parents):
+                    return
             case StructValue():
-                self._call_action('enter_struct', obj, name, parents)
+                if not self._call_action('enter_struct', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_struct', obj, name, parents)
+                if not self._call_action('exit_struct', obj, name, parents):
+                    return
             case MonoVariantType():
-                self._call_action('enter_variant_type', obj, name, parents)
-                self._call_action('exit_variant_type', obj, name, parents)
+                if not self._call_action('enter_variant_type', obj, name, parents):
+                    return
+                if not self._call_action('exit_variant_type', obj, name, parents):
+                    return
             case VariantValue():
-                self._call_action('enter_variant', obj, name, parents)
+                if not self._call_action('enter_variant', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_variant', obj, name, parents)
+                if not self._call_action('exit_variant', obj, name, parents):
+                    return
             case MonoCStructType():
-                self._call_action('enter_c_struct_type', obj, name, parents)
-                self._call_action('exit_c_struct_type', obj, name, parents)
+                if not self._call_action('enter_c_struct_type', obj, name, parents):
+                    return
+                if not self._call_action('exit_c_struct_type', obj, name, parents):
+                    return
             case CStructValue():
-                self._call_action('enter_c_struct', obj, name, parents)
+                if not self._call_action('enter_c_struct', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_c_struct', obj, name, parents)
+                if not self._call_action('exit_c_struct', obj, name, parents):
+                    return
             case MonoCUnionType():
-                self._call_action('enter_c_union_type', obj, name, parents)
-                self._call_action('exit_c_union_type', obj, name, parents)
+                if not self._call_action('enter_c_union_type', obj, name, parents):
+                    return
+                if not self._call_action('exit_c_union_type', obj, name, parents):
+                    return
             case CUnionValue():
-                self._call_action('enter_c_union', obj, name, parents)
+                if not self._call_action('enter_c_union', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_c_union', obj, name, parents)
+                if not self._call_action('exit_c_union', obj, name, parents):
+                    return
             case MonoStrType():
-                self._call_action('enter_str_type', obj, name, parents)
-                self._call_action('exit_str_type', obj, name, parents)
+                if not self._call_action('enter_str_type', obj, name, parents):
+                    return
+                if not self._call_action('exit_str_type', obj, name, parents):
+                    return
             case StrValue():
-                self._call_action('enter_str', obj, name, parents)
+                if not self._call_action('enter_str', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_str', obj, name, parents)
+                if not self._call_action('exit_str', obj, name, parents):
+                    return
             case StringType():
-                self._call_action('enter_string_type', obj, name, parents)
-                self._call_action('exit_string_type', obj, name, parents)
+                if not self._call_action('enter_string_type', obj, name, parents):
+                    return
+                if not self._call_action('exit_string_type', obj, name, parents):
+                    return
             case StringValue():
-                self._call_action('enter_string', obj, name, parents)
+                if not self._call_action('enter_string', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_string', obj, name, parents)
+                if not self._call_action('exit_string', obj, name, parents):
+                    return
             case TypeDef():
-                self._call_action('enter_type_def', obj, name, parents)
+                if not self._call_action('enter_type_def', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_type_def', obj, name, parents)
+                if not self._call_action('exit_type_def', obj, name, parents):
+                    return
             case TypePlaceholder():
-                self._call_action(
-                    'enter_type_placeholder', obj, name, parents
-                )
-                self._call_action('exit_type_placeholder', obj, name, parents)
+                if not self._call_action('enter_type_placeholder', obj, name, parents):
+                    return
+                if not self._call_action('exit_type_placeholder', obj, name, parents):
+                    return
             case LetStmt():
-                self._call_action('enter_let_stmt', obj, name, parents)
+                if not self._call_action('enter_let_stmt', obj, name, parents):
+                    return
                 self._walk(obj.expr, name=None, parents=parents + [obj])
-                self._call_action('exit_let_stmt', obj, name, parents)
+                if not self._call_action('exit_let_stmt', obj, name, parents):
+                    return
             case AssignStmt():
-                self._call_action('enter_assign_stmt', obj, name, parents)
+                if not self._call_action('enter_assign_stmt', obj, name, parents):
+                    return
                 self._walk(obj.expr, name=None, parents=parents + [obj])
-                self._call_action('exit_assign_stmt', obj, name, parents)
+                if not self._call_action('exit_assign_stmt', obj, name, parents):
+                    return
             case BreakStmt():
-                self._call_action('enter_break_stmt', obj, name, parents)
-                self._call_action('exit_break_stmt', obj, name, parents)
+                if not self._call_action('enter_break_stmt', obj, name, parents):
+                    return
+                if not self._call_action('exit_break_stmt', obj, name, parents):
+                    return
             case ContinueStmt():
-                self._call_action('enter_continue_stmt', obj, name, parents)
-                self._call_action('exit_continue_stmt', obj, name, parents)
+                if not self._call_action('enter_continue_stmt', obj, name, parents):
+                    return
+                if not self._call_action('exit_continue_stmt', obj, name, parents):
+                    return
             case ReturnStmt():
-                self._call_action('enter_return_stmt', obj, name, parents)
+                if not self._call_action('enter_return_stmt', obj, name, parents):
+                    return
                 self._walk(obj.expr, name=None, parents=parents + [obj])
-                self._call_action('exit_return_stmt', obj, name, parents)
+                if not self._call_action('exit_return_stmt', obj, name, parents):
+                    return
             case IfBlock():
-                self._call_action('enter_if_block', obj, name, parents)
+                if not self._call_action('enter_if_block', obj, name, parents):
+                    return
                 self._walk(
                     obj.conditional_expr, name=None, parents=parents + [obj]
                 )
                 self._walk(obj.else_code, name=None, parents=parents + [obj])
-                self._call_action('exit_if_block', obj, name, parents)
+                if not self._call_action('exit_if_block', obj, name, parents):
+                    return
             case LoopBlock():
-                self._call_action('enter_loop_block', obj, name, parents)
+                if not self._call_action('enter_loop_block', obj, name, parents):
+                    return
                 self._walk(obj.code, name=None, parents=parents + [obj])
-                self._call_action('exit_loop_block', obj, name, parents)
+                if not self._call_action('exit_loop_block', obj, name, parents):
+                    return
             case WhileBlock():
-                self._call_action('enter_while_block', obj, name, parents)
+                if not self._call_action('enter_while_block', obj, name, parents):
+                    return
                 self._walk(
                     obj.conditional_expr, name=None, parents=parents + [obj]
                 )
                 self._walk(obj.code, name=None, parents=parents + [obj])
-                self._call_action('exit_while_block', obj, name, parents)
+                if not self._call_action('exit_while_block', obj, name, parents):
+                    return
             case MatchCaseBlock():
-                self._call_action(
-                    'enter_match_case_block', obj, name, parents
-                )
+                if not self._call_action('enter_match_case_block', obj, name, parents):
+                    return
                 self._walk(
                     obj.variant_field_type_lookup_expr, name, parents + [obj]
                 )
                 self._walk(obj.code, name=None, parents=parents + [obj])
-                self._call_action('exit_match_case_block', obj, name, parents)
+                if not self._call_action('exit_match_case_block', obj, name, parents):
+                    return
             case DefaultBlock():
-                self._call_action('enter_default_block', obj, name, parents
-                )
+                if not self._call_action('enter_default_block', obj, name, parents):
+                    return
                 self._walk(obj.code, name=None, parents=parents + [obj])
-                self._call_action('exit_default_block', obj, name, parents
-                )
+                if not self._call_action('exit_default_block', obj, name, parents):
+                    return
             case MatchBlock():
-                self._call_action('enter_match_block', obj, name, parents)
+                if not self._call_action('enter_match_block', obj, name, parents):
+                    return
                 self._walk(obj.variant_expr, name=None, parents=parents + [obj])
                 for match_case in obj.match_cases:
                     self._walk(match_case, name=None, parents=parents + [obj])
@@ -393,119 +497,256 @@ class BaseVisitor:
                     self._walk(
                         obj.default_case, name=None, parents=parents + [obj]
                     )
-                self._call_action('exit_match_block', obj, name, parents)
+                if not self._call_action('exit_match_block', obj, name, parents):
+                    return
             case LookupExpr():
-                self._call_action('enter_lookup_expr', obj, name, parents)
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
+                if not self._call_action('enter_lookup_expr', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_lookup_expr', obj, name, parents)
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action('exit_lookup_expr', obj, name, parents):
+                    return
             case LiteralExpr():
-                self._call_action('enter_literal_expr', obj, name, parents)
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
+                if not self._call_action('enter_literal_expr', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_literal_expr', obj, name, parents)
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action(
+                    'exit_literal_expr', obj, name, parents
+                ):
+                    return
             case UnaryExpr():
-                self._call_action('enter_unary_expr', obj, name, parents)
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
+                if not self._call_action('enter_unary_expr', obj, name, parents):
+                    return
                 self._walk(obj.expr, name=None, parents=parents + [obj])
-                self._call_action('exit_unary_expr', obj, name, parents)
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action('exit_unary_expr', obj, name, parents):
+                    return
             case BinaryExpr():
-                self._call_action('enter_binary_expr', obj, name, parents)
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
+                if not self._call_action(
+                    'enter_binary_expr', obj, name, parents
+                ):
+                    return
                 self._walk(obj.lhs, name=None, parents=parents + [obj])
                 self._walk(obj.rhs, name=None, parents=parents + [obj])
-                self._call_action('exit_binary_expr', obj, name, parents)
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action('exit_binary_expr', obj, name, parents):
+                    return
             case AttributeLookupExpr():
-                self._call_action(
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
+                if not self._call_action(
                     'enter_attribute_lookup_expr', obj, name, parents
-                )
+                ):
+                    return
                 self._walk(obj.obj, name=None, parents=parents + [obj])
-                self._call_action(
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action(
                     'exit_attribute_lookup_expr', obj, name, parents
-                )
+                ):
+                    return
             case CallExpr():
-                self._call_action('enter_call_expr', obj, name, parents)
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
+                if not self._call_action('enter_call_expr', obj, name, parents):
+                    return
                 self._walk(obj.function, name=None, parents=parents + [obj])
                 for arg in obj.arguments:
                     self._walk(arg, name=None, parents=parents + [obj])
-                self._call_action('exit_call_expr', obj, name, parents)
+                    if not self._call_action('exit_expr', obj, name, parents):
+                        return
+                if not self._call_action('exit_call_expr', obj, name, parents):
+                    return
             case BoolExpr():
-                self._call_action('enter_bool_expr', obj, name, parents)
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
+                if not self._call_action('enter_bool_expr', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_bool_expr', obj, name, parents)
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action('exit_bool_expr', obj, name, parents):
+                    return
             case RuneExpr():
-                self._call_action('enter_rune_expr', obj, name, parents)
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
+                if not self._call_action('enter_rune_expr', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action('exit_rune_expr', obj, name, parents):
+                    return
             # case ComplexExpr():
-            #     self._call_action('enter_complex_expr', obj, name, parents)
+            #     if not self._call_action(
+            #         'enter_complex_expr', obj, name, parents
+            #     ):
+            #         return
             #     self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_rune_expr', obj, name, parents)
+            #     if not self._call_action(
+            #         'exit_complex_expr', obj, name, parents
+            #     ):
+            #         return
             case FloatExpr():
-                self._call_action('enter_float_expr', obj, name, parents)
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
+                if not self._call_action('enter_float_expr', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_float_expr', obj, name, parents)
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action('exit_float_expr', obj, name, parents):
+                    return
             case IntExpr():
-                self._call_action('enter_int_expr', obj, name, parents)
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
+                if not self._call_action('enter_int_expr', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_int_expr', obj, name, parents)
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action('exit_int_expr', obj, name, parents):
+                    return
             case StrExpr():
-                self._call_action('enter_str_expr', obj, name, parents)
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
+                if not self._call_action('enter_str_expr', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_str_expr', obj, name, parents)
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action('exit_str_expr', obj, name, parents):
+                    return
             case StringExpr():
-                self._call_action('enter_string_expr', obj, name, parents)
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
+                if not self._call_action('enter_string_expr', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_string_expr', obj, name, parents)
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action('exit_string_expr', obj, name, parents):
+                    return
             case CPtrExpr():
-                self._call_action('enter_c_ptr_expr', obj, name, parents)
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
+                if not self._call_action('enter_c_ptr_expr', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_c_ptr_expr', obj, name, parents)
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action('exit_c_ptr_expr', obj, name, parents):
+                    return
             case CVoidExpr():
-                self._call_action('enter_c_void_expr', obj, name, parents)
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
+                if not self._call_action('enter_c_void_expr', obj, name, parents):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_c_void_expr', obj, name, parents)
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action('exit_c_void_expr', obj, name, parents):
+                    return
             case BoolLiteralExpr():
-                self._call_action(
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
+                if not self._call_action(
                     'enter_bool_literal_expr', obj, name, parents
-                )
+                ):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action(
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action(
                     'exit_bool_literal_expr', obj, name, parents
-                )
+                ):
+                    return
             case RuneLiteralExpr():
-                self._call_action(
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
+                if not self._call_action(
                     'enter_rune_literal_expr', obj, name, parents
-                )
+                ):
+                    return
                 self._walk(obj.type, name=None, parents=parents + [obj])
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action(
+                    'exit_rune_literal_expr', obj, name, parents
+                ):
+                    return
             # case ComplexLiteralExpr():
             #     self._call_action(
             #         'enter_complex_literal_expr', obj, name, parents
             #     )
             #     self._walk(obj.type, name=None, parents=parents + [obj])
             #     self._call_action(
-            #         'exit_rune_literal_expr', obj, name, parents
+            #         'exit_complex_literal_expr', obj, name, parents
             #     )
             case FloatLiteralExpr():
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
                 self._call_action(
                     'enter_float_literal_expr', obj, name, parents
                 )
                 self._walk(obj.type, name=None, parents=parents + [obj])
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
                 self._call_action(
                     'exit_float_literal_expr', obj, name, parents
                 )
             case IntLiteralExpr():
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
                 self._call_action(
                     'enter_int_literal_expr', obj, name, parents
                 )
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_int_literal_expr', obj, name, parents)
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action(
+                    'exit_int_literal_expr', obj, name, parents
+                ):
+                    return
             case StrLiteralExpr():
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
                 self._call_action(
                     'enter_str_literal_expr', obj, name, parents
                 )
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                self._call_action('exit_str_literal_expr', obj, name, parents)
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action(
+                    'exit_str_literal_expr', obj, name, parents
+                ):
+                    return
             case VariantFieldTypeLookupExpr():
+                if not self._call_action('enter_expr', obj, name, parents):
+                    return
                 self._call_action(
                     'enter_variant_field_type_lookup_expr', obj, name, parents
                 )
                 self._walk(obj.type, name=None, parents=parents + [obj])
+                if not self._call_action('exit_expr', obj, name, parents):
+                    return
+                if not self._call_action(
+                    'exit_variant_field_type_lookup_expr', obj, name, parents
+                ):
+                    return
 
     def visit(self, module: Mod):
         self._walk(module, module.name, [])
@@ -554,108 +795,120 @@ class Visitor(BaseVisitor):
         self,
         code_block: CodeBlock,
         name: str,
-        parents: list[SylvaObject]
+        parents: list[SylvaObject | Mod]
     ):
         self.scopes.push()
+        return True
 
     def exit_code_block(
         self,
         code_block: CodeBlock,
         name: str,
-        parents: list[SylvaObject]
+        parents: list[SylvaObject | Mod]
     ):
         self.scopes.pop()
+        return True
 
     def enter_default_block(
         self,
         default_block: DefaultBlock,
         name: str,
-        parents: list[SylvaObject],
+        parents: list[SylvaObject | Mod],
     ):
         self.scopes.push()
+        return True
 
     def exit_default_block(
         self,
         default_block: DefaultBlock,
         name: str,
-        parents: list[SylvaObject],
+        parents: list[SylvaObject | Mod],
     ):
         self.scopes.pop()
+        return True
 
-    def enter_fn(self, fn: FnValue, name: str, parents: list[SylvaObject]):
+    def enter_fn(self, fn: FnValue, name: str, parents: list[SylvaObject | Mod]):
         self.funcs.append(fn)
         self.scopes.push()
         for param in fn.type.parameters:
             if isinstance(param.type, SylvaType):
-                print(f'{fn.name}: Defining {param.name}: {param.type}')
                 self.define(param.name, param.type)
+        return True
 
-    def exit_fn(self, fn: FnValue, name: str, parents: list[SylvaObject]):
+    def exit_fn(self, fn: FnValue, name: str, parents: list[SylvaObject | Mod]):
         self.funcs.pop()
         self.scopes.pop()
+        return True
 
     def enter_if_block(
         self,
         if_block: IfBlock,
         name: str,
-        parents: list[SylvaObject],
+        parents: list[SylvaObject | Mod],
     ):
         self.scopes.push()
+        return True
 
     def exit_if_block(
         self,
         if_block: IfBlock,
         name: str,
-        parents: list[SylvaObject],
+        parents: list[SylvaObject | Mod],
     ):
         self.scopes.pop()
+        return True
 
     def enter_let_stmt(
         self,
         let_stmt: LetStmt,
         name: str,
-        parents: list[SylvaObject]
+        parents: list[SylvaObject | Mod]
     ):
         if let_stmt.expr.type is not None:
             self.define(let_stmt.name, let_stmt.expr.type)
+        return True
 
     def enter_loop_block(
         self,
         loop_block: LoopBlock,
         name: str,
-        parents: list[SylvaObject],
+        parents: list[SylvaObject | Mod],
     ):
         self.scopes.push()
+        return True
 
     def exit_loop_block(
         self,
         loop_block: LoopBlock,
         name: str,
-        parents: list[SylvaObject],
+        parents: list[SylvaObject | Mod],
     ):
         self.scopes.pop()
+        return True
 
     def enter_match_block(
         self,
         match_block: MatchBlock,
         name: str,
-        parents: list[SylvaObject],
+        parents: list[SylvaObject | Mod],
     ):
         self.scopes.push()
+        return True
 
     def exit_match_block(
         self,
         match_block: MatchBlock,
         name: str,
-        parents: list[SylvaObject],
+        parents: list[SylvaObject | Mod],
     ):
         self.scopes.pop()
+        return True
 
     def enter_match_case_block(
         self,
         match_case_block: MatchCaseBlock,
         name: str,
-        parents: list[SylvaObject],
+        parents: list[SylvaObject | Mod],
     ):
         match_block = parents[-1]
 
@@ -677,36 +930,41 @@ class Visitor(BaseVisitor):
 
         self.define(match_case_block.variant_name, variant_field.type)
         self.scopes.push()
+        return True
 
     def exit_match_case_block(
         self,
         match_case_block: MatchCaseBlock,
         name: str,
-        parents: list[SylvaObject],
+        parents: list[SylvaObject | Mod],
     ):
         self.scopes.pop()
+        return True
 
     def enter_mod(
         self,
         module: Mod,
         name: str,
-        parents: list[SylvaObject]
+        parents: list[SylvaObject | Mod]
     ):
         self.module = module
         self.reset()
+        return True
 
     def enter_while_block(
         self,
         while_block: WhileBlock,
         name: str,
-        parents: list[SylvaObject],
+        parents: list[SylvaObject | Mod],
     ):
         self.scopes.push()
+        return True
 
     def exit_while_block(
         self,
         while_block: WhileBlock,
         name: str,
-        parents: list[SylvaObject],
+        parents: list[SylvaObject | Mod],
     ):
         self.scopes.pop()
+        return True

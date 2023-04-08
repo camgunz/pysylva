@@ -44,6 +44,8 @@ class TypeChecker(Visitor):
                 assign_stmt.expr.location, assign_stmt.expr.type, var_type
             )
 
+        return True
+
         # [TODO] Ensure expr's type isn't an aggregate value, requiring an
         #        aggregate deep copy
         # [TODO] Ensure var's type isn't an aggregate
@@ -72,3 +74,5 @@ class TypeChecker(Visitor):
                 return_stmt.expr.type,
                 func.type.return_type
             )
+
+        return True

@@ -93,7 +93,6 @@ class AttributeLookupExpr(Expr):
             if isinstance(self.obj, Expr)
             else self.obj
         )
-        print(obj.name, self.name, self.reflection)
         return ( # yapf: ignore
             obj.reflection_lookup(self.name)
             if self.reflection

@@ -67,8 +67,12 @@ class SylvaObject:
 
 
 @dataclass(kw_only=True)
-class SylvaType(SylvaObject):
+class NamedSylvaObject(SylvaObject):
     name: str
+
+
+@dataclass(kw_only=True)
+class SylvaType(NamedSylvaObject):
     mod: TypeModifier = TypeModifier.NoMod
 
     @property
@@ -95,7 +99,7 @@ class TypePlaceholder(ParamSylvaType):
 
 
 @dataclass(kw_only=True)
-class SylvaValue(SylvaObject):
+class SylvaValue(NamedSylvaObject):
     name: str = ''
     type: SylvaType
     value: Any
@@ -109,8 +113,7 @@ class SylvaValue(SylvaObject):
 
 
 @dataclass(kw_only=True)
-class SylvaField(SylvaObject):
-    name: str
+class SylvaField(NamedSylvaObject):
     type: SylvaType | None
 
     @property
@@ -125,13 +128,10 @@ class SylvaField(SylvaObject):
 
 
 @dataclass(kw_only=True)
-class SylvaDef(SylvaObject):
-    name: str
+class SylvaDef(NamedSylvaObject):
     value: SylvaValue
 
     def __post_init__(self):
-        if isinstance(self.value, tuple):
-            breakpoint()
         if not self.value.name:
             self.value.name = self.name
 
@@ -305,8 +305,7 @@ class IntType(SizedNumericType):
 
     def __post_init__(self):
         if self.name != '':
-            print('Non-blank name given to IntType')
-            breakpoint()
+            raise Exception('Non-blank name given to IntType')
 
         self._name = (
             f'{"i" if self.signed else "u"}{self.bits if self.bits else ""}'
@@ -677,6 +676,10 @@ class StrValue(SylvaValue):
             value=b
         )
 
+    @property
+    def str(self):
+        return self.value.decode('utf-8')
+
 
 @dataclass(kw_only=True)
 class StringType(MonoDynarrayType):
@@ -807,7 +810,6 @@ class MonoFnType(SylvaType):
         if dupes := utils.get_dupes(p.name for p in self.parameters):
             raise errors.DuplicateParameters(self, dupes)
         if any(p.is_var for p in self.parameters):
-            breakpoint()
             raise Exception('MonoFnType with generic params')
         if self.return_type and self.return_type.is_var:
             raise Exception('MonoFnType with generic return type')
@@ -846,16 +848,12 @@ class ParamFnType(ParamSylvaType):
         if self.return_type_param:
             generic_param_names = [p.name for p in self.parameters if p.is_var]
             if self.return_type_param.name not in generic_param_names:
-                breakpoint()
                 raise errors.InvalidParameterization(
                     self.location,
                     'Cannot parameterize function return type, its type '
                     f'parameter "{self.return_type_param.name}" was not found '
                     'in function parameters'
                 )
-
-        if isinstance(self.return_type, list):
-            breakpoint()
 
     def matches(self, other: SylvaType) -> bool:
         return (  # yapf: ignore
@@ -1616,8 +1614,7 @@ def lookup(name):
 
 
 @dataclass(kw_only=True, slots=True)
-class TypeDef(SylvaObject):
-    name: str
+class TypeDef(NamedSylvaObject):
     type: SylvaType
 
     def __post_init__(self):
@@ -1626,5 +1623,5 @@ class TypeDef(SylvaObject):
 
 
 @dataclass(kw_only=True)
-class SelfReferentialField(SylvaObject):
+class SelfReferentialField(NamedSylvaObject):
     name: str

@@ -86,9 +86,8 @@ class Program:
         self.process()
         c_code_generator = CCodeGen()
         for m in self.modules.values():
-            c_code_generator.visit(m)
             print(f'\n{m.name} ---')
-            print(c_code_generator.render())
+            print(c_code_generator.visit(m))
 
     def get_module(self, name):
         return self.modules.get(name)

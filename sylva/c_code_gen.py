@@ -3,7 +3,8 @@ from io import StringIO
 
 from sylva import errors  # noqa: F401
 from sylva.builtins import (
-    CFnValue,
+    CFnValue,  # noqa: F401
+    CodeBlock,
     FnValue,
     MonoCArrayType,  # noqa: F401
     MonoCStructType,  # noqa: F401
@@ -11,35 +12,63 @@ from sylva.builtins import (
     MonoEnumType,  # noqa: F401
     MonoStructType,  # noqa: F401
     MonoVariantType,  # noqa: F401
+    NamedSylvaObject,
     SylvaDef,  # noqa: F401
     SylvaObject,  # noqa: F401
     SylvaType,  # noqa: F401
     TypePlaceholder,  # noqa: F401
 )
-from sylva.expr import CallExpr
+from sylva.expr import (
+    AttributeLookupExpr,
+    BinaryExpr,
+    BoolLiteralExpr,
+    CallExpr,
+    CPtrExpr,
+    CVoidExpr,
+    Expr,
+    FloatLiteralExpr,
+    IntLiteralExpr,
+    LiteralExpr,
+    LookupExpr,
+    RuneLiteralExpr,
+    StrLiteralExpr,
+    UnaryExpr,
+)
 from sylva.mod import Mod  # noqa: F401
 from sylva.scope import Scope  # noqa: F401
 from sylva.stmt import (
+    AssignStmt,
     IfBlock,  # noqa: F401
     LetStmt,  # noqa: F401
     LoopBlock,  # noqa: F401
     MatchBlock,  # noqa: F401
     MatchCaseBlock,  # noqa: F401
     ReturnStmt,  # noqa: F401
+    Stmt,
     WhileBlock,  # noqa: F401
 )
 from sylva.visitor import Visitor
 
 
-def prefix(s: str) -> str:
-    return f'SYLVA_{s}'
+def prefix(obj: LookupExpr | Mod | NamedSylvaObject) -> str:
+    return (
+        f'SYLVA_{obj.name.replace(".", "_")}'
+        if isinstance(obj, Mod)
+        else f'SYLVA_{obj.module.name.replace(".", "_")}_{obj.name}'
+        if obj.module
+        else f'SYLVA_{obj.name}'
+    )
 
 
 @dataclass(kw_only=True)
 class CCodeGen(Visitor):
     _sio: StringIO = field(init=False, default_factory=StringIO)
     _indent_level: int = field(init=False, default=0)
+    _indent_str: str = field(default='  ')
     indentation: str = '  '
+
+    # [NOTE] Is there some kind of "terminator" logic here, to emit commas
+    #        and/or semicolons (...or newlines)?
 
     def indent(self):
         self._indent_level += 1
@@ -49,79 +78,131 @@ class CCodeGen(Visitor):
             raise Exception('Not indented')
         self._indent_level -= 1
 
-    def emit(self, s: str, indent=True):
-        if indent:
-            self._sio.write('    ' * self._indent_level)
-        self._sio.write(s)
+    def emit(self, s: str, start=False, end=False):
+        self._sio.write(self.render(s, start, end))
 
-    def emit_line(self, line: str):
-        self.emit(f'{line}\n')
-
-    def render(self):
-        return self._sio.getvalue()
+    def render(self, s: str, start=False, end=False) -> str:
+        prefix = self._indent_str * self._indent_level if start else ''
+        suffix = ';\n' if end else ''
+        return f'{prefix}{s}{suffix}'
 
     def reset(self):
         Visitor.reset(self)
         self._sio = StringIO()
 
-    def enter_call_expr(
-        self, call_expr: CallExpr, name: str, parents: list[SylvaObject | Mod]
-    ):
-        fn_parent: FnValue = next( # type: ignore
-            filter(lambda p: isinstance(p, FnValue), reversed(parents))
+    def visit(self, module: Mod):
+        Visitor.visit(self, module)
+        return self._sio.getvalue()
+
+    def render_assign(self, stmt: AssignStmt, start=False, end=False) -> str:
+        return self.render(
+            f'{stmt.name} = {self.render_expr(stmt.expr)}', start, end
         )
 
-        if fn_parent.is_var:
-            return
+    def render_expr(self, expr: Expr, start=False, end=False) -> str:
+        match expr:
+            case AttributeLookupExpr():
+                obj = (
+                    expr.obj.eval(self.scopes)
+                    if isinstance(expr.obj, Expr)
+                    else expr.obj
+                )
+                if isinstance(obj, Mod) and obj.type == Mod.Type.C:
+                    return self.render(f'{expr.name}', start, end)
+                elif isinstance(obj, (SylvaType, FnValue)):
+                    return self.render(
+                        f'{prefix(obj)}.{expr.name}', start, end
+                    )
+                else:
+                    return self.render(f'{obj}.{expr.name}', start, end)
+            case BinaryExpr():
+                lhs_s = f'{self.render_expr(expr.lhs)}'
+                rhs_s = f'{self.render_expr(expr.rhs)}'
+                return self.render(
+                    f'{lhs_s} {expr.operator.value} {rhs_s}', start, end
+                )
+            case BoolLiteralExpr():
+                return self.render(str(expr.value.value), start, end)
+            case CallExpr():
+                args = ', '.join(
+                    [self.render_expr(arg) for arg in expr.arguments]
+                )
+                fn = self.render_expr(expr.function)
+                return self.render(f'{fn}({args})', start, end)
+            case CPtrExpr():
+                if not isinstance(expr.expr, CVoidExpr):
+                    return ''
+                return self.render(f'((void *)({self.render_expr(expr.expr)}))')
+            case CVoidExpr():
+                return self.render(f'{self.render_expr(expr.expr)}')
+            case FloatLiteralExpr():
+                return self.render(str(expr.value.value), start, end)
+            case IntLiteralExpr():
+                return self.render(str(expr.value.value), start, end)
+            case LookupExpr():
+                return self.render(expr.name, start, end)
+            case RuneLiteralExpr():
+                return self.render(f"'{expr.value.value}'", start, end)
+            case StrLiteralExpr():
+                return self.render(f'"{expr.value.str}"', start, end)
+            case UnaryExpr():
+                expr_s = f'{self.render_expr(expr.expr)}'
+                return self.render(
+                    f'{expr.operator.value}{expr_s}', start, end
+                )
+            case LiteralExpr():
+                val = expr.eval(self.scopes)
+                return self.render(prefix(val), start, end)
+            case _:
+                raise ValueError(f'Cannot yet handle {expr}')
 
-        fn = call_expr.function.eval(self.scopes)
-        fn_name = fn.name if isinstance(fn, CFnValue) else prefix(fn.name)
-        self.emit(f'{fn_name}(')
+    def render_stmt(self, stmt: Stmt, start=False, end=False) -> str:
+        return ''
 
-    def exit_call_expr(
-        self, call_expr: CallExpr, name: str, parents: list[SylvaObject | Mod]
-    ):
-        fn_parent: FnValue = next( # type: ignore
-            filter(lambda p: isinstance(p, FnValue), reversed(parents))
-        )
+    def enter_code_block(
+        self, code_block: CodeBlock, name: str, parents: list[SylvaObject | Mod]
+    ) -> bool:
+        Visitor.enter_code_block(self, code_block, name, parents)
+        self.emit(' {\n')
+        self.indent()
+        for node in code_block.code:
+            match node:
+                case Expr():
+                    self.emit(self.render_expr(node, start=True, end=True))
+                case Stmt():
+                    self.emit(self.render_stmt(node, start=True, end=True))
+        return True
 
-        if fn_parent.is_var:
-            return
+    def exit_code_block(
+        self, code_block: CodeBlock, name: str, parents: list[SylvaObject | Mod]
+    ) -> bool:
+        self.dedent()
+        self.emit('}\n\n', start=True)
 
-        self.emit(');\n', indent=False)
+        return True
 
-    def enter_fn(self, fn: FnValue, name: str, parents: list[SylvaObject]):
+    def enter_fn(
+        self, fn: FnValue, name: str, parents: list[SylvaObject | Mod]
+    ) -> bool:
         if fn.is_var:
-            return
+            return False
 
         Visitor.enter_fn(self, fn, name, parents)
 
-        if not fn.type.return_type:
-            self.emit('void ', indent=False)
-        else:
-            self.emit(f'{fn.type.return_type.name} ', indent=False)
+        return_type_name = (
+            'void' if not fn.type.return_type else fn.type.return_type.name
+        )
+        fn_name = prefix(fn)
+        param_type_names = ', '.join([
+            f'{prefix(param.type)} {param.name}' # type: ignore
+            for param in fn.type.parameters
+        ])
 
-        self._sio.write(f'{prefix(name)}(')
+        self.emit(
+            f'{return_type_name} {fn_name}({param_type_names})', start=True,
+        )
 
-        for n, param in enumerate(fn.type.parameters):
-            if n == 0:
-                self._sio.write(
-                    f'{param.type.name} {param.name}'  # type: ignore
-                )
-            else:
-                self._sio.write(
-                    f', {param.type.name} {param.name}'  # type: ignore
-                )
-
-        self._sio.write(') {\n')
-        self.indent()
-
-    def exit_fn(self, fn: FnValue, name: str, parents: list[SylvaObject]):
-        if fn.is_var:
-            return
-
-        self.dedent()
-        self.emit('}\n\n', indent=False)
+        return True
 
     # def if_block(self, if_block: IfBlock):
     #     self.code_block(if_block.code)

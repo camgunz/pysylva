@@ -11,7 +11,8 @@ class Operator(enum.Enum):
 
     AttributeLookup = ('.', 2)
     ReflectionLookup = ('::', 2)
-    Index = ('[', 2)
+    # Index = ('[', 2)
+    Assign = ('=', 2)
     Exponent = ('**', 2)
     ExponentAssign = ('**=', 2)
     BinaryNot = ('~', 1)
