@@ -65,7 +65,7 @@ class Monomorphizer(Visitor):
             )
         )
 
-        fn.module.add_def(fn_def)
+        fn.module.insert_def(fn_def, before=fn_parent.name)
 
         call_expr.function = LiteralExpr(
             module=call_expr.function.module,

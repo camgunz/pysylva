@@ -48,7 +48,7 @@ class Mod:
         yield q
         self._def_queues.pop(i)
 
-    def add_def(self, d: SylvaDef |  TypeDef):
+    def _check_def(self, d: SylvaDef |  TypeDef):
         if preexisting := builtins.lookup(d.name):
             raise errors.RedefinedBuiltIn(d.location, d.name) # type: ignore
 
@@ -62,7 +62,31 @@ class Mod:
                 d.name, d.location, preexisting.location
             )
 
+    def add_def(self, d: SylvaDef |  TypeDef):
+        self._check_def(d)
+
         self.defs[d.name] = d
+
+        for q in self._def_queues:
+            q.put(d)
+
+    def insert_def(self, d: SylvaDef | TypeDef, before: str):
+        self._check_def(d)
+
+        new_defs = {}
+
+        found = False
+
+        for n, ed in self.defs.items():
+            if n == before:
+                new_defs[d.name] = d
+                found = True
+            new_defs[n] = ed
+
+        if found:
+            self.defs = new_defs
+        else:
+            self.defs[d.name] = d
 
         for q in self._def_queues:
             q.put(d)

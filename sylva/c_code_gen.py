@@ -10,6 +10,7 @@ from sylva.builtins import (
     MonoCStructType,  # noqa: F401
     MonoCUnionType,  # noqa: F401
     MonoEnumType,  # noqa: F401
+    MonoStrType,
     MonoStructType,  # noqa: F401
     MonoVariantType,  # noqa: F401
     NamedSylvaObject,
@@ -202,6 +203,15 @@ class CCodeGen(Visitor):
             f'{return_type_name} {fn_name}({param_type_names})', start=True,
         )
 
+        return True
+
+    def enter_str_type(
+        self,
+        stype: MonoStrType,
+        name: str,
+        parents: list[SylvaObject | Mod],
+    ) -> bool:
+        breakpoint()
         return True
 
     # def if_block(self, if_block: IfBlock):

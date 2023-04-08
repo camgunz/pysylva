@@ -124,7 +124,7 @@ class BaseVisitor:
                         match d:
                             case SylvaDef():
                                 self._walk(d.value, d.name, parents + [obj])
-                            case SylvaType():
+                            case TypeDef():
                                 self._walk(d, d.name, parents + [obj])
                 if not self._call_action('exit_mod', obj, name, parents):
                     return
