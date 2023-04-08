@@ -36,6 +36,8 @@ from sylva.expr import (
     UnaryExpr,
 )
 from sylva.mod import Mod  # noqa: F401
+from sylva.package import CLibPackage
+from sylva.req import Req
 from sylva.scope import Scope  # noqa: F401
 from sylva.stmt import (
     AssignStmt,
@@ -157,6 +159,27 @@ class CCodeGen(Visitor):
             case _:
                 raise ValueError(f'Cannot yet handle {expr}')
 
+    def render_fn(self, fn: FnValue, start=False, finish=False) -> str:
+        return_type_name = (
+            'void' if not fn.type.return_type else fn.type.return_type.name
+        )
+        fn_name = prefix(fn)
+        param_type_names = ', '.join([
+            f'{prefix(param.type)} {param.name}' # type: ignore
+            for param in fn.type.parameters
+        ])
+
+        return f'{return_type_name} {fn_name}({param_type_names})'
+
+    def render_requirement(self, req: Req, start=False, end=False) -> str:
+        mod = req.module
+
+        if isinstance(mod.package, CLibPackage):
+            includes = [f'#include "{hf}"' for hf in mod.package.header_files]
+            return '\n'.join(includes) + '\n\n'
+        return ''
+
+
     def render_stmt(self, stmt: Stmt, start=False, end=False) -> str:
         return ''
 
@@ -190,19 +213,18 @@ class CCodeGen(Visitor):
 
         Visitor.enter_fn(self, fn, name, parents)
 
-        return_type_name = (
-            'void' if not fn.type.return_type else fn.type.return_type.name
-        )
-        fn_name = prefix(fn)
-        param_type_names = ', '.join([
-            f'{prefix(param.type)} {param.name}' # type: ignore
-            for param in fn.type.parameters
-        ])
+        self.emit(self.render_fn(fn, start=True))
 
-        self.emit(
-            f'{return_type_name} {fn_name}({param_type_names})', start=True,
-        )
+        return True
 
+    def enter_mod(
+        self,
+        mod: Mod,
+        name: str,
+        parents: list[SylvaObject | Mod],
+    ) -> bool:
+        for req in mod.requirements.values():
+            self.emit(self.render_requirement(req))
         return True
 
     def enter_str_type(
