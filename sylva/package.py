@@ -213,6 +213,7 @@ class Target:
     dynamic_libraries: list[Path] = field(default_factory=list)
     static_libraries: list[Path] = field(default_factory=list)
     defs: dict[str, str] = field(default_factory=dict)
+    macro_defs: dict[str, str] = field(default_factory=dict)
     type_defs: dict[str, str] = field(default_factory=dict)
 
 
@@ -306,6 +307,10 @@ class CLibPackage(BasePackage):
     @property
     def defs(self):
         return self.target.defs
+
+    @property
+    def macro_defs(self):
+        return self.target.macro_defs
 
     @property
     def type_defs(self):

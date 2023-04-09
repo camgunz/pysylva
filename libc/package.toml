@@ -42,17 +42,19 @@ dynamic_libraries = [
 ]
 
 [targets.defs]
-OS_NAME = '"darwin"'
-ARCH = '"arm64"'
-VERSION = '"22.2.0"'
-STDIN_FILENO = "0u32"
-STDOUT_FILENO = "1u32"
-STDERR_FILENO = "2u32"
+OS_NAME = '"darwin"'   # Needed everywhere
+ARCH = '"arm64"'       # Needed everywhere
+VERSION = '"22.2.0"'   # Needed everywhere
+
+[targets.macro_defs]
+STDIN_FILENO = "0u32"  # Sylva only
+STDOUT_FILENO = "1u32" # Sylva only
+STDERR_FILENO = "2u32" # Sylva only
 
 [targets.type_defs]
-__builtin_va_list = "cptr(cvoid)"
-__int128_t = "i128"
-__uint128_t = "u128"
-volatile_uint16_t = "u16"
-volatile_uint32_t = "u32"
-volatile_uint64_t = "u64"
+__builtin_va_list = "cptr(cvoid)" # Only needed for type symbol resolution
+__int128_t = "i128"               # Only needed for type symbol resolution
+__uint128_t = "u128"              # Only needed for type symbol resolution
+volatile_uint16_t = "u16"         # Only needed for type symbol resolution
+volatile_uint32_t = "u32"         # Only needed for type symbol resolution
+volatile_uint64_t = "u64"         # Only needed for type symbol resolution

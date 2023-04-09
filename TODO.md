@@ -2,16 +2,10 @@
 
 ## General
 
-- Types need name fields for reverse lookups during code gen
-- Add an "interned string" type.
-  - Consider double quotes for interned strings and backticks for everything
-    else (templates, etc.)
-    - Nah, auto-detection of templated strings is better. Ex: what happens when
-      a non-templated string uses backticks?
+## C Code Generation
 
-## Generics, Functions, Interfaces, Structs, Variants, etc.
-
-- Analyze all `CallExpr`s to build monomorphized functions
+- Need to emit external defs from other Sylva modules (e.g. types, functions,
+  etc.)
 
 ## Misc
 
@@ -23,10 +17,12 @@
 
 No. Interfaces:
 
-- the programmer can implement an interface on anything (scalar, struct,
-  variant, etc)
-- (probably) require a deref, which is sometimes preferable to variant's tag
-  requirement
+- let the programmer extend anything (scalar, struct, variant, etc)
+  - Doesn't a generic function also let you do this?
+    - Nah, not really, because you don't really have the freedom to handle
+      whatever weirdo type you might pass.
+- don't require an internal tag, and therefore can be preferable to variants
+  even though they (probably) require a deref,
 
 ---
 

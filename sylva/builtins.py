@@ -130,6 +130,7 @@ class SylvaField(NamedSylvaObject):
 @dataclass(kw_only=True)
 class SylvaDef(NamedSylvaObject):
     value: SylvaValue
+    sylva_only: bool = False
 
     def __post_init__(self):
         if not self.value.name:
@@ -1615,7 +1616,7 @@ def lookup(name):
 @dataclass(kw_only=True, slots=True)
 class TypeDef(NamedSylvaObject):
     type: SylvaType
-    c_compiler_builtin: bool = field(default=False)
+    from_c: bool = field(default=False)
 
     def __post_init__(self):
         if not self.type.name:

@@ -196,14 +196,14 @@ class CCodeGen(Visitor):
 
         if isinstance(mod.package, CLibPackage):
             includes = [f'#include "{hf}"' for hf in mod.package.header_files]
-            sio.write('\n'.join(includes) + '\n\n')
+            sio.write('\n'.join(includes) + '\n')
 
             for d in mod.defs.values():
                 if not isinstance(d, TypeDef):
                     continue
                 if d.name == d.type.name:
                     continue
-                if d.c_compiler_builtin:
+                if d.from_c:
                     continue
                 sio.write(f'typedef {d.type.name} {d.name};\n')
 
@@ -214,8 +214,10 @@ class CCodeGen(Visitor):
                     continue
                 if isinstance(d.type, MonoCFnType):
                     continue
+                if d.sylva_only:
+                    continue
                 val = self.render_value(d.value, end=True)
-                sio.write(f'static {d.type.name} {d.name} = {val}')
+                sio.write(f'static {prefix(d.type)} {d.name} = {val}')
 
             sio.write('\n')
 
@@ -273,6 +275,10 @@ class CCodeGen(Visitor):
         parents: list[SylvaObject | Mod],
     ) -> bool:
         Visitor.enter_mod(self, mod, name, parents)
+
+        for req in mod.requirements.values():
+            self.emit(self.render_requirement(req))
+
         self.emit(f'typedef int8_t {prefix(I8)}', end=True)
         self.emit(f'typedef uint8_t {prefix(U8)}', end=True)
         self.emit(f'typedef int16_t {prefix(I16)}', end=True)
@@ -281,8 +287,8 @@ class CCodeGen(Visitor):
         self.emit(f'typedef uint32_t {prefix(U32)}', end=True)
         self.emit(f'typedef int64_t {prefix(I64)}', end=True)
         self.emit(f'typedef uint64_t {prefix(U64)}', end=True)
-        self.emit(f'typedef int128_t {prefix(I128)}', end=True)
-        self.emit(f'typedef uint128_t {prefix(U128)}', end=True)
+        # self.emit(f'typedef int128_t {prefix(I128)}', end=True)
+        # self.emit(f'typedef uint128_t {prefix(U128)}', end=True)
         self.emit(f'typedef bool {prefix(BOOL)}', end=True)
         self.emit(f'typedef uint32_t {prefix(RUNE)}', end=True)
         self.emit(f'typedef float {prefix(F32)}', end=True)
@@ -290,8 +296,6 @@ class CCodeGen(Visitor):
         self.emit(f'typedef const char * {prefix(STR)}', end=True)
         self.emit('\n')
 
-        for req in mod.requirements.values():
-            self.emit(self.render_requirement(req))
         return True
 
     def enter_str_type(

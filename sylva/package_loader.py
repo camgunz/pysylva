@@ -169,7 +169,4 @@ class PackageLoader:
         except CycleError as e:
             raise errors.CyclicRequirements(e.args[1])
 
-        return {
-            m.name: m
-            for m in [self.modules[n] for n in ordered_module_names]
-        }
+        return [self.modules[n] for n in ordered_module_names]

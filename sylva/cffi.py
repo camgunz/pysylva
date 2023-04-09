@@ -85,7 +85,7 @@ class CModuleLoader:
                 return (value, False)
 
         new_def: SylvaDef | TypeDef = (
-            TypeDef(module=module, name=name, type=value)
+            TypeDef(module=module, name=name, type=value, from_c=True)
             if isinstance(value, SylvaType) else
             SylvaDef(module=module, name=name, value=value)
         )
@@ -196,7 +196,7 @@ class CModuleLoader:
             mod = TypeModifier.NoMod if cdef.is_const else TypeModifier.CMut
             value = LookupExpr(
                 module=module, name=cdef.target.replace(' ', '_'), type=TYPE
-            ).eval(module)
+            ).eval()
 
             if not isinstance(value, SylvaType):
                 raise TypeError('We only expect a SylvaType here')
@@ -331,6 +331,18 @@ class CModuleLoader:
         literal_expr_parser = Parser(start='_literal_expr')
         type_expr_parser = Parser(start='type_expr')
 
+        for name, literal_expr_text in package.macro_defs.items():
+            tree = ASTBuilder(
+                program=self.program, module=module
+            ).transform(literal_expr_parser.parse(literal_expr_text))
+            expr = tree.children[0]
+            value = expr.eval(module)
+            module.add_def(
+                SylvaDef(
+                    name=name, module=module, value=value, sylva_only=True
+                )
+            )
+
         for name, literal_expr_text in package.defs.items():
             tree = ASTBuilder(
                 program=self.program, module=module
@@ -346,12 +358,7 @@ class CModuleLoader:
             new_type = parts[0]
 
             module.add_def(
-                TypeDef(
-                    module=module,
-                    name=name,
-                    type=new_type,
-                    c_compiler_builtin=True
-                )
+                TypeDef(module=module, name=name, type=new_type, from_c=True)
             )
 
         for header_file in package.header_files:

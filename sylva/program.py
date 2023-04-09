@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from functools import cached_property
 from pathlib import Path
 
 import lark
@@ -44,7 +45,7 @@ class Program:
 
         module_trees = [ # yapf: ignore
             (module, location, parser.parse(location.stream.data))
-            for module in self.modules.values()
+            for module in self.modules
             for location in module.locations
         ]
 
@@ -77,28 +78,29 @@ class Program:
         type_assigner = LookupExprTypeAssigner()
         monomorphizer = Monomorphizer()
         type_checker = TypeChecker()
-        for m in self.modules.values():
+        for m in self.modules:
+            if m.type == m.Type.C:
+                continue
             type_assigner.visit(m)
             monomorphizer.visit(m)
             type_checker.visit(m)
 
-    def compile(self, output_folder):
+    def compile(self, output_folder: Path):
         self.process()
         c_code_generator = CCodeGen()
-        for m in self.modules.values():
-            print(f'\n{m.name} ---')
-            print(c_code_generator.visit(m))
-
-    def get_module(self, name):
-        return self.modules.get(name)
+        for m in self.modules:
+            p = output_folder / (m.name + '.c')
+            p.write_text(c_code_generator.visit(m))
 
     @property
     def is_executable(self):
         return bool(self.main_func)
 
-    @property
+    @cached_property
     def main_module(self):
-        return self.get_module(sylva.MAIN_MODULE_NAME)
+        for m in self.modules:
+            if m.name == sylva.MAIN_MODULE_NAME:
+                return m
 
     @property
     def main_func(self):
