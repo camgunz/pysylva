@@ -6,14 +6,15 @@ from sylva.location import Location
 from sylva.builtins import (
     BoolType,
     BoolValue,
-    CPtrType,
     CVoidType,
     ComplexType,
     FloatType,
     FloatValue,
     IntType,
     IntValue,
+    MonoCPtrType,
     MonoStrType,
+    MonoSylvaType,
     MonoVariantType,
     RuneType,
     RuneValue,
@@ -31,7 +32,7 @@ from sylva.scope import Scope
 @dataclass(kw_only=True)
 class Expr(SylvaObject):
     location: Location = field(default_factory=Location.Generate)
-    type: SylvaType | None = None
+    type: MonoSylvaType | None = None
 
     def __post_init__(self):
         if type is None:
@@ -93,11 +94,15 @@ class AttributeLookupExpr(Expr):
             if isinstance(self.obj, Expr)
             else self.obj
         )
-        return ( # yapf: ignore
+
+        member = ( # yapf: ignore
             obj.reflection_lookup(self.name)
             if self.reflection
             else obj.lookup(self.name)
         )
+
+        if member is None:
+            raise errors.NoSuchAttribute(self.location, self.name)
 
 
 @dataclass(kw_only=True)
@@ -150,7 +155,7 @@ class StringExpr(Expr):
 
 @dataclass(kw_only=True)
 class CPtrExpr(Expr):
-    type: CPtrType
+    type: MonoCPtrType
     expr: Expr
 
 

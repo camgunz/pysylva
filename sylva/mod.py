@@ -4,7 +4,7 @@ from enum import Enum
 from queue import SimpleQueue
 from typing import Union
 
-from sylva import builtins, errors
+from sylva import builtins, errors, sylva
 from sylva.builtins import (
     SylvaDef,
     SylvaObject,
@@ -37,6 +37,10 @@ class Mod:
         init=False, default_factory=dict, repr=False
     )
     _def_queues: list[SimpleQueue] = field(repr=False, default_factory=list)
+
+    @property
+    def is_main(self):
+        return self.name == sylva.MAIN_MODULE_NAME
 
     @contextmanager
     def def_listener(self):

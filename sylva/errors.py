@@ -80,7 +80,7 @@ class UndefinedSymbol(LocationError):
 class NoSuchAttribute(LocationError):
 
     def __init__(self, location: Location, name):
-        LocationError.__init__(self, location, f'No such field {name}')
+        LocationError.__init__(self, location, f'No such attribute {name}')
 
 
 class DuplicateDefinition(LocationError):
@@ -417,4 +417,16 @@ class MismatchedTypes(LocationError):
             location,
             f'Mismatched types: expected {expected_type.name}; got '
             f'{given_type.name}'
+        )
+
+
+class IncompleteInterfaceImplementation(LocationError):
+
+    def __init__(self, location, iface, missing_function_names):
+        LocationError.__init__(
+            self,
+            location,
+            f'Incomplete interface implementation -- interface {iface.name} at '
+            f'{location.shorthand} requires these missing functions: '
+            f'{strlist(missing_function_names)}'
         )

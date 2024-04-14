@@ -6,14 +6,15 @@ readme = "README.md"
 description = "Compiler for the Sylva prograrmming language"
 urls = {"Home-page" = "https://www.mizar5.xyz/git/pysylva"}
 dependencies = [
-    "cdump @ file:///Users/charlie/code/cdump",
-    "lark",
-    "pydantic",
-    "semver",
+  "cdump @ file:///Users/charlie/code/cdump",
+  "lark",
+  "pydantic",
+  "semver",
 ]
 
 [project.optional-dependencies]
 dev = [
+  "dox @ file:///Users/charlie/code/dox",
   "mypy",
   "ruff",
   "yapf",

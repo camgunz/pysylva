@@ -6,7 +6,7 @@ import lark
 
 from cdump.parser import Parser as CParser  # type: ignore
 
-from sylva import errors, sylva
+from sylva import errors
 from sylva.ast_builder import ASTBuilder
 from sylva.builtins import FnValue
 from sylva.c_code_gen import CCodeGen
@@ -89,8 +89,12 @@ class Program:
         self.process()
         c_code_generator = CCodeGen()
         for m in self.modules:
+            if m.type == m.Type.C:
+                continue
             p = output_folder / (m.name + '.c')
-            p.write_text(c_code_generator.visit(m))
+            c_code = c_code_generator.visit(m)
+            print(f'{m.name} ---\n{c_code}')
+            p.write_text(c_code)
 
     @property
     def is_executable(self):
@@ -99,7 +103,7 @@ class Program:
     @cached_property
     def main_module(self):
         for m in self.modules:
-            if m.name == sylva.MAIN_MODULE_NAME:
+            if m.is_main:
                 return m
 
     @property

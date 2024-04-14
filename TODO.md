@@ -2,10 +2,18 @@
 
 ## General
 
-## C Code Generation
+- Monomorphizations should be unique by params/return type
+  - `StrType` does this, but basically the base types need to look up a type
+    in the module before building a new one, and if they build a new one they
+    need to register it in the module
 
-- Need to emit external defs from other Sylva modules (e.g. types, functions,
-  etc.)
+## C Code Gen
+
+- Emit `impl` functions
+  - I think this is just walking `SylvaType`'s `impls` attribute
+
+- Emit refs to `impl` functions as the C name
+
 
 ## Misc
 

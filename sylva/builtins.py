@@ -4,7 +4,7 @@ import itertools
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Any, Self, TYPE_CHECKING, Union
+from typing import Any, Self, Set, TYPE_CHECKING, Union
 
 import lark
 
@@ -72,8 +72,52 @@ class NamedSylvaObject(SylvaObject):
 
 
 @dataclass(kw_only=True)
+class Iface(NamedSylvaObject):
+    functions: dict[str, Union['MonoFnType', 'ParamFnType',
+                               'FnValue']] = field(default_factory=dict)
+
+    def __post_init__(self):
+        if dupes := utils.get_dupes(self.functions.keys()):
+            raise errors.DuplicateFields(self, dupes)
+
+    @property
+    def abstract_function_names(self) -> Set[str]:
+        return {  # yapf: ignore
+            n for n,
+            fn in self.functions.items()
+            if not isinstance(fn, FnValue)
+        }
+
+
+@dataclass(kw_only=True)
+class Impl(SylvaObject):
+    implementing_type: 'SylvaType'
+    iface: Iface | None = None
+    functions: dict[str, 'FnValue'] = field(default_factory=dict)
+
+    def __post_init__(self):
+        if dupes := utils.get_dupes(self.functions.keys()):
+            raise errors.DuplicateFields(self, dupes)
+
+        if self.iface:
+            if missing_abstract_function_names := self.iface.difference(
+                    self.functions.keys()):
+                raise errors.IncompleteInterfaceImplementation(
+                    self.location, self.impl, missing_abstract_function_names
+                )
+
+        # [TODO] Check that functions have the same signature (save for the
+        #        `self` parameter, which has to have the same type as
+        #        self.implementing_type, and the same TypeModifier as
+        #        self.iface's `self` parameter.
+
+
+@dataclass(kw_only=True)
 class SylvaType(NamedSylvaObject):
     mod: TypeModifier = TypeModifier.NoMod
+    impls: list[Impl] = field(default_factory=list)
+
+    # [TODO] Check impls for duplicate function names
 
     @property
     def is_var(self):
@@ -81,6 +125,22 @@ class SylvaType(NamedSylvaObject):
 
     def matches(self, other: Self) -> bool:
         return self is other
+
+
+@dataclass(kw_only=True)
+class MonoSylvaType(SylvaType):
+
+    @property
+    def is_var(self):
+        return False
+
+    def lookup(self, name: str):
+        for impl in self.impls:
+            if func := impl.functions.get(name):
+                return func
+
+    def upsert_to_module(self, module: 'Mod'):
+        raise NotImplementedError()
 
 
 @dataclass(kw_only=True)
@@ -158,7 +218,7 @@ class CodeBlock(SylvaObject):
 
 
 @dataclass(kw_only=True)
-class BoolType(SylvaType):
+class BoolType(MonoSylvaType):
     name: str = field(init=False, default='bool')
 
 
@@ -178,7 +238,7 @@ class BoolValue(SylvaValue):
 
 
 @dataclass(kw_only=True)
-class RuneType(SylvaType):
+class RuneType(MonoSylvaType):
     name: str = field(init=False, default='rune')
 
 
@@ -200,7 +260,7 @@ class RuneValue(SylvaValue):
 
 
 @dataclass(kw_only=True)
-class NumericType(SylvaType):
+class NumericType(MonoSylvaType):
     pass
 
 
@@ -416,7 +476,7 @@ class IntValue(SylvaValue):
                 else (IntType.Native(), int(s[:-1], base)) if s.endswith('i')
                 else (IntType.Native(signed=False), int(s[:-1], base))
                     if s.endswith('u')
-                else None
+                else (IntType.Native(), int(s, base))
             )
         except ValueError as e:
             raise errors.LiteralParseFailure(
@@ -466,7 +526,7 @@ class IntValue(SylvaValue):
 
 
 @dataclass(kw_only=True)
-class MonoArrayType(SylvaType):
+class MonoArrayType(MonoSylvaType):
     name: str = field(default_factory=lambda: gen_name('array'))
     element_type: SylvaType
     element_count: IntValue
@@ -481,34 +541,6 @@ class MonoArrayType(SylvaType):
             self.element_type.matches(other.element_type) and
             self.element_count == other.element_count
         )
-
-    def lookup(self, name: str):
-        from sylva.expr import IntLiteralExpr
-        from sylva.stmt import ReturnStmt
-
-        if name == 'get_length':
-            return FnValue(
-                module=self.module,
-                name='get_length',
-                type=MonoFnType(
-                    module=self.module,
-                    return_type=self.element_count.type,
-                ),
-                value=CodeBlock(
-                    module=self.module,
-                    code=[
-                        ReturnStmt(
-                            module=self.module,
-                            expr=IntLiteralExpr(
-                                module=self.module,
-                                type=self.element_count.type,
-                                value=self.element_count
-                            )
-                        )
-                    ]
-                )
-            )
-            pass
 
     def reflection_lookup(self, name):
         pass
@@ -578,7 +610,7 @@ class ArrayValue(SylvaValue):
 
 
 @dataclass(kw_only=True)
-class MonoDynarrayType(SylvaType):
+class MonoDynarrayType(MonoSylvaType):
     name: str = field(default_factory=lambda: gen_name('dynarray'))
     element_type: SylvaType
 
@@ -624,15 +656,28 @@ class MonoStrType(MonoArrayType):
     name: str = field(init=False)
     element_type: SylvaType = field(init=False)
 
+    @staticmethod
+    def build_type_name(n: int) -> str:
+        return f'str{n}'
+
     def __post_init__(self):
         self.element_type = U8
-        self.name = f'str{self.element_count.value}'
+        self.name = self.build_type_name(self.element_count.value)
 
     def matches(self, other: SylvaType) -> bool:
         return (
             isinstance(other, MonoStrType) and
             self.element_type.matches(other.element_type)
         )
+
+    def upsert_to_module(self, module: 'Mod'):
+        if module == self.module or module.lookup(self.name):
+            return self
+
+        new_type = MonoStrType(module=module, element_count=self.element_count)
+        module.add_def(TypeDef(module=module, name=self.name, type=new_type))
+        new_type.impls = [i for i in self.impls]
+        return new_type
 
 
 @dataclass(kw_only=True)
@@ -646,10 +691,53 @@ class StrType(ArrayType):
         location: Location | None = None,
         mod: TypeModifier = TypeModifier.NoMod,
     ) -> MonoStrType:
+        name = MonoStrType.build_type_name(element_count.value)
+        if str_type := module.lookup(name):
+            return str_type  # type: ignore
+
         location = location if location else Location.Generate()
-        return MonoStrType(
+        str_type = MonoStrType(
             location=location, module=module, element_count=element_count
         )
+
+        from sylva.expr import IntLiteralExpr
+        from sylva.stmt import ReturnStmt
+
+        module.add_def(
+            TypeDef(module=module, name=str_type.name, type=str_type)
+        )
+
+        str_type.impls.append(
+            Impl(
+                module=module,
+                implementing_type=str_type,
+                functions={
+                    'get_length': FnValue(  # yapf: ignore
+                        module=module,
+                        name='get_length',
+                        type=MonoFnType(
+                            module=module,
+                            return_type=element_count.type,
+                        ),
+                        value=CodeBlock(
+                            module=module,
+                            code=[
+                                ReturnStmt(
+                                    module=module,
+                                    expr=IntLiteralExpr(
+                                        module=module,
+                                        type=element_count.type,
+                                        value=element_count
+                                    )
+                                )
+                            ]
+                        )
+                    )
+                }
+            )
+        )
+
+        return str_type
 
 
 @dataclass(kw_only=True)
@@ -698,7 +786,7 @@ class StringValue(SylvaValue):
 
 
 @dataclass(kw_only=True)
-class MonoEnumType(SylvaType):
+class MonoEnumType(MonoSylvaType):
     name: str = field(default_factory=lambda: gen_name('enum'))
     values: dict[str, SylvaValue]
 
@@ -750,7 +838,7 @@ class EnumValue(SylvaValue):
 
 
 @dataclass(kw_only=True)
-class MonoRangeType(SylvaType):
+class MonoRangeType(MonoSylvaType):
     name: str = field(default_factory=lambda: gen_name('range'))
     min: IntValue | FloatValue | ComplexValue
     max: IntValue | FloatValue | ComplexValue
@@ -801,7 +889,7 @@ class RangeValue(SylvaValue):
 
 
 @dataclass(kw_only=True)
-class MonoFnType(SylvaType):
+class MonoFnType(MonoSylvaType):
     name: str = field(default_factory=lambda: gen_name('fntype'))
     mod: TypeModifier = field(init=False, default=TypeModifier.NoMod)
     parameters: list[SylvaField] = field(default_factory=list)
@@ -985,7 +1073,7 @@ class FnValue(SylvaValue):
 
 
 @dataclass(kw_only=True)
-class MonoStructType(SylvaType):
+class MonoStructType(MonoSylvaType):
     name: str = field(default_factory=lambda: gen_name('struct'))
     fields: list[SylvaField] = field(default_factory=list)
 
@@ -1247,7 +1335,7 @@ class CArrayValue(SylvaValue):
 
 
 @dataclass(kw_only=True)
-class MonoCBitFieldType(SylvaType):
+class MonoCBitFieldType(MonoSylvaType):
     name: str = field(default_factory=lambda: gen_name('cbitfield'))
     bits: int
     signed: bool
@@ -1292,7 +1380,7 @@ class CBitFieldValue(SylvaValue):
 
 
 @dataclass(kw_only=True)
-class MonoCBlockFnType(SylvaType):
+class MonoCBlockFnType(MonoSylvaType):
     name: str = field(default_factory=lambda: gen_name('cblockfn'))
     parameters: list[SylvaField] = field(default_factory=list)
     return_type: SylvaType | None
@@ -1326,7 +1414,7 @@ class CBlockFnType(SylvaType):
 
 
 @dataclass(kw_only=True)
-class MonoCFnType(SylvaType):
+class MonoCFnType(MonoSylvaType):
     name: str = field(default_factory=lambda: gen_name('cfn'))
     parameters: list[SylvaField] = field(default_factory=list)
     return_type: SylvaType | None
@@ -1369,7 +1457,7 @@ class CFnValue(SylvaValue):
 
 
 @dataclass(kw_only=True)
-class MonoCPtrType(SylvaType):
+class MonoCPtrType(MonoSylvaType):
     name: str = field(default_factory=lambda: gen_name('cptr'))
     referenced_type: SylvaType
 
@@ -1514,7 +1602,7 @@ class CUnionValue(SylvaValue):
 
 
 @dataclass(kw_only=True)
-class CVoidType(SylvaType):
+class CVoidType(MonoSylvaType):
     name: str = field(default_factory=lambda: gen_name('cvoid'))
     is_exclusive: bool = False
 

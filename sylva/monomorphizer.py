@@ -39,6 +39,11 @@ class Monomorphizer(Visitor):
         if not isinstance(fn.type, ParamFnType):
             return True
 
+        new_arg_types = [
+            arg.type.upsert_to_module(fn.module)  # type: ignore
+            for arg in call_expr.arguments
+        ]
+
         fn_def = SylvaDef(
             module=fn.module,
             name=gen_name(
@@ -54,11 +59,9 @@ class Monomorphizer(Visitor):
                         SylvaField(
                             module=fn.module,
                             name=p.name,
-                            type=a.type
+                            type=nat
                         )
-                        for p, a in zip(
-                            fn.type.parameters, call_expr.arguments
-                        )
+                        for p, nat in zip(fn.type.parameters, new_arg_types)
                     ]
                 ),
                 value=fn.value

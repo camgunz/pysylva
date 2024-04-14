@@ -13,7 +13,8 @@ from sylva.builtins import (
     I16,
     I32,
     I64,
-    I128,
+    I128, # noqa: F401
+    Impl,
     MonoCArrayType,  # noqa: F401
     MonoCFnType,
     MonoCStructType,  # noqa: F401
@@ -36,7 +37,7 @@ from sylva.builtins import (
     U16,
     U32,
     U64,
-    U128,
+    U128, # noqa: F401
 )
 from sylva.expr import (
     AttributeLookupExpr,
@@ -55,7 +56,7 @@ from sylva.expr import (
     UnaryExpr,
 )
 from sylva.mod import Mod  # noqa: F401
-from sylva.package import CLibPackage
+from sylva.package import CLibPackage, SylvaPackage
 from sylva.req import Req
 from sylva.scope import Scope  # noqa: F401
 from sylva.stmt import (
@@ -83,14 +84,74 @@ def prefix(obj: LookupExpr | Mod | NamedSylvaObject) -> str:
 
 
 @dataclass(kw_only=True)
-class CCodeGen(Visitor):
+class BaseCCodeGen(Visitor):
     _sio: StringIO = field(init=False, default_factory=StringIO)
-    _indent_level: int = field(init=False, default=0)
+
+    def _get_prefix(self, start=False):
+        return ''
+
+    def _get_suffix(self, end=False):
+        return ';\n' if end else ''
+
+    def emit(self, s: str, start=False, end=False):
+        self._sio.write(self.render(s, start, end))
+
+    def render(self, s: str, start=False, end=False) -> str:
+        return f'{self._get_prefix(start=start)}{s}{self._get_suffix(end=end)}'
+
+    def render_fn(self, fn: FnValue, start=False, finish=False) -> str:
+        return_type_name = (
+            'void' if not fn.type.return_type else prefix(fn.type.return_type)
+        )
+        # [NOTE] We might actually want to wrap main, but leave this here for
+        #        now.
+        # [TODO] Since we're leaving this, we also need to make sure its type
+        #        signature matches what we want for the main function. Not that
+        #        that check should happen here, though.
+        fn_name = (
+            fn.name
+            if self.module.is_main and fn.name == 'main' # type: ignore
+            else prefix(fn)
+        )
+        param_type_names = ', '.join([
+            f'{prefix(param.type)} {param.name}' # type: ignore
+            for param in fn.type.parameters
+        ])
+
+        return f'{return_type_name} {fn_name}({param_type_names})'
+
+    def enter_fn(
+        self, fn: FnValue, name: str, parents: list[SylvaObject | Mod]
+    ) -> bool:
+        if fn.is_var:
+            return False
+
+        Visitor.enter_fn(self, fn, name, parents)
+
+        self.emit(self.render_fn(fn, start=True))
+
+        return True
+
+    def enter_type_def(
+        self, td: TypeDef, name: str, parents: list[SylvaObject | Mod]
+    ) -> bool:
+        match td.type:
+            case MonoStrType():
+                self.emit(f'typedef const char* {prefix(td.type)}', end=True)
+
+        return True
+
+
+@dataclass(kw_only=True)
+class CCodeGen(BaseCCodeGen):
     _indent_str: str = field(default='  ')
     indentation: str = '  '
+    _sio: StringIO = field(init=False, default_factory=StringIO)
+    _indent_level: int = field(init=False, default=0)
+    _decl_gen: 'CDeclGen' = field(init=False)
 
-    # [NOTE] Is there some kind of "terminator" logic here, to emit commas
-    #        and/or semicolons (...or newlines)?
+    def __post_init__(self):
+        self._decl_gen = CDeclGen(cgen=self)
 
     def indent(self):
         self._indent_level += 1
@@ -100,20 +161,16 @@ class CCodeGen(Visitor):
             raise Exception('Not indented')
         self._indent_level -= 1
 
-    def emit(self, s: str, start=False, end=False):
-        self._sio.write(self.render(s, start, end))
-
-    def render(self, s: str, start=False, end=False) -> str:
-        prefix = self._indent_str * self._indent_level if start else ''
-        suffix = ';\n' if end else ''
-        return f'{prefix}{s}{suffix}'
+    def _get_prefix(self, start=False):
+        return self._indent_str * self._indent_level if start else ''
 
     def reset(self):
-        Visitor.reset(self)
+        BaseCCodeGen.reset(self)
         self._sio = StringIO()
+        self._decl_gen.reset()
 
     def visit(self, module: Mod):
-        Visitor.visit(self, module)
+        BaseCCodeGen.visit(self, module)
         return self._sio.getvalue()
 
     def render_assign(self, stmt: AssignStmt, start=False, end=False) -> str:
@@ -124,19 +181,23 @@ class CCodeGen(Visitor):
     def render_expr(self, expr: Expr, start=False, end=False) -> str:
         match expr:
             case AttributeLookupExpr():
-                obj = (
-                    expr.obj.eval(self.scopes)
-                    if isinstance(expr.obj, Expr)
-                    else expr.obj
-                )
-                if isinstance(obj, Mod) and obj.type == Mod.Type.C:
-                    return self.render(f'{expr.name}', start, end)
-                elif isinstance(obj, (SylvaType, FnValue)):
+                # OK, so:
+                # - Generally, everything can have an `impl`, so that's the
+                #   default case (functions in an `impl`)
+                # - Structs, variants, cstructs, and cunions have fields
+                # - Enums have members
+                # - We won't worry about reflection for now
+                if isinstance(expr.obj, Expr):
+                    if expr.obj.type == Mod:
+                        return expr.name
+                    obj = expr.obj.eval(self.scopes)
+                    if not isinstance(obj, (SylvaType, FnValue)):
+                        return ''
                     return self.render(
-                        f'{prefix(obj)}.{expr.name}', start, end
+                        f'{prefix(obj)}_{expr.name}', start, end
                     )
                 else:
-                    return self.render(f'{obj}.{expr.name}', start, end)
+                    return self.render(f'{expr.obj}.{expr.name}', start, end)
             case BinaryExpr():
                 lhs_s = f'{self.render_expr(expr.lhs)}'
                 rhs_s = f'{self.render_expr(expr.rhs)}'
@@ -178,54 +239,57 @@ class CCodeGen(Visitor):
             case _:
                 raise ValueError(f'Cannot yet handle {expr}')
 
-    def render_fn(self, fn: FnValue, start=False, finish=False) -> str:
-        return_type_name = (
-            'void' if not fn.type.return_type else fn.type.return_type.name
-        )
-        fn_name = prefix(fn)
-        param_type_names = ', '.join([
-            f'{prefix(param.type)} {param.name}' # type: ignore
-            for param in fn.type.parameters
-        ])
-
-        return f'{return_type_name} {fn_name}({param_type_names})'
-
     def render_requirement(self, req: Req, start=False, end=False) -> str:
         mod = req.module
         sio = StringIO()
 
         if isinstance(mod.package, CLibPackage):
             includes = [f'#include "{hf}"' for hf in mod.package.header_files]
-            sio.write('\n'.join(includes) + '\n')
 
-            for d in mod.defs.values():
-                if not isinstance(d, TypeDef):
-                    continue
-                if d.name == d.type.name:
-                    continue
-                if d.from_c:
-                    continue
-                sio.write(f'typedef {d.type.name} {d.name};\n')
+            if includes:
+                sio.write('\n'.join(includes) + '\n\n')
 
-            sio.write('\n')
+            typedefs = [
+                d for d in mod.defs.values()
+                if isinstance(d, TypeDef)
+                and d.name != d.type.name
+                and not d.from_c
+            ]
 
-            for d in mod.defs.values():
-                if not isinstance(d, SylvaDef):
-                    continue
-                if isinstance(d.type, MonoCFnType):
-                    continue
-                if d.sylva_only:
-                    continue
-                val = self.render_value(d.value, end=True)
-                sio.write(f'static {prefix(d.type)} {d.name} = {val}')
+            defs = [
+                d for d in mod.defs.values()
+                if isinstance(d, SylvaDef)
+                and not isinstance(d.type, MonoCFnType)
+                and not d.sylva_only
+            ]
 
+            if typedefs:
+                for td in typedefs:
+                    sio.write(f'typedef {td.type.name} {td.name};\n')
+                sio.write('\n')
+
+            if defs:
+                for d in defs:
+                    val = self.render_value(d.value, end=True)
+                    sio.write(f'static {prefix(d.type)} {d.name} = {val}')
+                sio.write('\n')
+
+        if isinstance(mod.package, SylvaPackage):
+            self._decl_gen.visit(mod)
             sio.write('\n')
 
         return sio.getvalue()
 
 
     def render_stmt(self, stmt: Stmt, start=False, end=False) -> str:
-        return ''
+        match stmt:
+            case ReturnStmt():
+                return self.render(
+                    f'return {self.render_expr(stmt.expr)}',
+                    start=start, end=True
+                )
+            case _:
+                return ''
 
     def render_value(self, value: SylvaValue, start=False, end=False) -> str:
         match value:
@@ -237,7 +301,7 @@ class CCodeGen(Visitor):
     def enter_code_block(
         self, code_block: CodeBlock, name: str, parents: list[SylvaObject | Mod]
     ) -> bool:
-        Visitor.enter_code_block(self, code_block, name, parents)
+        BaseCCodeGen.enter_code_block(self, code_block, name, parents)
         self.emit(' {\n')
         self.indent()
         for node in code_block.code:
@@ -256,17 +320,19 @@ class CCodeGen(Visitor):
 
         return True
 
-    def enter_fn(
-        self, fn: FnValue, name: str, parents: list[SylvaObject | Mod]
+    def enter_impl(
+        self,
+        impl: Impl,
+        name: str,
+        parents: list[SylvaObject | Mod],
     ) -> bool:
-        if fn.is_var:
-            return False
+        for fn in impl.functions.values():
+            saved_name = fn.name
+            fn.name = '_'.join([impl.implementing_type.name, fn.name])
+            self._walk(fn, name=name, parents=parents + [impl])
+            fn.name = saved_name
 
-        Visitor.enter_fn(self, fn, name, parents)
-
-        self.emit(self.render_fn(fn, start=True))
-
-        return True
+        return False
 
     def enter_mod(
         self,
@@ -274,11 +340,22 @@ class CCodeGen(Visitor):
         name: str,
         parents: list[SylvaObject | Mod],
     ) -> bool:
-        Visitor.enter_mod(self, mod, name, parents)
+        BaseCCodeGen.enter_mod(self, mod, name, parents)
 
-        for req in mod.requirements.values():
+        c_reqs = [
+            r for r in mod.requirements.values()
+            if r.module.type == Mod.Type.C
+        ]
+        sylva_reqs = [
+            r for r in mod.requirements.values()
+            if r.module.type == Mod.Type.Sylva
+        ]
+
+        for req in c_reqs:
             self.emit(self.render_requirement(req))
 
+        self.emit('#include <stdbool.h>\n')
+        self.emit('#include <stdint.h>\n\n')
         self.emit(f'typedef int8_t {prefix(I8)}', end=True)
         self.emit(f'typedef uint8_t {prefix(U8)}', end=True)
         self.emit(f'typedef int16_t {prefix(I16)}', end=True)
@@ -293,18 +370,12 @@ class CCodeGen(Visitor):
         self.emit(f'typedef uint32_t {prefix(RUNE)}', end=True)
         self.emit(f'typedef float {prefix(F32)}', end=True)
         self.emit(f'typedef double {prefix(F64)}', end=True)
-        self.emit(f'typedef const char * {prefix(STR)}', end=True)
+        self.emit(f'typedef const char* {prefix(STR)}', end=True)
         self.emit('\n')
 
-        return True
+        for req in sylva_reqs:
+            self.emit(self.render_requirement(req))
 
-    def enter_str_type(
-        self,
-        stype: MonoStrType,
-        name: str,
-        parents: list[SylvaObject | Mod],
-    ) -> bool:
-        breakpoint()
         return True
 
     # def if_block(self, if_block: IfBlock):
@@ -416,3 +487,49 @@ class CCodeGen(Visitor):
 
     # def while_block(self, while_block: WhileBlock):
     #     self.code_block(while_block.code)
+
+
+@dataclass(kw_only=True)
+class CDeclGen(BaseCCodeGen):
+    cgen: CCodeGen
+
+    def reset(self):
+        BaseCCodeGen.reset(self)
+        self._sio = self.cgen._sio
+
+    def enter_fn(
+        self, fn: FnValue, name: str, parents: list[SylvaObject | Mod]
+    ) -> bool:
+        if not BaseCCodeGen.enter_fn(self, fn, name, parents):
+            return False
+
+        self.emit(self._get_suffix(end=True))
+
+        return True
+
+    def enter_impl(
+        self,
+        impl: Impl,
+        name: str,
+        parents: list[SylvaObject | Mod],
+    ) -> bool:
+        for fn in impl.functions.values():
+            saved_name = fn.name
+            fn.name = '_'.join([impl.implementing_type.name, fn.name])
+            self._walk(fn, name=name, parents=parents + [impl])
+            fn.name = saved_name
+
+        return False
+
+    # def enter_str_type(
+    #     self, st: MonoStrType, name: str, parents: list[SylvaObject | Mod]
+    # ) -> bool:
+    #     if not parents:
+    #         raise Exception('Expected to be inside of a module here')
+
+    #     if not isinstance(parents[-1], StrLiteralExpr):
+    #         return True
+
+    #     self.emit(f'typedef const char* {prefix(st)}', end=True)
+
+    #     return True

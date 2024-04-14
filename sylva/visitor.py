@@ -21,6 +21,7 @@ from sylva.builtins import (
     FloatType,
     FloatValue,
     FnValue,
+    Impl,
     IntType,
     IntValue,
     MonoArrayType,
@@ -114,6 +115,7 @@ class BaseVisitor:
         parents: list[Mod | SylvaObject | Mod] | None = None,
     ):
         parents = parents if parents else []
+
         match obj:
             case Mod():
                 if not self._call_action('enter_mod', obj, name, parents):
@@ -123,9 +125,31 @@ class BaseVisitor:
                         d = defs.get()
                         match d:
                             case SylvaDef():
+                                if not self._call_action(
+                                    'enter_def', obj, name, parents
+                                ):
+                                    return
                                 self._walk(d.value, d.name, parents + [obj])
+                                if not self._call_action(
+                                    'exit_def', obj, name, parents
+                                ):
+                                    return
                             case TypeDef():
-                                self._walk(d, d.name, parents + [obj])
+                                if not self._call_action(
+                                    'enter_type_def', d, name, parents
+                                ):
+                                    return
+                                self._walk(d.type, d.name, parents + [obj])
+                                for impl in d.type.impls:
+                                    self._walk(
+                                        impl,
+                                        d.type.name,
+                                        parents + [obj, d.type]
+                                    )
+                                if not self._call_action(
+                                    'exit_type_def', d, name, parents
+                                ):
+                                    return
                 if not self._call_action('exit_mod', obj, name, parents):
                     return
             case SylvaField():
@@ -133,6 +157,13 @@ class BaseVisitor:
                     return
                 self._walk(obj.type, name=None, parents=parents + [obj])
                 if not self._call_action('exit_field', obj, name, parents):
+                    return
+            case Impl():
+                if not self._call_action('enter_impl', obj, name, parents):
+                    return
+                for fn in obj.functions.values():
+                    self._walk(fn, fn.name, parents + [obj])
+                if not self._call_action('exit_impl', obj, name, parents):
                     return
             case Type():
                 if not self._call_action('enter_type', obj, name, parents):
@@ -302,21 +333,6 @@ class BaseVisitor:
                 self._walk(obj.type, name=None, parents=parents + [obj])
                 if not self._call_action('exit_range_value', obj, name, parents):
                     return
-            case MonoArrayType():
-                if not self._call_action('enter_array_type', obj, name, parents):
-                    return
-                self._walk(obj.element_type, name=None, parents=parents + [obj])
-                self._walk(
-                    obj.element_count, name=None, parents=parents + [obj]
-                )
-                if not self._call_action('exit_array_type', obj, name, parents):
-                    return
-            case ArrayValue():
-                if not self._call_action('enter_array_value', obj, name, parents):
-                    return
-                self._walk(obj.type, name=None, parents=parents + [obj])
-                if not self._call_action('exit_array_value', obj, name, parents):
-                    return
             case MonoCArrayType():
                 if not self._call_action('enter_c_array_type', obj, name, parents):
                     return
@@ -409,11 +425,20 @@ class BaseVisitor:
                 self._walk(obj.type, name=None, parents=parents + [obj])
                 if not self._call_action('exit_string', obj, name, parents):
                     return
-            case TypeDef():
-                if not self._call_action('enter_type_def', obj, name, parents):
+            case MonoArrayType():
+                if not self._call_action('enter_array_type', obj, name, parents):
+                    return
+                self._walk(obj.element_type, name=None, parents=parents + [obj])
+                self._walk(
+                    obj.element_count, name=None, parents=parents + [obj]
+                )
+                if not self._call_action('exit_array_type', obj, name, parents):
+                    return
+            case ArrayValue():
+                if not self._call_action('enter_array_value', obj, name, parents):
                     return
                 self._walk(obj.type, name=None, parents=parents + [obj])
-                if not self._call_action('exit_type_def', obj, name, parents):
+                if not self._call_action('exit_array_value', obj, name, parents):
                     return
             case TypePlaceholder():
                 if not self._call_action('enter_type_placeholder', obj, name, parents):

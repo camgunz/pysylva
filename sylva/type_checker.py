@@ -24,6 +24,8 @@ class TypeChecker(Visitor):
     # [TODO]
     # - Default args for structs/variants
     # - Const defs/arrays/structs/variants
+    # - Function calls
+    # - Attribute accesses
 
     def enter_assign_stmt(
         self,
